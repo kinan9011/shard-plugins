@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { connect, loadWasm, type Theme } from "./devtools-sdk";
+import { connect, loadWasm, type Theme } from "./shard-sdk";
 import { createHasher } from "./hasher";
 import "./index.css";
 

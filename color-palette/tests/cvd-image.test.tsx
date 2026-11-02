@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
-import type { DevToolsSdk } from "../src/devtools-sdk";
+import type { ShardSdk } from "../src/shard-sdk";
 import { fakeSdk } from "./fakeSdk";
 
-// Moved from the devtools repo (tests/tools/cvd-image-component.test.tsx).
-const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: DevToolsSdk }) => <App sdk={sdk} />;
+// Moved from the shard repo (tests/tools/cvd-image-component.test.tsx).
+const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: ShardSdk }) => <App sdk={sdk} />;
 
 const behavior = { width: 2, height: 2, fail: false };
 

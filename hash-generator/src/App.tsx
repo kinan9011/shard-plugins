@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "./CopyButton";
-import type { DevToolsSdk } from "./devtools-sdk";
+import type { ShardSdk } from "./shard-sdk";
 import { formatBytes, HASH_TYPES, HMAC_TYPES, type Hasher, type Results } from "./hasher";
 
 type Source = "text" | "file";
@@ -36,7 +36,7 @@ const encoder = new TextEncoder();
 const field = "w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const button = "h-7 rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground";
 
-export default function App({ sdk, hasher }: { sdk: DevToolsSdk; hasher: Hasher }) {
+export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) {
   const [source, setSource] = useState<Source>("text");
   const [input, setInput] = useState("");
   const deferredInput = useDeferredValue(input);

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { zipSync } from "fflate";
 
-// Packs dist/ (run `vite build` first, `npm run build` does both) into the package DevTools installs:
+// Packs dist/ (run `vite build` first, `npm run build` does both) into the package Shard installs:
 //   release/<id>-<version>.zip         the files of dist/ at the top level
 //   release/<id>-<version>.zip.sha256  "<sha-256>  <file name>", the checksum the repository index lists
 // The zip is the same bytes for the same files on any machine (fixed file times, sorted entries).

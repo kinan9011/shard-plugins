@@ -15,6 +15,6 @@
   ],
   "minAppVersion": "3.0.0",
   "license": "MIT",
-  "source": "https://github.com/kinan9011/devtools-plugins",
+  "source": "https://github.com/kinan9011/shard-plugins",
   "changelog": "CHANGELOG.md"
 }

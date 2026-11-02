@@ -31,7 +31,7 @@ export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false,
 
   const copy = async () => {
     try {
-      if (!clipboard) throw new Error("Not connected to DevTools.");
+      if (!clipboard) throw new Error("Not connected to Shard.");
       await clipboard.writeText(typeof value === "function" ? value() : value);
       setCopied(true);
       clearTimeout(timer.current);

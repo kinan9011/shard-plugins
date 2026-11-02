@@ -1,7 +1,7 @@
 import { FileUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { ClipboardProvider, CopyButton } from "./CopyButton";
-import type { DevToolsSdk } from "./devtools-sdk";
+import type { ShardSdk } from "./shard-sdk";
 import { GradientBuilder } from "./GradientBuilder";
 import { ToolFaqSection, type ToolFaqItem } from "./ToolFaq";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "./ui";
@@ -1052,7 +1052,7 @@ function PaletteGenerator({
   );
 }
 
-export default function App({ sdk }: { sdk: DevToolsSdk }) {
+export default function App({ sdk }: { sdk: ShardSdk }) {
   const [view, setView] = useState("colors");
   const [colorInput, setColorInput] = useState("#3b82f6");
   const [fg, setFg] = useState("#777777");

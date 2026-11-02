@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// The DevTools design tokens as Tailwind utilities (`bg-background`, `text-muted-foreground`, `rounded-lg`, ...).
+// The Shard design tokens as Tailwind utilities (`bg-background`, `text-muted-foreground`, `rounded-lg`, ...).
 // The colors are CSS variables, which the app sends through the SDK (`theme.vars`): apply them to `:root`
 // (see src/App.tsx) and the plugin follows the app's theme, light or dark.
 // Mirrors theme.extend in the app's tailwind.config.ts.

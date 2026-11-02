@@ -1,6 +1,6 @@
 # Builds the plugins whose version was raised since the previous tag, publishes their zips as release
 # assets and commits the updated index.json. Safe to re-run for the same tag. Start it by pushing a tag:  git tag v1 && git push origin v1
-# (Lives in plugins/.github/ of the devtools repo until it is copied into kinan9011/devtools-plugins.)
+# (Lives in plugins/.github/ of the shard repo until it is copied into kinan9011/shard-plugins.)
 name: Release plugins
 
 on:

@@ -677,7 +677,7 @@ export function toHexWithAlpha(color: Color): string {
   return byte >= 255 ? color.hex : color.hex + byte.toString(16).padStart(2, '0');
 }
 
-export const RECENT_COLORS_STORAGE_KEY = 'devtools-color-recent-v1';
+export const RECENT_COLORS_STORAGE_KEY = 'shard-color-recent-v1';
 export const MAX_RECENT_COLORS = 8;
 
 /** Put a color first in the recent list, remove its older entry, and keep the list short. */

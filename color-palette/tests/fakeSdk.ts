@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { DevToolsSdk } from "../src/devtools-sdk";
+import type { ShardSdk } from "../src/shard-sdk";
 
 /** A fake host: copies resolve (or use `writeText`), and `storage` is an in-memory map the test can read and seed. */
 export function fakeSdk(writeText: (text: string) => Promise<void> = async () => {}, initial: Record<string, unknown> = {}) {
@@ -12,6 +12,6 @@ export function fakeSdk(writeText: (text: string) => Promise<void> = async () =>
       set: async (key: string, value: unknown) => void store.set(key, value),
       remove: async (key: string) => void store.delete(key),
     },
-  } as unknown as DevToolsSdk;
+  } as unknown as ShardSdk;
   return { sdk, store };
 }

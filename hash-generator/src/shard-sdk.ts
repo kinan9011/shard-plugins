@@ -1,4 +1,4 @@
-// DevTools plugin SDK v1. Request/response over postMessage with ids, a version tag and timeouts.
+// Shard plugin SDK v1. Request/response over postMessage with ids, a version tag and timeouts.
 // Zero dependencies. The host side is src/plugins/bridge.ts in the app.
 
 export const PROTOCOL_VERSION = 1;
@@ -78,7 +78,7 @@ export interface OpenOptions {
   accept?: string[];
 }
 
-export interface DevToolsSdk {
+export interface ShardSdk {
   /** Handshake. Resolves with the plugin id and the current theme. Call it first. */
   ready(): Promise<ReadyInfo>;
   theme: {
@@ -169,7 +169,7 @@ export async function spawnWorker(path: string, options?: WorkerOptions): Promis
   }
 }
 
-export function connect(options: ConnectOptions = {}): DevToolsSdk {
+export function connect(options: ConnectOptions = {}): ShardSdk {
   const self = options.self ?? window;
   const target = options.target ?? window.parent;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -260,7 +260,7 @@ export function connect(options: ConnectOptions = {}): DevToolsSdk {
       writeText: (text) => call<void>("clipboard.writeText", { text }),
     },
     files: {
-      open: ((options: OpenOptions & { as?: "text" | "bytes" } = {}) => call("files.open", { accept: options.accept, as: options.as ?? "text" }, null)) as DevToolsSdk["files"]["open"],
+      open: ((options: OpenOptions & { as?: "text" | "bytes" } = {}) => call("files.open", { accept: options.accept, as: options.as ?? "text" }, null)) as ShardSdk["files"]["open"],
       save: (name, data) => call<boolean>("files.save", { name, data }, null),
     },
     net: {

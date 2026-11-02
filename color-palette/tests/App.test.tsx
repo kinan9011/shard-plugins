@@ -2,12 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import App from "../src/App";
 import { RECENT_COLORS_STORAGE_KEY, getContrastRatio, parseColor, simulateCvd } from "../src/color";
-import { PermissionError, type DevToolsSdk } from "../src/devtools-sdk";
+import { PermissionError, type ShardSdk } from "../src/shard-sdk";
 import { fakeSdk } from "./fakeSdk";
 
-// Moved from the devtools repo (tests/tools/color-palette-component.test.tsx). The host is a fake SDK, and the recent
+// Moved from the shard repo (tests/tools/color-palette-component.test.tsx). The host is a fake SDK, and the recent
 // colors are in its storage instead of localStorage.
-const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: DevToolsSdk }) => <App sdk={sdk} />;
+const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: ShardSdk }) => <App sdk={sdk} />;
 
 const codeFor = (label: string) => screen.getByRole("button", { name: `Copy ${label}` }).parentElement!.querySelector("code")!;
 

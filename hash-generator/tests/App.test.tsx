@@ -1,10 +1,10 @@
-// Moved from the devtools repo (tests/tools/hash-generator-component.test.tsx). The host is a fake SDK; the hashing is the real module.
+// Moved from the shard repo (tests/tools/hash-generator-component.test.tsx). The host is a fake SDK; the hashing is the real module.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "../src/App";
-import { PermissionError, type DevToolsSdk } from "../src/devtools-sdk";
+import { PermissionError, type ShardSdk } from "../src/shard-sdk";
 import { createHasher } from "../src/hasher";
 
 const { instance } = await WebAssembly.instantiate(readFileSync(resolve(__dirname, "../public/hash.wasm")), {});
@@ -14,7 +14,7 @@ function fakeSdk(overrides: { open?: () => Promise<unknown>; writeText?: (text: 
   return {
     files: { open: vi.fn(overrides.open ?? (async () => null)) },
     clipboard: { writeText: vi.fn(overrides.writeText ?? (async () => {})) },
-  } as unknown as DevToolsSdk;
+  } as unknown as ShardSdk;
 }
 
 const sha256Hello = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";

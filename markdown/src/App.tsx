@@ -1,7 +1,7 @@
 import { Code, Eye } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 import { ClipboardProvider, CopyButton } from "./CopyButton";
-import type { DevToolsSdk } from "./devtools-sdk";
+import type { ShardSdk } from "./shard-sdk";
 import { convertMarkdown, sanitizeHtml } from "./markdown";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Textarea } from "./ui";
 
@@ -39,7 +39,7 @@ function greet(name) {
 **Start typing to see the preview!**
 `;
 
-export default function App({ sdk }: { sdk: DevToolsSdk }) {
+export default function App({ sdk }: { sdk: ShardSdk }) {
   // A refused copy (no clipboard:write) is told to the user in the app; it is never a crash.
   const clipboard = useMemo(() => ({ writeText: (text: string) => sdk.clipboard.writeText(text), onError: (message: string) => void sdk.toast(message, "error").catch(() => {}) }), [sdk]);
   const [markdown, setMarkdown] = useState(defaultMarkdown);

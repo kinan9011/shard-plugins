@@ -36,7 +36,7 @@ interface Exports {
 const toHex = (bytes: Uint8Array) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
 // ponytail: runs on the page's main thread. Hashing a file of tens of MB blocks the UI for a moment;
-// move `call` into a worker (see plugins/examples/hash-wasm in the devtools repo) if that is ever noticed.
+// move `call` into a worker (see plugins/examples/hash-wasm in the shard repo) if that is ever noticed.
 export function createHasher(instance: WebAssembly.Instance): Hasher {
   const wasm = instance.exports as unknown as Exports;
 

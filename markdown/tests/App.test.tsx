@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "../src/App";
-import { PermissionError, type DevToolsSdk } from "../src/devtools-sdk";
+import { PermissionError, type ShardSdk } from "../src/shard-sdk";
 
-// Moved from the devtools repo (tests/tools/markdown-editor.test.tsx). The host is a fake SDK.
+// Moved from the shard repo (tests/tools/markdown-editor.test.tsx). The host is a fake SDK.
 function fakeSdk(writeText: (text: string) => Promise<void> = async () => {}) {
-  return { toast: vi.fn(async () => {}), clipboard: { writeText: vi.fn(writeText) } } as unknown as DevToolsSdk;
+  return { toast: vi.fn(async () => {}), clipboard: { writeText: vi.fn(writeText) } } as unknown as ShardSdk;
 }
-const MarkdownEditor = ({ sdk = fakeSdk() }: { sdk?: DevToolsSdk }) => <App sdk={sdk} />;
+const MarkdownEditor = ({ sdk = fakeSdk() }: { sdk?: ShardSdk }) => <App sdk={sdk} />;
 
 describe("MarkdownEditor", () => {
   it("uses theme-aware classes for the preview panel", () => {

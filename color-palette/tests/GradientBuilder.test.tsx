@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "../src/App";
-import type { DevToolsSdk } from "../src/devtools-sdk";
+import type { ShardSdk } from "../src/shard-sdk";
 import { GradientBuilder } from "../src/GradientBuilder";
 import { fakeSdk } from "./fakeSdk";
 
-// Moved from the devtools repo (tests/tools/gradient-builder-component.test.tsx).
-const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: DevToolsSdk }) => <App sdk={sdk} />;
+// Moved from the shard repo (tests/tools/gradient-builder-component.test.tsx).
+const ColorPalette = ({ sdk = fakeSdk().sdk }: { sdk?: ShardSdk }) => <App sdk={sdk} />;
 
 const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 

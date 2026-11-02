@@ -2,4 +2,4 @@
 
 ## 1.0.0
 
-Moved out of DevTools. The hashes are computed by a WebAssembly module.
+Moved out of Shard. The hashes are computed by a WebAssembly module.

@@ -1,4 +1,4 @@
-// A copy of src/utils/markdown.ts in the devtools repo (the app still renders its release notes with it). A plugin can load
+// A copy of src/utils/markdown.ts in the shard repo (the app still renders its release notes with it). A plugin can load
 // only files from its own package, so keep the two in step when the converter or the sanitizer changes.
 import DOMPurify from "dompurify";
 

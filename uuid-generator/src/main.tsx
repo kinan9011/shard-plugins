@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { connect, type Theme } from "./devtools-sdk";
+import { connect, type Theme } from "./shard-sdk";
 import "./index.css";
 
 const sdk = connect();

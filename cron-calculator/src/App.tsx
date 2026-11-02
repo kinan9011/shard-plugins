@@ -2,7 +2,7 @@ import { Calendar, Clock, Info } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardProvider, CopyButton } from "./CopyButton";
 import { CronBuilder } from "./CronBuilder";
-import type { DevToolsSdk } from "./devtools-sdk";
+import type { ShardSdk } from "./shard-sdk";
 import { ToolFaqSection, type ToolFaqItem } from "./ToolFaq";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, SELECT_CLASS } from "./ui";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -75,7 +75,7 @@ function FieldInput({ name, value, invalid, onCommit }: { name: CronFieldName; v
   );
 }
 
-export default function App({ sdk }: { sdk: DevToolsSdk }) {
+export default function App({ sdk }: { sdk: ShardSdk }) {
   // A refused copy (no clipboard:write) is told to the user in the app; it is never a crash.
   const clipboard = useMemo(() => ({ writeText: (text: string) => sdk.clipboard.writeText(text), onError: (message: string) => void sdk.toast(message, "error").catch(() => {}) }), [sdk]);
   const [input, setInput] = useState("0 9 * * MON-FRI");

@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Moved from the devtools repo (tests/tools/hash-generator.test.ts), now against the WebAssembly module.
+// Moved from the shard repo (tests/tools/hash-generator.test.ts), now against the WebAssembly module.
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

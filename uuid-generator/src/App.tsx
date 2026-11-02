@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CopyButton } from "./CopyButton";
-import type { DevToolsSdk } from "./devtools-sdk";
+import type { ShardSdk } from "./shard-sdk";
 import { UUID_NAMESPACES, generateMultipleUUIDs, inspectIdentifier, isValidUUID, type UUIDVersion } from "./uuid";
 
 const VERSION_OPTIONS: Array<{ value: UUIDVersion; label: string }> = [
@@ -50,7 +50,7 @@ function getGenerateButtonLabel(version: UUIDVersion, count: number) {
 const field = "w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const label = "text-sm font-medium text-foreground";
 
-export default function App({ sdk }: { sdk: DevToolsSdk }) {
+export default function App({ sdk }: { sdk: ShardSdk }) {
   const [version, setVersion] = useState<UUIDVersion>("4");
   const [count, setCount] = useState(5);
   const [output, setOutput] = useState("");
