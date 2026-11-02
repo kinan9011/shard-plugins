@@ -1,0 +1,33 @@
+{
+  "id": "xml-inspector",
+  "name": "XML Inspector",
+  "version": "1.0.0",
+  "description": "Format or minify XML, and query nodes or values with XPath 1.0 and namespace prefixes.",
+  "category": "Development Tools",
+  "keywords": [
+    "xml",
+    "xpath",
+    "namespace",
+    "format",
+    "minify"
+  ],
+  "icon": "lucide:CodeXml",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

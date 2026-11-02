@@ -1,0 +1,31 @@
+{
+  "id": "code-formatter",
+  "name": "Code Formatter",
+  "version": "1.0.0",
+  "description": "Beautify or minify HTML, CSS, JavaScript, XML, and SQL.",
+  "category": "Development Tools",
+  "keywords": [
+    "beautify",
+    "prettify",
+    "minify",
+    "html",
+    "css",
+    "js",
+    "xml",
+    "sql"
+  ],
+  "icon": "lucide:Braces",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

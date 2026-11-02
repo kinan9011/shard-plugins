@@ -1,0 +1,38 @@
+{
+  "id": "mermaid-renderer",
+  "name": "Mermaid Renderer",
+  "version": "1.0.0",
+  "description": "Render Mermaid flowcharts and sequence, class, ER, state, Gantt, and other diagrams as you type, and save them as SVG or PNG.",
+  "category": "Development Tools",
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "flowchart",
+    "sequence diagram",
+    "class diagram",
+    "er diagram",
+    "gantt",
+    "mind map",
+    "svg",
+    "png"
+  ],
+  "icon": "lucide:Workflow",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

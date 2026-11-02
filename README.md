@@ -62,6 +62,13 @@ It can only do what the user approves: see the
 | `php-tools/` | PHP Tools | web | `clipboard:write` (optional) |
 | `compression/` | Compression | web | `clipboard:write`, `files:save` (both optional) |
 | `curl-to-code/` | cURL to Code | web | `clipboard:write` (optional) |
+| `certificate-decoder/` | X.509 Certificate Decoder | web | `clipboard:write` (optional) |
+| `html-preview/` | HTML Preview | web | none |
+| `code-formatter/` | Code Formatter | web | `clipboard:write` (optional) |
+| `semver/` | Semver Calculator | web | `clipboard:write` (optional) |
+| `xml-inspector/` | XML Inspector | web | `clipboard:write`, `files:save` (both optional) |
+| `asn1-inspector/` | ASN.1 Inspector | web | `clipboard:write` (optional) |
+| `mermaid-renderer/` | Mermaid Renderer | web | `clipboard:write`, `files:save` (both optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
