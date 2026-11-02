@@ -1,0 +1,38 @@
+{
+  "id": "string-inspector",
+  "name": "String Inspector",
+  "version": "1.0.0",
+  "description": "Count characters, words, lines, and bytes, find hidden Unicode characters, and check Unicode normalization (NFC, NFD, NFKC, NFKD).",
+  "category": "Text Tools",
+  "keywords": [
+    "count",
+    "characters",
+    "words",
+    "bytes",
+    "unicode",
+    "invisible",
+    "zero width",
+    "normalization",
+    "normalize",
+    "nfc",
+    "nfd",
+    "nfkc",
+    "nfkd",
+    "combining characters",
+    "unicode equivalence"
+  ],
+  "icon": "lucide:ScanText",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

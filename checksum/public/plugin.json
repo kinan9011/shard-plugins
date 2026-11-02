@@ -1,0 +1,30 @@
+{
+  "id": "checksum",
+  "name": "Checksum",
+  "version": "1.0.0",
+  "description": "Calculate six common CRC variants from text, hex bytes, or a file, and validate or append Luhn check digits.",
+  "category": "Utilities",
+  "keywords": [
+    "crc",
+    "crc32",
+    "crc32c",
+    "crc16",
+    "modbus",
+    "luhn",
+    "check digit"
+  ],
+  "icon": "lucide:Hash",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

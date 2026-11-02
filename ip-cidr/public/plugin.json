@@ -1,0 +1,42 @@
+{
+  "id": "ip-cidr",
+  "name": "IP / CIDR Calculator",
+  "version": "1.0.0",
+  "description": "Get the network, broadcast, host range, masks, and address type for IPv4 and IPv6 blocks, and split, merge, or check ranges.",
+  "category": "Network",
+  "keywords": [
+    "ip",
+    "ipv4",
+    "ipv6",
+    "cidr",
+    "subnet",
+    "netmask",
+    "subnet mask",
+    "wildcard mask",
+    "prefix",
+    "network address",
+    "broadcast",
+    "host range",
+    "reverse dns",
+    "in-addr.arpa",
+    "ip6.arpa",
+    "rfc 1918",
+    "cgnat",
+    "supernet",
+    "summarize"
+  ],
+  "icon": "lucide:Network",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

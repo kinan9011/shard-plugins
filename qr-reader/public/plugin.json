@@ -1,0 +1,27 @@
+{
+  "id": "qr-reader",
+  "name": "QR Reader",
+  "version": "1.0.0",
+  "description": "Read a QR code from an image file, a dropped image, or a pasted screenshot.",
+  "category": "Media",
+  "keywords": [
+    "qr",
+    "scan",
+    "decode",
+    "read"
+  ],
+  "icon": "lucide:ScanLine",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

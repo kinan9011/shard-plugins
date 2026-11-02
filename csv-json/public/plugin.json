@@ -1,0 +1,31 @@
+{
+  "id": "csv-json",
+  "name": "CSV to JSON",
+  "version": "1.0.0",
+  "description": "Bidirectional CSV and JSON conversion with custom delimiters and nested key flattening.",
+  "category": "Converters",
+  "keywords": [
+    "csv",
+    "tsv",
+    "spreadsheet"
+  ],
+  "icon": "lucide:Database",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

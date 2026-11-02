@@ -1,0 +1,33 @@
+{
+  "id": "certificate-decoder",
+  "name": "X.509 Certificate Decoder",
+  "version": "1.0.0",
+  "description": "Read PEM and DER certificates and CSRs, check validity and fingerprints, and verify a chain offline.",
+  "category": "Development Tools",
+  "keywords": [
+    "x509",
+    "certificate",
+    "pem",
+    "der",
+    "ssl",
+    "tls",
+    "csr",
+    "fingerprint",
+    "chain",
+    "san"
+  ],
+  "icon": "lucide:FileBadge",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

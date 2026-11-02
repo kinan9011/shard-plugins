@@ -1,0 +1,25 @@
+{
+  "id": "html-preview",
+  "name": "HTML Preview",
+  "version": "1.0.0",
+  "description": "Render HTML in a sandbox that cannot reach the network or the app.",
+  "category": "Development Tools",
+  "keywords": [
+    "html",
+    "preview",
+    "render",
+    "live",
+    "sandbox",
+    "iframe",
+    "responsive",
+    "viewport"
+  ],
+  "icon": "lucide:MonitorPlay",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

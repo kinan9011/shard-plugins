@@ -1,0 +1,20 @@
+{
+  "id": "date-difference",
+  "name": "Date Difference",
+  "version": "1.0.0",
+  "description": "Calculate the difference between two dates.",
+  "category": "Time & Date",
+  "keywords": [
+    "days",
+    "between",
+    "duration"
+  ],
+  "icon": "lucide:Calculator",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

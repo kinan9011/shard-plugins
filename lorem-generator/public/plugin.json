@@ -1,0 +1,30 @@
+{
+  "id": "lorem-generator",
+  "name": "Lorem Ipsum",
+  "version": "1.0.0",
+  "description": "Generate placeholder text and fake names, emails, URLs, and titles as text or a JSON array.",
+  "category": "Generators",
+  "keywords": [
+    "lorem",
+    "placeholder",
+    "dummy text",
+    "fake data",
+    "name",
+    "email",
+    "url"
+  ],
+  "icon": "lucide:Quote",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

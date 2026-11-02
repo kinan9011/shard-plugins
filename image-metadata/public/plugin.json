@@ -1,0 +1,38 @@
+{
+  "id": "image-metadata",
+  "name": "Image Metadata Cleaner",
+  "version": "1.0.0",
+  "description": "Remove AI prompts, Content Credentials (C2PA), AI-generated labels, GPS, and camera data from JPEG, PNG, and WebP images. Keep the original pixels, or save a clean copy as JPG, PNG, WebP, or AVIF.",
+  "category": "AI Tools",
+  "keywords": [
+    "exif",
+    "metadata",
+    "remove metadata",
+    "gps",
+    "c2pa",
+    "content credentials",
+    "ai generated",
+    "stable diffusion prompt",
+    "privacy",
+    "strip exif"
+  ],
+  "icon": "lucide:ShieldOff",
+  "entry": "index.html",
+  "runtime": "web+wasm",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

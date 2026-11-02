@@ -1,0 +1,33 @@
+{
+  "id": "qr-generator",
+  "name": "QR Generator",
+  "version": "1.0.0",
+  "description": "Make QR codes for text, Wi-Fi, contacts, email, phone, SMS, locations and events, with an optional logo, and save them as PNG or SVG.",
+  "category": "Generators",
+  "keywords": [
+    "qr",
+    "qrcode",
+    "barcode",
+    "wifi",
+    "vcard"
+  ],
+  "icon": "lucide:Barcode",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "time-zone-converter",
+  "name": "Time Zone Converter",
+  "version": "1.0.0",
+  "description": "Convert a date and time from one time zone to UTC, local time, and other zones. It handles daylight saving time changes and shows when the date changes.",
+  "category": "Time & Date",
+  "keywords": [
+    "timezone",
+    "time zone",
+    "convert",
+    "utc to local",
+    "local to utc",
+    "world clock",
+    "dst",
+    "daylight saving",
+    "meeting time"
+  ],
+  "icon": "lucide:Earth",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

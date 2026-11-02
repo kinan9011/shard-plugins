@@ -1,0 +1,27 @@
+{
+  "id": "api-formatter",
+  "name": "API Formatter",
+  "version": "1.0.0",
+  "description": "Format or minify JSON API responses, and turn URL-encoded data and query strings into JSON.",
+  "category": "Text Tools",
+  "keywords": [
+    "api",
+    "rest",
+    "graphql",
+    "response"
+  ],
+  "icon": "lucide:FileJson",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

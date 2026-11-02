@@ -1,0 +1,34 @@
+{
+  "id": "base64",
+  "name": "Base64",
+  "version": "1.0.0",
+  "description": "Encode and decode Base64 and Base32 text, files, and data URIs, with a URL-safe mode.",
+  "category": "Converters",
+  "keywords": [
+    "b64",
+    "encode",
+    "decode",
+    "data uri",
+    "base32",
+    "totp"
+  ],
+  "icon": "lucide:RefreshCw",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

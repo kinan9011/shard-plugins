@@ -1,0 +1,31 @@
+{
+  "id": "svg-to-css",
+  "name": "SVG to CSS",
+  "version": "1.0.0",
+  "description": "Turn an SVG into a small data URI and ready CSS for backgrounds and masks.",
+  "category": "Converters",
+  "keywords": [
+    "svg",
+    "css",
+    "data uri",
+    "base64",
+    "background-image",
+    "mask",
+    "icon",
+    "encode"
+  ],
+  "icon": "lucide:FileImage",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

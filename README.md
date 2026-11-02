@@ -31,8 +31,53 @@ It can only do what the user approves: see the
 | `cron-calculator/` | Cron Calculator | web | `clipboard:write` (optional) |
 | `markdown/` | Markdown | web | `clipboard:write` (required) |
 | `color-palette/` | Color Palette | web | `clipboard:write` (optional) |
+| `unit-converter/` | Unit Converter | web | none |
+| `chmod-calculator/` | chmod Calculator | web | `clipboard:write` (optional) |
+| `checksum/` | Checksum | web | `clipboard:write` (optional) |
+| `ip-cidr/` | IP / CIDR Calculator | web | `clipboard:write` (optional) |
+| `har-viewer/` | HAR Viewer | web | `clipboard:write`, `files:save` (both optional) |
+| `timestamp/` | Timestamp | web | `clipboard:write` (optional) |
+| `date-difference/` | Date Difference | web | none |
+| `date-format/` | Date Format Translator | web | `clipboard:write` (optional) |
+| `stopwatch/` | Stopwatch | web | `clipboard:write`, `files:save` (both optional) |
+| `time-zone-converter/` | Time Zone Converter | web | `clipboard:write` (optional) |
+| `api-formatter/` | API Formatter | web | `clipboard:write` (optional) |
+| `string-inspector/` | String Inspector | web | `clipboard:write` (optional) |
+| `line-tools/` | Line Tools | web (regex runs in a worker) | `clipboard:write` (optional) |
+| `password-generator/` | Password Generator | web | `clipboard:write` (optional) |
+| `lorem-generator/` | Lorem Ipsum | web | `clipboard:write` (optional) |
+| `qr-generator/` | QR Generator | web | `clipboard:write`, `files:save` (both optional) |
+| `bcrypt-generator/` | Bcrypt Generator | web | `clipboard:write` (optional) |
+| `random-string/` | Random String | web | `clipboard:write` (optional) |
+| `key-generator/` | Key Pair Generator | web | `clipboard:write`, `files:save` (both optional) |
+| `base64/` | Base64 | web | `clipboard:write`, `files:save` (both optional) |
+| `case-converter/` | Case Converter | web | `clipboard:write` (optional) |
+| `number-base/` | Number Base | web | `clipboard:write` (optional) |
+| `url-encoder/` | URL Encoder | web | `clipboard:write` (optional) |
+| `csv-json/` | CSV to JSON | web | `clipboard:write`, `files:save` (both optional) |
+| `yaml-json/` | Config Converter | web | `clipboard:write` (optional) |
+| `escape-tools/` | Escape Tools | web | `clipboard:write` (optional) |
+| `html-to-jsx/` | HTML to JSX | web | `clipboard:write` (optional) |
+| `svg-to-css/` | SVG to CSS | web | `clipboard:write` (optional) |
+| `php-tools/` | PHP Tools | web | `clipboard:write` (optional) |
+| `compression/` | Compression | web | `clipboard:write`, `files:save` (both optional) |
+| `curl-to-code/` | cURL to Code | web | `clipboard:write` (optional) |
+| `certificate-decoder/` | X.509 Certificate Decoder | web | `clipboard:write` (optional) |
+| `html-preview/` | HTML Preview | web | none |
+| `code-formatter/` | Code Formatter | web | `clipboard:write` (optional) |
+| `semver/` | Semver Calculator | web | `clipboard:write` (optional) |
+| `xml-inspector/` | XML Inspector | web | `clipboard:write`, `files:save` (both optional) |
+| `asn1-inspector/` | ASN.1 Inspector | web | `clipboard:write` (optional) |
+| `mermaid-renderer/` | Mermaid Renderer | web | `clipboard:write`, `files:save` (both optional) |
+| `image-converter/` | Image Converter | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
+| `qr-reader/` | QR Reader | web | `clipboard:write` (optional) |
+| `image-metadata/` | Image Metadata Cleaner | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
+| `video-metadata/` | Video Metadata Cleaner | web | `clipboard:write`, `files:save` (both optional) |
+| `secret-redactor/` | Secret & PII Redactor | web | `clipboard:write` (optional) |
+| `token-counter/` | Token Counter | web | `clipboard:write` (optional) |
+| `ai-text-cleaner/` | AI Text Cleaner | web | `clipboard:write` (optional) |
 
-All five used to be built into Shard (ported in W27 and W28). Their ids are the old tool ids, so a pin, a recent
+These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
 of them (a UUID, a cron expression, a color) suggests "Install <tool>" while it is not installed.
 
@@ -44,6 +89,24 @@ In each folder, `npm test` runs the plugin's tests (the shard repo's `npm test` 
 Hash Generator's hashing is a Rust crate in `hash-generator/wasm/`: `npm run test:wasm` runs its tests, and
 `npm run build:wasm` rebuilds `public/hash.wasm` from it (needs `rustup target add wasm32-unknown-unknown`).
 Commit the rebuilt `hash.wasm`: the release workflow does not run Rust.
+
+## Porting a tool from the app
+
+Most tools that were built into Shard are being moved here. `shared/` is what they need from the app, on top of the SDK:
+
+- `shared/components`, `hooks`, `lib`: files copied from the app (`ui/*`, `ToolWorkspace`, `ToolFaq`, `useDebouncedValue`, ...), plus an SDK-backed `CopyButton` and `lib/desktop.ts` (`saveFile`, clipboard through the host).
+- `shared/shims/sonner.ts`: `toast` shows the app's toast through `sdk.toast`.
+- `shared/storage-shim.ts`: the frame has no `localStorage`, so `mountTool` installs one that is saved in `sdk.storage` (one key, 1 MB).
+- `shared/bootstrap.tsx`: `mountTool(Tool, { form })` applies the app theme, pauses on `onVisibilityChange` (`useToolActive`) and wraps single-column tools like the app does.
+- `shared/tool.css`: the tool rules of the app's `index.css` (generated, without the app shell).
+- `shared/template/`: the config files every plugin gets.
+
+`node scripts/port-tool.mjs <tool-id>` (`--app <shard repo>`, default `../../GitHub/devtools`) follows the tool's imports in the app and
+writes `<tool-id>/`: the files it needs at the same paths under `src/` (so the code needs no import changes), the `shared/` files it uses,
+the tests that cover it, `package.json` (dependencies with the app's versions), `public/plugin.json` and the config. Every plugin folder is
+self-contained, because the release workflow builds each one alone: `shared/` is copied in, not imported. Re-run the script with `--force`
+to refresh a port; it overwrites the folder. Afterwards write the `description` in `public/plugin.json` and run
+`npm install && npm test && npm run build`. Ported plugins keep the tool's old id.
 
 ## Add a plugin
 

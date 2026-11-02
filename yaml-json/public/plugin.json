@@ -1,0 +1,40 @@
+{
+  "id": "yaml-json",
+  "name": "Config Converter",
+  "version": "1.0.0",
+  "description": "Convert between JSON, YAML, TOML, .env, Java .properties, and TOON files, including multi-document YAML, and see how many LLM tokens TOON saves against JSON.",
+  "category": "Converters",
+  "keywords": [
+    "yaml to json",
+    "json to yaml",
+    "yaml",
+    "yml",
+    "toml",
+    "dotenv",
+    ".env",
+    "properties",
+    "spring boot",
+    "configmap",
+    "docker compose",
+    "toon",
+    "token-oriented object notation",
+    "llm",
+    "prompt",
+    "tokens",
+    "token savings"
+  ],
+  "icon": "lucide:FileCode2",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

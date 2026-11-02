@@ -1,0 +1,32 @@
+{
+  "id": "ai-text-cleaner",
+  "name": "AI Text Cleaner",
+  "version": "1.0.0",
+  "description": "Remove hidden characters, citation markers, and Markdown from AI-written text, and straighten quotes and dashes.",
+  "category": "AI Tools",
+  "keywords": [
+    "clean text",
+    "invisible characters",
+    "zero width",
+    "smart quotes",
+    "em dash",
+    "citations",
+    "markdown",
+    "chatgpt",
+    "normalize"
+  ],
+  "icon": "lucide:Sparkles",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

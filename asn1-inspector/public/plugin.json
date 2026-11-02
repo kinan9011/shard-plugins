@@ -1,0 +1,30 @@
+{
+  "id": "asn1-inspector",
+  "name": "ASN.1 Inspector",
+  "version": "1.0.0",
+  "description": "Show definite-length DER or BER data from PEM, Base64, hex, or a file as a tree of tags, offsets, lengths, and values.",
+  "category": "Development Tools",
+  "keywords": [
+    "asn1",
+    "asn.1",
+    "der",
+    "ber",
+    "pem",
+    "oid",
+    "binary"
+  ],
+  "icon": "lucide:FileSearch",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}
