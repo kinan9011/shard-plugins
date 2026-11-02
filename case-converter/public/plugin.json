@@ -1,0 +1,40 @@
+{
+  "id": "case-converter",
+  "name": "Case Converter",
+  "version": "1.0.0",
+  "description": "Convert names to camelCase, snake_case, kebab-case, and 8 more cases live, one name per line, and make URL slugs.",
+  "category": "Converters",
+  "keywords": [
+    "camelcase",
+    "snake_case",
+    "kebab",
+    "pascal",
+    "upper",
+    "lower",
+    "train-case",
+    "dot.case",
+    "constant",
+    "slug",
+    "slugify",
+    "url slug",
+    "permalink",
+    "seo url",
+    "transliterate",
+    "remove accents",
+    "diacritics"
+  ],
+  "icon": "lucide:Type",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

@@ -1,0 +1,43 @@
+{
+  "id": "number-base",
+  "name": "Number Base",
+  "version": "1.0.0",
+  "description": "See a number in binary, octal, decimal, hex, any base to 36, and Roman numerals as you type, with two's complement views, integer expressions, and a clickable bit grid.",
+  "category": "Converters",
+  "keywords": [
+    "binary",
+    "hex",
+    "octal",
+    "decimal",
+    "radix",
+    "two's complement",
+    "signed",
+    "expression",
+    "calculator",
+    "evaluate",
+    "bitwise",
+    "bit shift",
+    "xor",
+    "bits",
+    "toggle bit",
+    "popcount",
+    "endianness",
+    "byte swap",
+    "roman numerals",
+    "roman"
+  ],
+  "icon": "lucide:Binary",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

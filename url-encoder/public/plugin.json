@@ -1,0 +1,29 @@
+{
+  "id": "url-encoder",
+  "name": "URL Encoder",
+  "version": "1.0.0",
+  "description": "Encode and decode URLs, and parse a URL into editable parts and query parameters.",
+  "category": "Converters",
+  "keywords": [
+    "url",
+    "uri",
+    "percent",
+    "encode",
+    "decode",
+    "query string"
+  ],
+  "icon": "lucide:Globe",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

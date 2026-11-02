@@ -50,6 +50,12 @@ It can only do what the user approves: see the
 | `bcrypt-generator/` | Bcrypt Generator | web | `clipboard:write` (optional) |
 | `random-string/` | Random String | web | `clipboard:write` (optional) |
 | `key-generator/` | Key Pair Generator | web | `clipboard:write`, `files:save` (both optional) |
+| `base64/` | Base64 | web | `clipboard:write`, `files:save` (both optional) |
+| `case-converter/` | Case Converter | web | `clipboard:write` (optional) |
+| `number-base/` | Number Base | web | `clipboard:write` (optional) |
+| `url-encoder/` | URL Encoder | web | `clipboard:write` (optional) |
+| `csv-json/` | CSV to JSON | web | `clipboard:write`, `files:save` (both optional) |
+| `yaml-json/` | Config Converter | web | `clipboard:write` (optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
