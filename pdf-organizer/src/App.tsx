@@ -35,6 +35,9 @@ export default function App() {
   function change(next: Page[]) {
     if (next === pages) return;
     dispatch({ type: "set", pages: next });
+    // Drop selections of removed pages so an undo does not bring them back pre-selected.
+    const ids = new Set(next.map(page => page.id));
+    setSelected(previous => new Set([...previous].filter(id => ids.has(id))));
     setNotice(""); setError("");
   }
 

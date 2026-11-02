@@ -1,6 +1,6 @@
 # PDF Organizer
 
-Implementation of Kanzo `shard-plugins#28` on `feat/pdf-organizer`. The current roadmap's organizer scope is implemented; actual Shard installation acceptance remains pending.
+Merge, split and organize PDF pages locally in Shard. Installation in the actual Shard app has not been verified yet (see the end of this file).
 
 ## Use
 
@@ -33,7 +33,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-`npm run dev` prepares the worker/assets and starts Vite. Native file input works outside Shard; host open/save calls require Shard. `npm run build` creates `dist/`, `release/pdf-organizer-1.0.0.zip` and its SHA-256 file. The release workflow discovers the plugin by its manifest; `index.json` remains release-managed. No release or remote push is performed by this implementation.
+`npm run dev` prepares the worker/assets and starts Vite. Native file input works outside Shard; host open/save calls require Shard. `npm run build` creates `dist/`, `release/pdf-organizer-1.0.0.zip` and its SHA-256 file. The release workflow discovers the plugin by its manifest; `index.json` remains release-managed.
 
 `shared/pdf/limits.ts` contains reusable input/range limits. Its checked-in copy at `src/pdf/limits.ts` is refreshed by preparation when building inside this repository. Both copies ship in source so this plugin also builds on its own. Other plugins need no changes. SDK, bootstrap, storage shim, theme preset and packaging follow the existing template.
 

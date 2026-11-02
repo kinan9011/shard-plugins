@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 async function importFile() {
-  fireEvent.click(screen.getByRole("button", { name: "Open file", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Open file" }));
   await screen.findByRole("heading", { name: "3 pages · 1 files" });
 }
 
@@ -26,16 +26,16 @@ describe("organizer workflow", () => {
   it("imports, edits, undoes, extracts selected pages and handles save cancellation", async () => {
     render(<App />);
     await importFile();
-    expect(screen.getByRole("button", { name: "Export PDF", exact: true })).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Page 2", exact: true }));
+    expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Page 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Rotate selected 90°" }));
     fireEvent.click(screen.getByRole("button", { name: "Duplicate selected" }));
     expect(screen.getByRole("heading", { name: "4 pages · 1 files" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Undo", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     fireEvent.change(screen.getByLabelText("Output"), { target: { value: "selected" } });
     fireEvent.click(screen.getByRole("checkbox", { name: /I understand/ }));
     vi.mocked(sdk.files.save).mockResolvedValueOnce(false);
-    fireEvent.click(screen.getByRole("button", { name: "Export PDF", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     await screen.findByText("Save cancelled. Your pages are unchanged.");
     const request = vi.mocked(runEngine).mock.calls[0][0];
     expect(request.kind).toBe("export");
@@ -52,10 +52,10 @@ describe("organizer workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply selection" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
     expect(screen.getByRole("heading", { name: "1 pages · 1 files" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Undo", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     fireEvent.click(screen.getByRole("button", { name: "Move page 3 earlier" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /I understand/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Export PDF", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     await screen.findByText("Saved 1 PDF file(s), 3 page(s).");
     const request = vi.mocked(runEngine).mock.calls[0][0];
     if (request.kind === "export") expect(request.pages.map(page => page.index)).toEqual([0, 2, 1]);
@@ -77,7 +77,7 @@ describe("organizer workflow", () => {
   it("cancels imports atomically and preserves the current pages", async () => {
     render(<App />); await importFile();
     vi.mocked(prepareInput).mockImplementationOnce((_, signal) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("cancelled")))));
-    fireEvent.click(screen.getByRole("button", { name: "Open file", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Open file" }));
     await waitFor(() => expect(prepareInput).toHaveBeenCalledTimes(2));
     fireEvent.click(screen.getByRole("button", { name: "Cancel processing" }));
     await screen.findByText("Cancelled. Your pages are unchanged.");
@@ -87,11 +87,11 @@ describe("organizer workflow", () => {
   it("reports invalid input without adding pages and respects picker cancellation", async () => {
     render(<App />);
     vi.mocked(prepareInput).mockRejectedValueOnce(new Error("Encrypted PDFs are not supported"));
-    fireEvent.click(screen.getByRole("button", { name: "Open file", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Open file" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("sample.pdf: Encrypted PDFs");
     expect(screen.getByRole("heading", { name: "Your pages" })).toBeInTheDocument();
     vi.mocked(sdk.files.open).mockResolvedValueOnce(null);
-    fireEvent.click(screen.getByRole("button", { name: "Open file", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Open file" }));
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(prepareInput).toHaveBeenCalledTimes(1);
   });

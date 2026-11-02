@@ -43,8 +43,10 @@ export async function prepareInput(bytes: Uint8Array, signal: AbortSignal) {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Image decoding is unavailable.");
     context.drawImage(bitmap, 0, 0);
-    const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not read this image.")), "image/png"));
+    // Photos stay lossy: a lossless PNG is several times larger and can exceed the 50 MiB limit.
+    const [type, quality] = kind === "jpeg" ? ["image/jpeg", 0.92] : ["image/png", undefined];
+    const encoded = await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not read this image.")), type, quality));
     canvas.width = canvas.height = 0;
-    return await runEngine<ImportResult>({ kind: "import", bytes: new Uint8Array(await png.arrayBuffer()) }, signal);
+    return await runEngine<ImportResult>({ kind: "import", bytes: new Uint8Array(await encoded.arrayBuffer()) }, signal);
   } finally { bitmap.close(); }
 }

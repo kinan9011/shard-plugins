@@ -32,6 +32,21 @@ function inspect(document: PDFDocument): Report {
   };
 }
 
+/** Internal links point at other pages; copyPages would drag those (possibly deleted) pages into the output. */
+function stripInternalLinks(document: PDFDocument) {
+  for (const page of document.getPages()) {
+    const annotations = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
+    if (!annotations) continue;
+    for (let i = 0; i < annotations.size(); i++) {
+      const annotation = document.context.lookup(annotations.get(i));
+      if (!(annotation instanceof PDFDict) || annotation.get(PDFName.of("Subtype"))?.toString() !== "/Link") continue;
+      annotation.delete(PDFName.of("Dest"));
+      const action = annotation.lookupMaybe(PDFName.of("A"), PDFDict);
+      if (action && action.get(PDFName.of("S"))?.toString() === "/GoTo") annotation.delete(PDFName.of("A"));
+    }
+  }
+}
+
 export async function importDocument(bytes: Uint8Array): Promise<ImportResult> {
   const kind = inputKind(bytes);
   let document: PDFDocument;
@@ -68,7 +83,8 @@ export async function exportDocument(sources: Source[], pages: Page[], groups: n
         const source = sources.find(source => source.id === page.sourceId);
         if (!source || source.bytes.length > MAX_FILE_BYTES) throw new Error("Source document is unavailable or too large.");
         document = await load(source.bytes);
-        inspect(document);
+        // XFA was rejected at import; no need to re-scan every object here (finding #7).
+        stripInternalLinks(document);
         // Keep existing appearances; regenerating them with Helvetica can lose non-Latin form values.
         if (document.getForm().getFields().length) {
           document.getForm().flatten({ updateFieldAppearances: false });

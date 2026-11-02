@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, degrees } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFString, StandardFonts, degrees } from "pdf-lib";
 import { unzipSync } from "fflate";
 import { exportDocument, importDocument, type Page, type Source } from "../src/pdf/engine";
 import { MAX_FILE_BYTES, everyNPages, imageSize, inputKind, parseRanges } from "../src/pdf/limits";
@@ -67,7 +67,7 @@ describe("real PDF assembly", () => {
     expect(parsed.catalog.has(PDFName.of("Outlines"))).toBe(false);
     const annots = parsed.getPage(0).node.lookup(PDFName.of("Annots"), PDFArray);
     expect(annots.size()).toBe(1);
-    expect(parsed.context.lookup(annots.get(0)).toString()).toContain("Keep this note");
+    expect(parsed.context.lookup(annots.get(0))?.toString()).toContain("Keep this note");
     expect(parsed.getPage(0).node.Resources()?.toString()).toContain("/XObject");
   });
 
@@ -138,6 +138,23 @@ describe("session editing history", () => {
     expect(historyReducer(undone, { type: "set", pages: [] }).future).toEqual([]);
     expect(historyReducer(edited, { type: "reset" })).toEqual(emptyHistory);
   });
+  it("does not carry deleted pages into the output through internal links", async () => {
+    const document = await PDFDocument.create();
+    const first = document.addPage([300, 300]);
+    document.addPage([300, 300]);
+    const secret = document.addPage([300, 300]);
+    secret.drawText("SECRET-PAGE-THREE");
+    const link = document.context.obj({ Type: "Annot", Subtype: "Link", Rect: [0, 0, 50, 50], Dest: [secret.ref, PDFName.of("Fit")] });
+    first.node.set(PDFName.of("Annots"), document.context.obj([document.context.register(link)]));
+    const result = await importDocument(await document.save());
+    const source: Source = { id: "a", name: "linked.pdf", ...result };
+    const pages: Page[] = [{ id: "p0", sourceId: "a", index: 0, rotation: 0 }];
+    const { bytes } = await exportDocument([source], pages, [[0]]);
+    const output = await PDFDocument.load(bytes);
+    const pageObjects = output.context.enumerateIndirectObjects().filter(([, value]) => value instanceof PDFDict && value.get(PDFName.of("Type"))?.toString() === "/Page");
+    expect(output.getPageCount()).toBe(1);
+    expect(pageObjects).toHaveLength(1);
+  });
   it("groups file pages in the requested order and bounds history", async () => {
     const { pages } = await fixture();
     const mixed = [pages[0], { ...pages[1], sourceId: "b" }, pages[2]];
@@ -146,5 +163,11 @@ describe("session editing history", () => {
     let history = emptyHistory;
     for (let i = 0; i < 35; i++) history = historyReducer(history, { type: "set", pages });
     expect(history.past).toHaveLength(30);
+  });
+});
+
+describe("truncated JPEG header", () => {
+  it("is rejected with a readable error, not a RangeError", () => {
+    expect(() => imageSize(Uint8Array.from([255, 216, 255, 255]), "jpeg")).toThrow("valid dimensions");
   });
 });

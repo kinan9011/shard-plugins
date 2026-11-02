@@ -32,6 +32,7 @@ export function imageSize(bytes: Uint8Array, kind: "png" | "jpeg") {
       while (bytes[offset] === 255) offset++;
       const marker = bytes[offset++];
       if (marker === 217 || marker === 218) break;
+      if (offset + 2 > bytes.length) break;
       const length = view.getUint16(offset);
       if (length < 2 || offset + length > bytes.length) break;
       if ([192, 193, 194, 195, 197, 198, 199, 201, 202, 203, 205, 206, 207].includes(marker) && length >= 7) {
