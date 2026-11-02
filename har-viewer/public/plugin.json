@@ -29,7 +29,7 @@
       "optional": true
     }
   ],
-  "minAppVersion": "3.0.0",
+  "minAppVersion": "1.0.0",
   "license": "MIT",
   "source": "https://github.com/kinan9011/shard-plugins",
   "changelog": "CHANGELOG.md"
