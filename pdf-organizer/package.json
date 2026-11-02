@@ -1,0 +1,40 @@
+{
+  "name": "pdf-organizer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Merge, split and organize PDF pages locally in Shard.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare.mjs && vite",
+    "build": "node scripts/prepare.mjs && vite build && node scripts/pack.mjs",
+    "test": "vitest run",
+    "test:browser": "node tests/browser-smoke.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "5.4.624",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^22.19.7",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react-swc": "^3.11.0",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.0",
+    "jsdom": "^20.0.3",
+    "playwright": "^1.64.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.19",
+    "vitest": "^3.2.4"
+  }
+}
