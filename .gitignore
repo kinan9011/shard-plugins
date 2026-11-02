@@ -2,3 +2,4 @@ node_modules
 dist
 release
 /out
+line-tools/public/regex-worker.js

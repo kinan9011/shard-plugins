@@ -41,6 +41,9 @@ It can only do what the user approves: see the
 | `date-format/` | Date Format Translator | web | `clipboard:write` (optional) |
 | `stopwatch/` | Stopwatch | web | `clipboard:write`, `files:save` (both optional) |
 | `time-zone-converter/` | Time Zone Converter | web | `clipboard:write` (optional) |
+| `api-formatter/` | API Formatter | web | `clipboard:write` (optional) |
+| `string-inspector/` | String Inspector | web | `clipboard:write` (optional) |
+| `line-tools/` | Line Tools | web (regex runs in a worker) | `clipboard:write` (optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
