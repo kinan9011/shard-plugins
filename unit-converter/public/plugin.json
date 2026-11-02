@@ -1,0 +1,22 @@
+{
+  "id": "unit-converter",
+  "name": "Unit Converter",
+  "version": "1.0.0",
+  "description": "Convert length, weight, temperature, and data units.",
+  "category": "Utilities",
+  "keywords": [
+    "units",
+    "length",
+    "weight",
+    "temperature",
+    "currency"
+  ],
+  "icon": "lucide:Ruler",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

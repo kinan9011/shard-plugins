@@ -1,0 +1,33 @@
+{
+  "id": "chmod-calculator",
+  "name": "chmod Calculator",
+  "version": "1.0.0",
+  "description": "Set file permissions with checkboxes, octal, or rwx text, apply expressions such as u+x, and see the chmod commands, a plain-English summary, and umask defaults.",
+  "category": "Utilities",
+  "keywords": [
+    "chmod",
+    "permissions",
+    "file mode",
+    "octal",
+    "rwx",
+    "umask",
+    "setuid",
+    "setgid",
+    "sticky bit",
+    "ls -l"
+  ],
+  "icon": "lucide:FileLock2",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

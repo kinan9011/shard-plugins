@@ -1,0 +1,36 @@
+{
+  "id": "har-viewer",
+  "name": "HAR Viewer",
+  "version": "1.0.0",
+  "description": "Filter, sort, and inspect the requests in a .har file from the browser, copy a request as cURL, and save a sanitized copy without credentials and cookies.",
+  "category": "Network",
+  "keywords": [
+    "har",
+    "http archive",
+    "network log",
+    "devtools export",
+    "waterfall",
+    "requests",
+    "curl",
+    "sanitize"
+  ],
+  "icon": "lucide:FileSearch",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}
