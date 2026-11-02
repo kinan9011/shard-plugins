@@ -1,0 +1,41 @@
+{
+  "id": "key-generator",
+  "name": "Key Pair Generator",
+  "version": "1.0.0",
+  "description": "Generate RSA, ECDSA, and Ed25519 key pairs as PEM, JWK, and OpenSSH keys with fingerprints, or convert a key you paste.",
+  "category": "Generators",
+  "keywords": [
+    "rsa",
+    "ecdsa",
+    "ed25519",
+    "ssh-keygen",
+    "ssh key",
+    "pem",
+    "jwk",
+    "keypair",
+    "public key",
+    "private key",
+    "openssh",
+    "fingerprint",
+    "jwks"
+  ],
+  "icon": "lucide:KeySquare",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

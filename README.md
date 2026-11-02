@@ -44,6 +44,12 @@ It can only do what the user approves: see the
 | `api-formatter/` | API Formatter | web | `clipboard:write` (optional) |
 | `string-inspector/` | String Inspector | web | `clipboard:write` (optional) |
 | `line-tools/` | Line Tools | web (regex runs in a worker) | `clipboard:write` (optional) |
+| `password-generator/` | Password Generator | web | `clipboard:write` (optional) |
+| `lorem-generator/` | Lorem Ipsum | web | `clipboard:write` (optional) |
+| `qr-generator/` | QR Generator | web | `clipboard:write`, `files:save` (both optional) |
+| `bcrypt-generator/` | Bcrypt Generator | web | `clipboard:write` (optional) |
+| `random-string/` | Random String | web | `clipboard:write` (optional) |
+| `key-generator/` | Key Pair Generator | web | `clipboard:write`, `files:save` (both optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one

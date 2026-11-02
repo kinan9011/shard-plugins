@@ -1,0 +1,28 @@
+{
+  "id": "random-string",
+  "name": "Random String",
+  "version": "1.0.0",
+  "description": "Generate Nano IDs, hex and Base64URL tokens, and strings from a custom alphabet.",
+  "category": "Generators",
+  "keywords": [
+    "nanoid",
+    "nano id",
+    "token",
+    "random",
+    "id"
+  ],
+  "icon": "lucide:Dices",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}
