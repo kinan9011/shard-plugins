@@ -206,3 +206,8 @@ code, pre, kbd, samp, .font-mono { font-family: var(--font-code); font-feature-s
 .tab-context-menu-item { display: block; width: 100%; padding: 6px 10px; border-radius: 5px; text-align: left; font-size: 13px; }
 .tab-context-menu-item:hover:not([aria-disabled="true"]), .tab-context-menu-item:focus-visible { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); outline: none; }
 .tab-context-menu-item[aria-disabled="true"] { color: hsl(var(--muted-foreground)); opacity: .6; cursor: default; }
+.workspace-notice { padding: 8px 16px; font-size: 12px; border-bottom: 1px solid hsl(var(--border) / .5); }
+.workspace-notice[data-tone="error"] { color: hsl(var(--destructive)); }
+.workspace-notice[data-tone="success"] { color: hsl(var(--success)); }
+.workspace-help { border-top: 1px solid hsl(var(--border)); font-size: 12px; color: hsl(var(--muted-foreground)); max-height: 40%; overflow: auto; flex-shrink: 0; }
+.workspace-help .tool-help { border-top: 0; padding: 4px 16px; }
