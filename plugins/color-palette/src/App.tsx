@@ -1,0 +1,1137 @@
+import { FileUp } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { ClipboardProvider, CopyButton } from "./CopyButton";
+import type { DevToolsSdk } from "./devtools-sdk";
+import { GradientBuilder } from "./GradientBuilder";
+import { ToolFaqSection, type ToolFaqItem } from "./ToolFaq";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "./ui";
+import { useDebouncedValue } from "./useDebouncedValue";
+import {
+  CONFUSION_THRESHOLD,
+  CVD_TYPES,
+  compositeOver,
+  cvdLabel,
+  findConfusablePairs,
+  formatColor,
+  hslToRgb,
+  makeColor,
+  MAX_COMPARE_COLORS,
+  MAX_RECENT_COLORS,
+  PALETTE_MODES,
+  RECENT_COLORS_STORAGE_KEY,
+  WCAG_TARGETS,
+  addRecentColor,
+  buildPalette,
+  getContrastRatio,
+  meetsWcagAALarge,
+  meetsWcagAANormal,
+  meetsWcagAAALarge,
+  meetsWcagAAANormal,
+  parseColor,
+  paletteToCss,
+  paletteToJson,
+  parseRecentColors,
+  parseColorList,
+  simulateCvd,
+  simulateCvdPixels,
+  suggestContrastColor,
+  toHexWithAlpha,
+  type Color as ParsedColor,
+  type ContrastTarget,
+  type CvdType,
+  type PaletteMode,
+} from "./color";
+
+const FAQ_ITEMS: ToolFaqItem[] = [
+  {
+    q: "Which color formats can I enter?",
+    a: "Enter any sRGB CSS color: HEX with 3, 4, 6, or 8 digits, rgb(), rgba(), hsl(), hsla(), hwb(), oklch(), oklab(), a named color such as tomato, or transparent. Both the comma syntax and the space syntax work.",
+  },
+  {
+    q: "Why does the tool show OKLCH?",
+    a: "OKLCH is a modern CSS color format. Equal changes in lightness look equal to the eye, so it is good for design tokens and color scales. Colors outside sRGB are clipped to the nearest sRGB color.",
+  },
+  {
+    q: "Why is there no CMYK?",
+    a: "CMYK depends on the printer, the ink, and the paper. A simple formula gives numbers that do not match real print output, so the tool does not show them.",
+  },
+  {
+    q: "How does the tool handle alpha?",
+    a: "HEX, RGB, HSL, HWB, and OKLCH include the alpha value when the color is not opaque. HSV has no standard alpha syntax, so it shows only the color.",
+  },
+  {
+    q: "How does the contrast checker handle transparent colors?",
+    a: "The checker blends a transparent foreground over the background, as a browser does. It treats the background as opaque.",
+  },
+  {
+    q: "How does the color blindness simulator work?",
+    a: "It uses the model of Machado, Oliveira, and Fernandes (2009, IEEE TVCG). The tool converts each sRGB color to linear RGB, applies the matrix for the type and severity, and converts the result back to sRGB. Achromatopsia keeps only the luminance of each color. Below 100%, achromatomaly removes only part of the color.",
+  },
+  {
+    q: "What does the severity slider change?",
+    a: "At 100%, the tool shows protanopia, deuteranopia, and tritanopia, where one cone type is missing. Lower values show protanomaly, deuteranomaly, and tritanomaly, where the cone type is weak. Most color blind people have a mild anomaly, often deuteranomaly.",
+  },
+  {
+    q: "When does the tool say that two colors look alike?",
+    a: "The tool measures the distance between the simulated colors in OKLAB, a perceptual color space, and multiplies it by 100. A ΔE of about 2 is the smallest difference most people notice side by side. Below 6, colors are hard to tell apart in small marks such as chart lines, legend dots, and status icons.",
+  },
+  {
+    q: "Why does the contrast stay almost the same for achromatopsia?",
+    a: "WCAG contrast uses only luminance, and achromatopsia keeps the luminance of each color. Protanopia makes reds darker, so red text can lose contrast. Do not use color as the only signal. Add text, icons, or patterns.",
+  },
+  {
+    q: "Does the simulated image leave my device?",
+    a: "No. The tool draws the image on a canvas and changes the pixels locally. Large images are scaled to at most 1600 pixels on the longest side.",
+  },
+];
+
+/** A checkerboard under the color, so transparency is visible. */
+const swatchStyle = (css: string) => ({
+  background: `linear-gradient(${css}, ${css}), repeating-conic-gradient(#d4d4d4 0 25%, #ffffff 0 50%) 0 0 / 16px 16px`,
+});
+
+/** HEX with the alpha byte added when the color is translucent, the same form the inputs accept. */
+const hexWithAlpha = (rgb: { r: number; g: number; b: number }, alpha: number) => toHexWithAlpha(makeColor(rgb, alpha));
+
+const CHANNEL_FIELDS = [
+  { id: "r", label: "Red", max: 255 },
+  { id: "g", label: "Green", max: 255 },
+  { id: "b", label: "Blue", max: 255 },
+  { id: "h", label: "Hue", max: 360 },
+  { id: "s", label: "Saturation", max: 100 },
+  { id: "l", label: "Lightness", max: 100 },
+] as const;
+
+type ChannelId = (typeof CHANNEL_FIELDS)[number]["id"];
+
+function ColorConverter({
+  input,
+  setInput,
+  recents,
+  onCommit,
+}: {
+  input: string;
+  setInput: (value: string) => void;
+  recents: string[];
+  /** Records a color the user settled on in the recent list. */
+  onCommit: (color: ParsedColor) => void;
+}) {
+  const color = parseColor(input);
+  const values = color ? formatColor(color) : null;
+  // Wait until typing stops before the error shows, so a half-typed color does not flash an error.
+  const settledInput = useDebouncedValue(input, 400);
+  const showError = settledInput === input && input.trim() !== "" && !color;
+  const cssValue = values?.find((v) => v.label === "RGB")?.value ?? "transparent";
+
+  // One channel draft at a time. Invalid drafts only flag their own field; the
+  // working color keeps the last value committed from any surface.
+  const [draft, setDraft] = useState<{ id: ChannelId; text: string } | null>(null);
+  const [invalidChannel, setInvalidChannel] = useState<ChannelId | null>(null);
+
+  // A draft belongs to the color it was typed against. Another field changing the color drops it.
+  const colorHex = color ? toHexWithAlpha(color) : null;
+  useEffect(() => {
+    setDraft(null);
+    setInvalidChannel(null);
+  }, [colorHex]);
+
+  const channelValue = (id: ChannelId): string => {
+    if (!color) return "";
+    switch (id) {
+      case "r": return String(color.rgb.r);
+      case "g": return String(color.rgb.g);
+      case "b": return String(color.rgb.b);
+      case "h": return String(Math.round(color.hsl.h));
+      case "s": return String(Math.round(color.hsl.s));
+      case "l": return String(Math.round(color.hsl.l));
+    }
+  };
+
+  const commitChannel = (id: ChannelId, text: string) => {
+    if (!color) return;
+    const field = CHANNEL_FIELDS.find((f) => f.id === id)!;
+    const trimmed = text.trim();
+    const n = /^\d+(\.\d+)?$/.test(trimmed) ? Number(trimmed) : NaN;
+    if (!Number.isFinite(n) || n < 0 || n > field.max) {
+      setInvalidChannel(id);
+      return;
+    }
+    setInvalidChannel(null);
+    setDraft(null);
+    const rgb =
+      id === "r" || id === "g" || id === "b"
+        ? { ...color.rgb, [id]: Math.round(n) }
+        : hslToRgb(id === "h" ? n : color.hsl.h, id === "s" ? n : color.hsl.s, id === "l" ? n : color.hsl.l);
+    const next = hexWithAlpha(rgb, color.alpha);
+    setInput(next);
+    const parsed = parseColor(next);
+    if (parsed) onCommit(parsed);
+  };
+
+  const setAlpha = (percent: number) => {
+    if (!color) return;
+    setInput(hexWithAlpha(color.rgb, percent / 100));
+  };
+
+  const pick = (hex: string) => {
+    // The native picker has no alpha channel. Keep a translucent color's alpha,
+    // but not a fully transparent one, where the picked color would stay invisible.
+    const alphaByte = color ? Math.round(color.alpha * 255) : 0;
+    const alpha = alphaByte > 0 && alphaByte < 255 ? alphaByte.toString(16).padStart(2, "0") : "";
+    setInput(hex + alpha);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Color Converter</CardTitle>
+        <CardDescription>
+          Enter or paste any CSS color, or pick one. The palette and the tools below use this color.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="color-convert-input">Color</Label>
+          <div className="flex gap-2">
+            <Input
+              id="color-convert-input"
+              placeholder="#3b82f6, rgb(59 130 246 / 50%), oklch(62% 0.19 260), tomato"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (color) onCommit(color);
+                }
+              }}
+              onBlur={() => color && onCommit(color)}
+              className="font-mono"
+              spellCheck={false}
+              autoComplete="off"
+              aria-invalid={showError}
+              aria-describedby={showError ? "color-convert-error" : undefined}
+            />
+            <input
+              type="color"
+              aria-label="Pick a color"
+              value={color ? color.hex : "#000000"}
+              onChange={(e) => pick(e.target.value)}
+              onBlur={() => color && onCommit(color)}
+              className="h-10 w-12 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+            />
+          </div>
+          {showError && (
+            <p id="color-convert-error" className="text-xs text-destructive" role="alert">
+              Not a valid CSS color.
+            </p>
+          )}
+        </div>
+        {recents.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Recent colors</p>
+            <div className="flex flex-wrap gap-2">
+              {recents.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="h-8 w-8 rounded-md border"
+                  style={swatchStyle(value)}
+                  onClick={() => {
+                    setInput(value);
+                    onCommit(parseColor(value)!);
+                  }}
+                  aria-label={`Use recent color ${value}`}
+                  title={value}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        {color && values && (
+          <div className="grid grid-cols-1 md:grid-cols-[6rem,1fr] gap-4">
+            <div
+              className="h-24 w-full rounded-md border"
+              style={swatchStyle(cssValue)}
+              role="img"
+              aria-label="Color preview"
+              data-testid="color-preview"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {values.map((item) => (
+                <div key={item.label} className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">{item.label}</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate rounded bg-muted p-2 text-xs">{item.value}</code>
+                    <CopyButton value={item.value} label={`Copy ${item.label}`} iconOnly />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {color && (
+          <fieldset className="space-y-3 border-t pt-4" data-testid="channel-editor">
+            <legend className="text-xs font-medium text-muted-foreground">Adjust channels</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {CHANNEL_FIELDS.map((field) => {
+                const isDrafted = draft?.id === field.id;
+                const text = isDrafted ? draft.text : channelValue(field.id);
+                return (
+                  <div key={field.id} className="space-y-1">
+                    <Label htmlFor={`channel-${field.id}`} className="text-xs">
+                      {field.label}
+                    </Label>
+                    <Input
+                      id={`channel-${field.id}`}
+                      value={text}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      spellCheck={false}
+                      aria-invalid={invalidChannel === field.id}
+                      aria-describedby={invalidChannel === field.id ? `channel-${field.id}-error` : undefined}
+                      onChange={(e) => setDraft({ id: field.id, text: e.target.value })}
+                      onBlur={() => {
+                        if (isDrafted) commitChannel(field.id, text);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitChannel(field.id, text);
+                        }
+                      }}
+                      className="font-mono"
+                    />
+                    {invalidChannel === field.id && (
+                      <p id={`channel-${field.id}-error`} className="text-xs text-destructive" role="alert">
+                        Use 0 to {field.max}.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="color-alpha" className="text-xs">
+                  Alpha
+                </Label>
+                <output className="text-xs tabular-nums text-muted-foreground">
+                  {Math.round(color.alpha * 100)}%
+                </output>
+              </div>
+              <input
+                id="color-alpha"
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round(color.alpha * 100)}
+                onChange={(e) => setAlpha(Number(e.target.value))}
+                onPointerUp={() => color && onCommit(color)}
+                onKeyUp={() => color && onCommit(color)}
+                className="w-full accent-primary"
+              />
+            </div>
+          </fieldset>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Parse the contrast pair as the checker paints it. */
+function resolveContrastPair(fg: string, bg: string) {
+  const fgInput = parseColor(fg);
+  const bgInput = parseColor(bg);
+  // The page behind is unknown, so the background counts as opaque. A transparent foreground is blended over it.
+  const bgColor = bgInput && bgInput.alpha < 1 ? parseColor(bgInput.hex) : bgInput;
+  const fgColor = fgInput && bgColor && fgInput.alpha < 1 ? compositeOver(fgInput, bgColor) : fgInput;
+  return { fgInput, bgInput, fgColor, bgColor };
+}
+
+/** Round down, so 4.499 never shows as a passing 4.50. */
+const formatRatio = (ratio: number) => `${(Math.floor(ratio * 100) / 100).toFixed(2)}:1`;
+
+function ContrastChecker({
+  fg,
+  setFg,
+  bg,
+  setBg,
+  working,
+}: {
+  fg: string;
+  setFg: (value: string) => void;
+  bg: string;
+  setBg: (value: string) => void;
+  /** The working color as typed, or null when it is not valid. */
+  working: string | null;
+}) {
+  const { fgInput, bgInput, fgColor, bgColor } = resolveContrastPair(fg, bg);
+  const ratio = fgColor && bgColor ? getContrastRatio(fgColor, bgColor) : null;
+  // Wait until typing stops before an error shows, so a half-typed color is not announced.
+  const settledFg = useDebouncedValue(fg, 400);
+  const settledBg = useDebouncedValue(bg, 400);
+  const fgError = settledFg === fg && fg.trim() !== "" && !fgColor;
+  const bgError = settledBg === bg && bg.trim() !== "" && !bgColor;
+  const [targetId, setTargetId] = useState<ContrastTarget>("aa-normal");
+  const target = WCAG_TARGETS.find((item) => item.id === targetId)!;
+  const failsTarget = ratio !== null && ratio < target.ratio;
+  const suggestion = failsTarget && fgInput && bgInput ? suggestContrastColor(fgInput, bgInput, target.ratio) : null;
+
+  const checks =
+    fgColor && bgColor
+      ? [
+          { label: "AA normal text (4.5:1)", pass: meetsWcagAANormal(fgColor, bgColor) },
+          { label: "AA large text (3:1)", pass: meetsWcagAALarge(fgColor, bgColor) },
+          { label: "AAA normal text (7:1)", pass: meetsWcagAAANormal(fgColor, bgColor) },
+          { label: "AAA large text (4.5:1)", pass: meetsWcagAAALarge(fgColor, bgColor) },
+        ]
+      : [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Contrast Checker</CardTitle>
+        <CardDescription>Check text and background colors against WCAG 2.x</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="contrast-fg">Foreground</Label>
+            <Input
+              id="contrast-fg"
+              value={fg}
+              onChange={(e) => setFg(e.target.value)}
+              className="font-mono"
+              aria-invalid={fgError}
+              aria-describedby={fgError ? "contrast-fg-error" : undefined}
+            />
+            {fgError && (
+              <p id="contrast-fg-error" className="text-xs text-destructive" role="alert">
+                Invalid color.
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contrast-bg">Background</Label>
+            <Input
+              id="contrast-bg"
+              value={bg}
+              onChange={(e) => setBg(e.target.value)}
+              className="font-mono"
+              aria-invalid={bgError}
+              aria-describedby={bgError ? "contrast-bg-error" : undefined}
+            />
+            {bgError && (
+              <p id="contrast-bg-error" className="text-xs text-destructive" role="alert">
+                Invalid color.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setFg(bg);
+              setBg(fg);
+            }}
+          >
+            Swap
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={!working} onClick={() => working && setFg(working)}>
+            Use working color as foreground
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={!working} onClick={() => working && setBg(working)}>
+            Use working color as background
+          </Button>
+        </div>
+        {ratio !== null && fgColor && bgColor && (
+          <div className="space-y-4">
+            <div
+              className="rounded-md border p-4"
+              style={{ backgroundColor: bgColor.hex, color: fgColor.hex }}
+              data-testid="contrast-preview"
+            >
+              <p className="text-2xl font-bold">Large sample text</p>
+              <p className="text-sm">Normal sample text for reading.</p>
+            </div>
+            {((fgInput?.alpha ?? 1) < 1 || (bgInput?.alpha ?? 1) < 1) && (
+              <p className="text-xs text-muted-foreground" role="status">
+                The check blends the foreground over the background and treats the background as opaque.
+              </p>
+            )}
+            <div className="text-3xl font-semibold" data-testid="contrast-ratio">
+              {formatRatio(ratio)}
+            </div>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {checks.map((check) => (
+                <li
+                  key={check.label}
+                  className="flex items-center justify-between rounded-md border p-2 text-sm"
+                >
+                  <span>{check.label}</span>
+                  <span className={check.pass ? "font-medium text-success" : "font-medium text-destructive"}>
+                    {check.pass ? "Pass" : "Fail"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="contrast-target">Target for suggestions</Label>
+              <select
+                id="contrast-target"
+                value={targetId}
+                onChange={(e) => setTargetId(e.target.value as ContrastTarget)}
+                className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+              >
+                {WCAG_TARGETS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}, {item.ratio}:1
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!failsTarget ? (
+              <p className="text-sm text-success" role="status">
+                This pair meets {target.label}.
+              </p>
+            ) : suggestion ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border p-3" data-testid="contrast-suggestion">
+                <span
+                  className="h-6 w-10 shrink-0 rounded border"
+                  style={swatchStyle(cssOf(suggestion.color))}
+                  aria-hidden="true"
+                />
+                <p className="flex-1 text-sm">
+                  A {suggestion.side} of <code>{toHexWithAlpha(suggestion.color)}</code> reaches{" "}
+                  {formatRatio(suggestion.ratio)} for {target.label}.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => (suggestion.side === "foreground" ? setFg : setBg)(toHexWithAlpha(suggestion.color))}
+                >
+                  Use this {suggestion.side}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-destructive" role="status">
+                No lightness change of the foreground or the background reaches {target.label}.
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const cssOf = (color: ParsedColor) =>
+  color.alpha < 1 ? `rgba(${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b}, ${color.alpha})` : color.hex;
+
+/** "Normal vision" plus every CVD type, so each table has a reference row. */
+type Vision = CvdType | "normal";
+const VISIONS: Vision[] = ["normal", ...CVD_TYPES];
+const visionLabel = (vision: Vision, severity: number) =>
+  vision === "normal" ? "Normal vision" : cvdLabel(vision, severity);
+const simulate = (color: ParsedColor, vision: Vision, severity: number) =>
+  vision === "normal" ? color : simulateCvd(color, vision, severity);
+
+const WHITE = makeColor({ r: 255, g: 255, b: 255 });
+const BLACK = makeColor({ r: 0, g: 0, b: 0 });
+
+/** Default list: typical error, success, info, and warning colors. Red and green collide for deutans. */
+const DEFAULT_COMPARE = "#d32f2f, #388e3c, #1976d2, #f9a825";
+
+function ColorVision({
+  color,
+  compareText,
+  setCompareText,
+}: {
+  color: ParsedColor | null;
+  compareText: string;
+  setCompareText: (value: string) => void;
+}) {
+  const [severityPercent, setSeverityPercent] = useState(100);
+  const severity = severityPercent / 100;
+  // Pick the sample surface once from the original color, so a lower ratio in another row
+  // is caused by the simulation rather than by swapping the background between rows.
+  const textSurface = !color || getContrastRatio(WHITE, color) >= getContrastRatio(BLACK, color) ? WHITE : BLACK;
+  const debouncedCompare = useDebouncedValue(compareText, 200);
+  const list = parseColorList(debouncedCompare);
+  const listColors = list.colors.map((item) => item.color);
+  const conflicts = VISIONS.map((vision) => ({
+    vision,
+    pairs: findConfusablePairs(listColors.map((c) => simulate(c, vision, severity))),
+  })).filter((entry) => entry.pairs.length > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Color Blindness Simulator</CardTitle>
+        <CardDescription>
+          See the colors above as people with a color vision deficiency see them
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="cvd-severity">
+            Severity: {severityPercent}%{severityPercent === 0 ? " (No simulation)" : severityPercent === 100 ? " (full)" : ""}
+          </Label>
+          <input
+            id="cvd-severity"
+            type="range"
+            min={0}
+            max={100}
+            step={10}
+            value={severityPercent}
+            onChange={(e) => setSeverityPercent(parseInt(e.target.value, 10))}
+            className="w-full accent-primary"
+          />
+          <p className="text-xs text-muted-foreground">
+            0% applies no simulation. 100% shows the full forms (protanopia, deuteranopia, tritanopia,
+            achromatopsia). Lower values show the milder anomaly forms.
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" aria-label="Simulated colors">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="py-2 pr-3 font-medium">Vision</th>
+                <th className="py-2 pr-3 font-medium">Color</th>
+                <th className="py-2 pr-3 font-medium">Sample text</th>
+                <th className="py-2 font-medium">Contrast</th>
+              </tr>
+            </thead>
+            <tbody>
+              {VISIONS.map((vision) => {
+                const label = visionLabel(vision, severity);
+                const sim = color ? simulate(color, vision, severity) : null;
+                const ratio = sim ? getContrastRatio(sim, textSurface) : null;
+                const unchanged =
+                  sim !== null && color !== null && vision !== "normal" && severity > 0 && sim.hex === color.hex;
+                return (
+                  <tr key={vision} className="border-t" data-testid={`cvd-row-${vision}`}>
+                    <th scope="row" className="py-2 pr-3 text-left font-medium">
+                      {label}
+                    </th>
+                    <td className="py-2 pr-3">
+                      {sim ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-6 w-10 shrink-0 rounded border"
+                            style={swatchStyle(cssOf(sim))}
+                            aria-hidden="true"
+                          />
+                          <code className="text-xs">{sim.hex}</code>
+                          {unchanged && <span className="text-xs text-muted-foreground">(unchanged)</span>}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No color</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {sim ? (
+                        <div
+                          className="rounded border px-2 py-1"
+                          style={{ backgroundColor: textSurface.hex, color: sim.hex }}
+                        >
+                          Sample text
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No color</span>
+                      )}
+                    </td>
+                    <td className="py-2 whitespace-nowrap" data-testid={`cvd-contrast-${vision}`}>
+                      {ratio !== null ? (
+                        <>
+                          <span className="font-mono">{formatRatio(ratio)}</span>{" "}
+                          <span className={ratio >= 4.5 ? "text-success" : "text-destructive"}>
+                            {ratio >= 4.5 ? "AA" : "Fails AA"}
+                          </span>
+                        </>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Sample text shows the converter color for each vision type on black or white, whichever the original color
+            contrasts with better. The ratio is that simulated text on the chosen surface, so a failing row means the
+            color stops being legible for that vision type.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="cvd-compare">Colors to compare</Label>
+            <Textarea
+              id="cvd-compare"
+              value={compareText}
+              onChange={(e) => setCompareText(e.target.value)}
+              className="min-h-[60px] font-mono text-xs"
+              spellCheck={false}
+              placeholder={DEFAULT_COMPARE}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter chart, status, or brand colors. Separate them with commas, spaces, or new lines. A generated palette
+              fills this list. Up to {MAX_COMPARE_COLORS} colors are simulated.
+            </p>
+            {list.invalid.length > 0 && (
+              <p className="text-xs text-destructive" role="alert">
+                Not a valid CSS color: {list.invalid.join(", ")}
+              </p>
+            )}
+            {list.truncated > 0 && (
+              <p className="text-xs text-muted-foreground" role="status">
+                Only the first {MAX_COMPARE_COLORS} colors are simulated. {list.truncated} more were ignored.
+              </p>
+            )}
+          </div>
+          {listColors.length > 0 && (
+            <div className="space-y-2" data-testid="cvd-palette">
+              {VISIONS.map((vision) => (
+                <div key={vision} className="grid grid-cols-[8.5rem,1fr] items-center gap-2">
+                  <span className="text-xs">{visionLabel(vision, severity)}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {listColors.map((c, index) => {
+                      const sim = simulate(c, vision, severity);
+                      return (
+                        <span
+                          key={index}
+                          data-testid="cvd-palette-swatch"
+                          className="h-7 w-10 rounded border"
+                          style={swatchStyle(cssOf(sim))}
+                          title={`${list.colors[index].input} looks like ${sim.hex}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {listColors.length > 1 &&
+            (conflicts.length > 0 ? (
+              <div role="alert" aria-label="Hard to tell apart">
+                <ul className="space-y-1 text-xs text-destructive">
+                  {conflicts.flatMap(({ vision, pairs }) =>
+                    pairs.map((pair) => (
+                      <li key={`${vision}-${pair.a}-${pair.b}`}>
+                        {visionLabel(vision, severity)}: {list.colors[pair.a].input} and {list.colors[pair.b].input}{" "}
+                        look alike (ΔE {pair.distance.toFixed(1)})
+                      </li>
+                    )),
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-success" role="status">
+                Every pair stays distinct for every vision type (ΔE {CONFUSION_THRESHOLD} or more).
+              </p>
+            ))}
+        </div>
+
+        <CvdImage severity={severity} />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Images are scaled down so that the longest side is at most this many pixels. */
+const MAX_IMAGE_SIDE = 1600;
+/** Pixels per chunk. The transform yields to the browser between chunks. */
+const CHUNK_PIXELS = 200_000;
+/** Files larger than this are rejected before decoding; no real screenshot needs 20 MB. */
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+/** A small file can still decode to enormous pixels, so the dimension product is capped too. */
+const MAX_IMAGE_PIXELS = 40_000_000;
+/** A full pixel pass is too heavy to re-run on every slider step, so changes coalesce. */
+const SEVERITY_DEBOUNCE_MS = 150;
+
+const IMAGE_TYPE_ERROR = "Choose an image file, such as a PNG, JPEG, or WebP.";
+const IMAGE_SIZE_ERROR = "This image is larger than 20 MB. Choose a smaller file.";
+const IMAGE_PIXEL_ERROR = "This image has too many pixels (limit 40 megapixels). Resize it and try again.";
+const IMAGE_DECODE_ERROR = "Cannot read this image. It may be damaged or in an unsupported format.";
+const IMAGE_CANVAS_ERROR = "This system cannot draw the image.";
+/** Caption for the simulated preview; severity 0 means the picture is shown unchanged. */
+const imagePreviewLabel = (type: CvdType, severity: number) =>
+  severity <= 0 ? "No simulation" : cvdLabel(type, severity);
+
+function CvdImage({ severity }: { severity: number }) {
+  const [source, setSource] = useState<{ url: string; name: string } | null>(null);
+  const [type, setType] = useState<CvdType>("deutan");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pixelsRef = useRef<ImageData | null>(null);
+  const [pixelsVersion, setPixelsVersion] = useState(0);
+  const loadTokenRef = useRef(0);
+  const settledSeverity = useDebouncedValue(severity, SEVERITY_DEBOUNCE_MS);
+
+  // Release the previous object URL when the image is replaced, cleared, or unmounted.
+  useEffect(() => () => {
+    if (source) URL.revokeObjectURL(source.url);
+  }, [source]);
+
+  // Decode within the bounds first and only swap the image in once it is usable,
+  // so a rejected file never destroys the image the user is already looking at.
+  const open = (file: File | undefined | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError(IMAGE_TYPE_ERROR);
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError(IMAGE_SIZE_ERROR);
+      return;
+    }
+    const token = ++loadTokenRef.current;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      if (token !== loadTokenRef.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      if (!img.naturalWidth || !img.naturalHeight) {
+        URL.revokeObjectURL(url);
+        setError(IMAGE_DECODE_ERROR);
+        return;
+      }
+      if (img.naturalWidth * img.naturalHeight > MAX_IMAGE_PIXELS) {
+        URL.revokeObjectURL(url);
+        setError(IMAGE_PIXEL_ERROR);
+        return;
+      }
+      const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        setError(IMAGE_CANVAS_ERROR);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      pixelsRef.current = ctx.getImageData(0, 0, width, height);
+      setError("");
+      setSource({ url, name: file.name });
+      setPixelsVersion((v) => v + 1);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      if (token === loadTokenRef.current) setError(IMAGE_DECODE_ERROR);
+    };
+    img.src = url;
+  };
+
+  // Transform a copy of the pixels in chunks, so a large image does not freeze the UI.
+  useEffect(() => {
+    const original = pixelsRef.current;
+    const canvas = canvasRef.current;
+    if (!original || !canvas) return;
+    let cancelled = false;
+    const data = new Uint8ClampedArray(original.data);
+    const total = data.length / 4;
+    let start = 0;
+    setBusy(true);
+    const step = () => {
+      if (cancelled) return;
+      const end = Math.min(total, start + CHUNK_PIXELS);
+      simulateCvdPixels(data, type, settledSeverity, start, end);
+      start = end;
+      if (start < total) {
+        setTimeout(step, 0);
+        return;
+      }
+      canvas.width = original.width;
+      canvas.height = original.height;
+      canvas.getContext("2d")?.putImageData(new ImageData(data, original.width, original.height), 0, 0);
+      setBusy(false);
+    };
+    step();
+    return () => {
+      cancelled = true;
+    };
+  }, [pixelsVersion, type, settledSeverity, source]);
+
+  const onDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDragging(true);
+  };
+
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    open(event.dataTransfer.files[0]);
+  };
+
+  return (
+    <div
+      className={`space-y-3 rounded-md border border-dashed p-3 ${dragging ? "bg-accent" : ""}`}
+      onDragOver={onDragOver}
+      onDragLeave={() => setDragging(false)}
+      onDrop={onDrop}
+      data-testid="cvd-image"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={(e) => {
+            open(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <button type="button" className="toolbar-text-button" onClick={() => fileInputRef.current?.click()}>
+          <FileUp size={14} aria-hidden="true" />
+          Open image
+        </button>
+        <Label htmlFor="cvd-image-type" className="text-xs">
+          Simulate
+        </Label>
+        <select
+          id="cvd-image-type"
+          value={type}
+          onChange={(e) => setType(e.target.value as CvdType)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+        >
+          {CVD_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {cvdLabel(t, severity)}
+            </option>
+          ))}
+        </select>
+        {source && (
+          <button type="button" className="toolbar-text-button" onClick={() => {
+              loadTokenRef.current++;
+              pixelsRef.current = null;
+              setSource(null);
+              setBusy(false);
+              setError("");
+            }}
+          >
+            Clear
+          </button>
+        )}
+        {busy && <span className="text-xs text-muted-foreground">Simulating…</span>}
+      </div>
+      {error && (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+      {source ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <figure className="space-y-1">
+            <img src={source.url} alt={`Original ${source.name}`} className="max-h-80 w-full rounded object-contain" />
+            <figcaption className="text-xs text-muted-foreground">Normal vision</figcaption>
+          </figure>
+          <figure className="space-y-1">
+            <canvas
+              ref={canvasRef}
+              className="max-h-80 w-full rounded object-contain"
+              aria-label={`${source.name} as seen with ${imagePreviewLabel(type, severity)}`}
+            />
+            <figcaption className="text-xs text-muted-foreground">{imagePreviewLabel(type, severity)}</figcaption>
+          </figure>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Drop a screenshot, chart, or design here to see it with a color vision deficiency. The image stays on this
+          device. Use an image up to 20 MB and 40 megapixels.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Palettes of the working color. Selecting a swatch makes it the working color. */
+function PaletteGenerator({
+  color,
+  onApply,
+  onCompare,
+}: {
+  color: ParsedColor | null;
+  onApply: (color: ParsedColor) => void;
+  onCompare: (colors: ParsedColor[]) => void;
+}) {
+  const [mode, setMode] = useState<PaletteMode>("tints");
+  const palette = color ? buildPalette(color, mode) : [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Color Palette Generator</CardTitle>
+        <CardDescription>Shades and color harmonies of the color above. Select a swatch to use it.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Label htmlFor="palette-mode">Palette type</Label>
+          <select
+            id="palette-mode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as PaletteMode)}
+            className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+          >
+            {PALETTE_MODES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {palette.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Enter a valid color above to see its palette.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {palette.map((swatch) => (
+                <Card key={swatch.hex} className="overflow-hidden">
+                  <button
+                    type="button"
+                    className="block h-24 w-full border-b"
+                    style={{ backgroundColor: swatch.hex }}
+                    onClick={() => onApply(swatch)}
+                    aria-label={`Use ${swatch.hex}`}
+                    title={`Use ${swatch.hex}`}
+                  />
+                  <CardContent className="pt-4 space-y-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">HEX</Label>
+                        <CopyButton value={swatch.hex} label={`Copy ${swatch.hex}`} iconOnly />
+                      </div>
+                      <code className="text-xs block truncate">{swatch.hex}</code>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">RGB</Label>
+                      <code className="text-xs block truncate">
+                        {`rgb(${swatch.rgb.r}, ${swatch.rgb.g}, ${swatch.rgb.b})`}
+                      </code>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">HSL</Label>
+                      <code className="text-xs block truncate">
+                        {`hsl(${Math.round(swatch.hsl.h)}, ${Math.round(swatch.hsl.s)}%, ${Math.round(swatch.hsl.l)}%)`}
+                      </code>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CopyButton value={paletteToCss(palette)} label="Copy CSS variables" />
+              <CopyButton value={paletteToJson(palette)} label="Copy JSON" />
+              <Button type="button" variant="outline" size="sm" onClick={() => onCompare(palette)}>
+                Compare these colors for color blindness
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function App({ sdk }: { sdk: DevToolsSdk }) {
+  const [view, setView] = useState("colors");
+  const [colorInput, setColorInput] = useState("#3b82f6");
+  const [fg, setFg] = useState("#777777");
+  const [bg, setBg] = useState("#ffffff");
+  const [compareText, setCompareText] = useState(DEFAULT_COMPARE);
+  const working = parseColor(colorInput);
+  // A refused copy (no clipboard:write) is told to the user in the app; it is never a crash.
+  const clipboard = useMemo(() => ({ writeText: (text: string) => sdk.clipboard.writeText(text), onError: (message: string) => void sdk.toast(message, "error").catch(() => {}) }), [sdk]);
+
+  // The last colors live in the plugin's own storage (the frame has no localStorage). A color remembered before the
+  // list has loaded is kept: the loaded list is merged in behind it, and only then is the list written, so the stored
+  // colors are never overwritten with a shorter list.
+  const [recents, setRecents] = useState<string[]>([]);
+  const recentsRef = useRef<string[]>([]);
+  recentsRef.current = recents;
+  const loaded = useRef(false);
+  const dirty = useRef(false);
+  const save = (list: string[]) =>
+    sdk.storage.set(RECENT_COLORS_STORAGE_KEY, JSON.stringify(list)).catch(() => {
+      // Storage can be full or unavailable. The list still works for this session.
+    });
+  useEffect(() => {
+    let current = true;
+    sdk.storage
+      .get<string>(RECENT_COLORS_STORAGE_KEY)
+      .then((raw) => parseRecentColors(typeof raw === "string" ? raw : null))
+      .catch(() => [] as string[]) // Not connected or storage failed: the list works for this session.
+      .then((stored) => {
+        if (!current) return;
+        loaded.current = true;
+        if (stored.length > 0) {
+          const merged = [...new Set([...recentsRef.current, ...stored])].slice(0, MAX_RECENT_COLORS);
+          setRecents(merged);
+          if (dirty.current) void save(merged);
+        } else if (dirty.current) void save(recentsRef.current);
+      });
+    return () => {
+      current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `save` only reads `sdk`
+  }, [sdk]);
+
+  const remember = (color: ParsedColor) => {
+    const next = addRecentColor(recents, color);
+    setRecents(next);
+    if (loaded.current) void save(next);
+    else dirty.current = true;
+  };
+
+  return (
+    <ClipboardProvider value={clipboard}>
+    <div className="space-y-6 p-6">
+      <Tabs value={view} onValueChange={setView} className="space-y-6">
+      <TabsList aria-label="Color tools">
+        <TabsTrigger value="colors">Colors</TabsTrigger>
+        <TabsTrigger value="gradient">Gradient</TabsTrigger>
+      </TabsList>
+      {/* Both panels stay mounted so each keeps its state. */}
+      <TabsContent value="gradient" forceMount hidden={view !== "gradient"}><GradientBuilder /></TabsContent>
+      <TabsContent value="colors" forceMount hidden={view !== "colors"} className="space-y-6">
+      <ColorConverter input={colorInput} setInput={setColorInput} recents={recents} onCommit={remember} />
+      <PaletteGenerator
+        color={working}
+        onApply={(color) => {
+          setColorInput(color.hex);
+          remember(color);
+        }}
+        onCompare={(colors) => setCompareText(colors.map((color) => color.hex).join(", "))}
+      />
+      <ContrastChecker fg={fg} setFg={setFg} bg={bg} setBg={setBg} working={working ? colorInput.trim() : null} />
+      <ColorVision
+        color={working}
+        compareText={compareText}
+        setCompareText={setCompareText}
+      />
+      <ToolFaqSection items={FAQ_ITEMS} />
+      </TabsContent>
+      </Tabs>
+    </div>
+    </ClipboardProvider>
+  );
+}

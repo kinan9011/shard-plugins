@@ -1,0 +1,20 @@
+{
+  "id": "hash-generator",
+  "name": "Hash Generator",
+  "version": "1.0.0",
+  "description": "MD5, SHA-1, SHA-2, SHA-3 and Keccak-256 hashes, HMAC and file hashing.",
+  "longDescription": "Hashes text or a file with MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-512 and Keccak-256, and adds HMAC-SHA256, -SHA384 and -SHA512 with a secret key. The hashing runs in a WebAssembly module inside the plugin. Nothing is uploaded.",
+  "category": "Generators",
+  "keywords": ["md5", "sha", "sha1", "sha256", "sha512", "hmac", "checksum", "keccak"],
+  "icon": "lucide:Hash",
+  "entry": "index.html",
+  "runtime": "web+wasm",
+  "permissions": [
+    { "name": "files:open", "reason": "Hash a file you choose", "optional": true },
+    { "name": "clipboard:write", "reason": "Copy hashes", "optional": true }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/devtools-plugins",
+  "changelog": "CHANGELOG.md"
+}

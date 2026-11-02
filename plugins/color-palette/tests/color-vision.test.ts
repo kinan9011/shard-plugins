@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CVD_TYPES,
+  colorDistance,
+  cvdLabel,
+  cvdMatrix,
+  findConfusablePairs,
+  getContrastRatio,
+  MAX_COMPARE_COLORS,
+  parseColor,
+  parseColorList,
+  simulateCvd,
+  simulateCvdPixels,
+} from '../src/color';
+
+const c = (text: string) => parseColor(text)!;
+const encode = (linear: number) => Math.round((1.055 * Math.pow(linear, 1 / 2.4) - 0.055) * 255);
+
+describe('cvdMatrix', () => {
+  it('keeps white white for every type and severity', () => {
+    for (const type of CVD_TYPES) {
+      for (let step = 0; step <= 10; step++) {
+        const m = cvdMatrix(type, step / 10);
+        for (let row = 0; row < 3; row++) {
+          expect(m[row * 3] + m[row * 3 + 1] + m[row * 3 + 2]).toBeCloseTo(1, 2);
+        }
+      }
+    }
+  });
+
+  it('is the identity at severity 0 and interpolates between table rows', () => {
+    expect(cvdMatrix('deutan', 0)).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    const half = cvdMatrix('protan', 0.95)[0];
+    expect(half).toBeCloseTo((0.203876 + 0.152286) / 2, 6);
+  });
+});
+
+describe('simulateCvd', () => {
+  it('applies the Machado protanopia matrix in linear RGB', () => {
+    // Pure red is linear (1, 0, 0), so the result is the first matrix column, encoded back to sRGB.
+    const red = simulateCvd(c('#ff0000'), 'protan');
+    expect(red.rgb).toEqual({ r: encode(0.152286), g: encode(0.114503), b: 0 });
+    expect(red.hex).toBe('#6d5f00');
+  });
+
+  it('keeps grays and alpha', () => {
+    for (const type of CVD_TYPES) {
+      const gray = simulateCvd(c('rgb(128 128 128 / 0.5)'), type);
+      expect(Math.abs(gray.rgb.r - 128)).toBeLessThanOrEqual(1);
+      expect(Math.abs(gray.rgb.b - 128)).toBeLessThanOrEqual(1);
+      expect(gray.alpha).toBe(0.5);
+    }
+  });
+
+  it('turns every color gray for achromatopsia and keeps its luminance', () => {
+    const sim = simulateCvd(c('#3b82f6'), 'achroma');
+    expect(sim.rgb.r).toBe(sim.rgb.g);
+    expect(sim.rgb.g).toBe(sim.rgb.b);
+    expect(getContrastRatio(sim, c('#ffffff'))).toBeCloseTo(getContrastRatio(c('#3b82f6'), c('#ffffff')), 1);
+  });
+
+  it('makes red and green look alike for deuteranopia but not for tritanopia', () => {
+    const red = c('#d32f2f');
+    const green = c('#388e3c');
+    expect(colorDistance(red, green)).toBeGreaterThan(20);
+    expect(colorDistance(simulateCvd(red, 'deutan'), simulateCvd(green, 'deutan'))).toBeLessThan(6);
+    expect(colorDistance(simulateCvd(red, 'tritan'), simulateCvd(green, 'tritan'))).toBeGreaterThan(20);
+  });
+});
+
+describe('achromatopsia severity', () => {
+  it('removes part of the color below full severity', () => {
+    const blue = c('#3b82f6');
+    const full = simulateCvd(blue, 'achroma', 1);
+    const half = simulateCvd(blue, 'achroma', 0.5);
+    expect(full.hsl.s).toBeCloseTo(0, 0);
+    expect(half.hsl.s).toBeGreaterThan(5);
+    expect(half.hsl.s).toBeLessThan(blue.hsl.s);
+    expect(half.hex).not.toBe(full.hex);
+  });
+});
+
+describe('cvdLabel', () => {
+  it('names the full and the partial forms', () => {
+    expect(cvdLabel('protan')).toBe('Protanopia');
+    expect(cvdLabel('deutan', 1)).toBe('Deuteranopia');
+    expect(cvdLabel('tritan', 0.6)).toBe('Tritanomaly');
+    expect(cvdLabel('deutan', 0.5)).toBe('Deuteranomaly');
+    expect(cvdLabel('achroma')).toBe('Achromatopsia');
+    expect(cvdLabel('achroma', 0.5)).toBe('Achromatomaly');
+  });
+});
+
+describe('simulateCvdPixels', () => {
+  it('matches the per-color simulation and keeps alpha', () => {
+    const data = new Uint8ClampedArray([255, 0, 0, 200, 59, 130, 246, 255]);
+    simulateCvdPixels(data, 'deutan', 0.7);
+    const red = simulateCvd(c('#ff0000'), 'deutan', 0.7).rgb;
+    const blue = simulateCvd(c('#3b82f6'), 'deutan', 0.7).rgb;
+    expect(Math.abs(data[0] - red.r)).toBeLessThanOrEqual(1);
+    expect(Math.abs(data[1] - red.g)).toBeLessThanOrEqual(1);
+    expect(data[3]).toBe(200);
+    expect(Math.abs(data[6] - blue.b)).toBeLessThanOrEqual(1);
+  });
+
+  it('changes only the pixels in the given range', () => {
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 255, 0, 0, 255]);
+    simulateCvdPixels(data, 'protan', 1, 1, 2);
+    expect(Array.from(data.slice(0, 4))).toEqual([255, 0, 0, 255]);
+    expect(data[4]).not.toBe(255);
+  });
+});
+
+describe('findConfusablePairs', () => {
+  it('lists close pairs, closest first', () => {
+    const colors = [c('#ff0000'), c('#0000ff'), c('#fe0101'), c('#fd0000')];
+    const pairs = findConfusablePairs(colors);
+    expect(pairs.map((p) => `${p.a}-${p.b}`).sort()).toEqual(['0-2', '0-3', '2-3']);
+    expect(pairs.every((p) => p.distance < 6)).toBe(true);
+    expect(pairs.map((p) => p.distance)).toEqual([...pairs.map((p) => p.distance)].sort((x, y) => x - y));
+  });
+});
+
+describe('parseColorList', () => {
+  it('splits on commas, spaces, and new lines outside parentheses', () => {
+    const { colors, invalid } = parseColorList('#f00, rgb(0, 128, 0)\nhsl(240 100% 50%) tomato; nope');
+    expect(colors.map((x) => x.color.hex)).toEqual(['#ff0000', '#008000', '#0000ff', '#ff6347']);
+    expect(invalid).toEqual(['nope']);
+  });
+
+  it('keeps every color when the list is within the cap', () => {
+    const result = parseColorList('#ff0000 #00ff00 #0000ff');
+    expect(result.colors.map((x) => x.color.hex)).toEqual(['#ff0000', '#00ff00', '#0000ff']);
+    expect(result.truncated).toBe(0);
+  });
+
+  it('caps the list at 32 colors and counts the dropped entries', () => {
+    const text = Array.from({ length: 50 }, (_, i) => `#${i.toString(16).padStart(6, '0')}`).join(' ');
+    const result = parseColorList(text);
+    expect(result.colors).toHaveLength(MAX_COMPARE_COLORS);
+    expect(result.colors[0].color.hex).toBe('#000000');
+    expect(result.colors[MAX_COMPARE_COLORS - 1].color.hex).toBe(`#${(MAX_COMPARE_COLORS - 1).toString(16).padStart(6, '0')}`);
+    expect(result.truncated).toBe(50 - MAX_COMPARE_COLORS);
+  });
+
+  it('honors a custom cap', () => {
+    const result = parseColorList('red green blue yellow', 2);
+    expect(result.colors.map((x) => x.color.hex)).toEqual(['#ff0000', '#008000']);
+    expect(result.truncated).toBe(2);
+  });
+
+  it('still reports invalid tokens after the cap is reached', () => {
+    const text = `${Array.from({ length: 40 }, () => 'red').join(' ')} nope`;
+    const result = parseColorList(text);
+    expect(result.colors).toHaveLength(MAX_COMPARE_COLORS);
+    expect(result.invalid).toEqual(['nope']);
+    expect(result.truncated).toBe(8);
+  });
+
+  it('handles an empty list', () => {
+    const result = parseColorList('   ');
+    expect(result.colors).toEqual([]);
+    expect(result.invalid).toEqual([]);
+    expect(result.truncated).toBe(0);
+  });
+});

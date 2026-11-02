@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Colors come from the app theme (src/App.tsx applies the variables the host sends). These are used until it answers. */
+:root {
+  color-scheme: light dark;
+  --background: 220 23% 98%;
+  --foreground: 222 25% 16%;
+  --muted-foreground: 220 9% 46%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --border: 220 13% 88%;
+  --radius: 0.5rem;
+  --font-ui: system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 222 32% 10%;
+    --foreground: 220 30% 93%;
+    --muted-foreground: 220 12% 62%;
+    --border: 222 20% 22%;
+  }
+}
+
+body {
+  @apply bg-background font-sans text-base text-foreground;
+  margin: 0;
+}

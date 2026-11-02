@@ -1,0 +1,38 @@
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import { connect, loadWasm, type Theme } from "./devtools-sdk";
+import { createHasher } from "./hasher";
+import "./index.css";
+
+const sdk = connect();
+
+/** Match the app: the host sends its CSS custom properties, which the Tailwind preset reads through var(--...). */
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  for (const [name, value] of Object.entries(theme.vars)) root.style.setProperty(name, value);
+  root.classList.toggle("dark", theme.isDark);
+  root.style.colorScheme = theme.isDark ? "dark" : "light";
+}
+
+const root = createRoot(document.getElementById("root")!);
+
+async function start() {
+  // The theme is applied whenever the host answers; the page does not wait for it.
+  sdk
+    .ready()
+    .then(({ theme }) => {
+      applyTheme(theme);
+      sdk.theme.onChange(applyTheme);
+    })
+    .catch(() => {
+      // Opened outside the app (npm run dev): the hashing still works, files and copying do not.
+    });
+  try {
+    const { instance } = await loadWasm("hash.wasm");
+    root.render(<App sdk={sdk} hasher={createHasher(instance)} />);
+  } catch (error) {
+    root.render(<p role="alert" className="p-6 text-sm text-destructive">Could not start the hashing module: {(error as Error).message}</p>);
+  }
+}
+
+void start();

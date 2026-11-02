@@ -1,0 +1,94 @@
+# Builds the plugins whose version was raised since the previous tag, publishes their zips as release
+# assets and commits the updated index.json. Safe to re-run for the same tag. Start it by pushing a tag:  git tag v1 && git push origin v1
+# (Lives in plugins/.github/ of the devtools repo until it is copied into kinan9011/devtools-plugins.)
+name: Release plugins
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency: release-plugins
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # A plugin is a top-level folder with package.json and public/plugin.json. It is released when its
+      # version differs from the one at the previous v* tag (every plugin, for the first tag). A plugin
+      # whose files changed without a version bump is skipped with a warning: an unchanged version
+      # cannot be published again.
+      - name: Find changed plugins
+        id: changed
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [ -n "$previous" ]; then files=$(git diff --name-only "$previous" "$GITHUB_REF_NAME"); else files=$(git ls-files); fi
+          version() { node -e 'try { console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).version) } catch {}'; }
+          dirs=""
+          for dir in $(echo "$files" | grep / | cut -d/ -f1 | sort -u); do
+            [ -f "$dir/package.json" ] && [ -f "$dir/public/plugin.json" ] || continue
+            now=$(version < "$dir/public/plugin.json")
+            before=$([ -n "$previous" ] && git show "$previous:$dir/public/plugin.json" 2>/dev/null | version || true)
+            if [ "$now" = "$before" ]; then
+              echo "::warning::$dir changed but its version is still $now: not released. Raise the version in public/plugin.json."
+            else
+              dirs="$dirs $dir"
+            fi
+          done
+          echo "dirs=${dirs# }" >> "$GITHUB_OUTPUT"
+          echo "Changed plugins: ${dirs:-none}"
+
+      - name: Build
+        if: steps.changed.outputs.dirs != ''
+        env:
+          DIRS: ${{ steps.changed.outputs.dirs }}
+        run: |
+          mkdir out
+          for dir in $DIRS; do
+            (cd "$dir" && (npm ci || npm install) && npm run build)
+            cp "$dir"/release/* out/
+          done
+          ls -l out
+
+      # Before anything is published: a plugin whose version was not raised fails here.
+      - name: Update index.json
+        if: steps.changed.outputs.dirs != ''
+        run: |
+          git checkout --force -B "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
+          node scripts/plugin-index.mjs --zips out \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+
+      # A re-run (after a failed push below) uploads over the assets of the existing release.
+      - name: Create the release
+        if: steps.changed.outputs.dirs != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" out/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" out/* --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+      # After the assets exist, so no index entry points at a missing download.
+      - name: Commit index.json
+        if: steps.changed.outputs.dirs != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          git diff --cached --quiet || git commit -m "chore: update index for ${GITHUB_REF_NAME}"
+          git pull --rebase origin "$DEFAULT_BRANCH"
+          git push origin "$DEFAULT_BRANCH"
