@@ -37,7 +37,7 @@ p, small { line-height: 1.55; }
 .actions, .toolbar, .page-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .feedback:empty { display: none; }
 .feedback, .error { font-size: 0.9rem; overflow-wrap: anywhere; }
-.error { border-inline-start: 3px solid #ce4553; padding: 12px; }
+.error { border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: 12px; }
 .workspace { display: grid; gap: 16px; min-width: 0; }
 .empty { padding: 40px 20px; text-align: center; border-block: 1px solid hsl(var(--border)); }
 .hint { font-size: 0.8rem; }
