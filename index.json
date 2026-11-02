@@ -739,6 +739,32 @@
       "icon": "lucide:Lock"
     },
     {
+      "id": "pdf-organizer",
+      "name": "PDF Organizer",
+      "version": "1.0.0",
+      "description": "Merge PDFs and images, preview, reorder, rotate, duplicate, delete, extract and split pages locally. Undo edits within your session and export PDF or ZIP files.",
+      "category": "PDF Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "files:open",
+          "reason": "Choose a PDF, PNG or JPEG to organize on your device",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save your organized PDF or ZIP of split files",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1.1.0/pdf-organizer-1.0.0.zip",
+      "sha256": "5964b282b64b436773623f568bd1b3cf287aed828b08169168192a8b0421b09a",
+      "size": 2263554,
+      "released": "2026-11-02",
+      "icon": "lucide:Files"
+    },
+    {
       "id": "php-tools",
       "name": "PHP Tools",
       "version": "1.0.0",
