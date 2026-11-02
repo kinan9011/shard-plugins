@@ -1,0 +1,37 @@
+{
+  "id": "compression",
+  "name": "Compression",
+  "version": "1.0.0",
+  "description": "Decompress GZIP, zlib, and raw deflate from Base64, hex, or a .gz file, and compress text back, with format detection.",
+  "category": "Converters",
+  "keywords": [
+    "gzip",
+    "gunzip",
+    "zlib",
+    "deflate",
+    "inflate",
+    "compress",
+    "decompress",
+    "helm",
+    "gz"
+  ],
+  "icon": "lucide:FileArchive",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "html-to-jsx",
+  "name": "HTML to JSX",
+  "version": "1.0.0",
+  "description": "Convert HTML markup into React JSX.",
+  "category": "Converters",
+  "keywords": [
+    "jsx",
+    "react",
+    "html",
+    "convert",
+    "classname",
+    "component",
+    "tsx",
+    "markup"
+  ],
+  "icon": "lucide:Code2",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

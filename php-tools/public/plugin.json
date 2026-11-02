@@ -1,0 +1,32 @@
+{
+  "id": "php-tools",
+  "name": "PHP Tools",
+  "version": "1.0.0",
+  "description": "Convert serialize() data, session data, and PHP arrays to JSON and back, and repair broken string lengths.",
+  "category": "Converters",
+  "keywords": [
+    "php",
+    "serialize",
+    "unserialize",
+    "wordpress",
+    "laravel",
+    "session",
+    "array",
+    "var_export",
+    "json"
+  ],
+  "icon": "lucide:Brackets",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

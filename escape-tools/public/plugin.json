@@ -1,0 +1,37 @@
+{
+  "id": "escape-tools",
+  "name": "Escape Tools",
+  "version": "1.0.0",
+  "description": "Escape and unescape HTML entities, backslash strings, Unicode, and hex, and convert domain names to and from Punycode.",
+  "category": "Converters",
+  "keywords": [
+    "escape",
+    "unescape",
+    "html entities",
+    "backslash",
+    "unicode",
+    "hex",
+    "punycode",
+    "idn",
+    "idna",
+    "internationalized domain",
+    "xn--",
+    "unicode domain",
+    "domain to ascii",
+    "rfc 3492"
+  ],
+  "icon": "lucide:CodeXml",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

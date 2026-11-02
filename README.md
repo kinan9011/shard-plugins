@@ -56,6 +56,12 @@ It can only do what the user approves: see the
 | `url-encoder/` | URL Encoder | web | `clipboard:write` (optional) |
 | `csv-json/` | CSV to JSON | web | `clipboard:write`, `files:save` (both optional) |
 | `yaml-json/` | Config Converter | web | `clipboard:write` (optional) |
+| `escape-tools/` | Escape Tools | web | `clipboard:write` (optional) |
+| `html-to-jsx/` | HTML to JSX | web | `clipboard:write` (optional) |
+| `svg-to-css/` | SVG to CSS | web | `clipboard:write` (optional) |
+| `php-tools/` | PHP Tools | web | `clipboard:write` (optional) |
+| `compression/` | Compression | web | `clipboard:write`, `files:save` (both optional) |
+| `curl-to-code/` | cURL to Code | web | `clipboard:write` (optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
