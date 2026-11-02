@@ -36,6 +36,11 @@ It can only do what the user approves: see the
 | `checksum/` | Checksum | web | `clipboard:write` (optional) |
 | `ip-cidr/` | IP / CIDR Calculator | web | `clipboard:write` (optional) |
 | `har-viewer/` | HAR Viewer | web | `clipboard:write`, `files:save` (both optional) |
+| `timestamp/` | Timestamp | web | `clipboard:write` (optional) |
+| `date-difference/` | Date Difference | web | none |
+| `date-format/` | Date Format Translator | web | `clipboard:write` (optional) |
+| `stopwatch/` | Stopwatch | web | `clipboard:write`, `files:save` (both optional) |
+| `time-zone-converter/` | Time Zone Converter | web | `clipboard:write` (optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
