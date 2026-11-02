@@ -1,5 +1,1152 @@
 {
   "schema": 1,
   "name": "Shard Official",
-  "plugins": []
+  "plugins": [
+    {
+      "id": "ai-text-cleaner",
+      "name": "AI Text Cleaner",
+      "version": "1.0.0",
+      "description": "AI Text Cleaner. Runs sandboxed; nothing is uploaded.",
+      "category": "AI Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/ai-text-cleaner-1.0.0.zip",
+      "sha256": "c6a8c016f5d2f5e010f7c355dfd5b30b6f2fcb30a9b4041e6efdc4027ea6114c",
+      "size": 92257,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Sparkles"
+    },
+    {
+      "id": "api-formatter",
+      "name": "API Formatter",
+      "version": "1.0.0",
+      "description": "Format or minify JSON API responses, and turn URL-encoded data and query strings into JSON.",
+      "category": "Text Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/api-formatter-1.0.0.zip",
+      "sha256": "dcd6589ff4ed8f0fd9a6f7dabf709bc0a8aed9eb20be8b42061ac66f40c25e81",
+      "size": 77528,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileJson"
+    },
+    {
+      "id": "asn1-inspector",
+      "name": "ASN.1 Inspector",
+      "version": "1.0.0",
+      "description": "Show definite-length DER or BER data from PEM, Base64, hex, or a file as a tree of tags, offsets, lengths, and values.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/asn1-inspector-1.0.0.zip",
+      "sha256": "7b3a1022bd288d29c8f0bfdad402d52502343142985a0978eb4ff8496a9d9399",
+      "size": 71914,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileSearch"
+    },
+    {
+      "id": "base64",
+      "name": "Base64",
+      "version": "1.0.0",
+      "description": "Encode and decode Base64 and Base32 text, files, and data URIs, with a URL-safe mode.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/base64-1.0.0.zip",
+      "sha256": "7f89ee90c578f8c8f09bf4a7383c474d22394e440fb814e5d0d918fede14e3de",
+      "size": 92668,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:RefreshCw"
+    },
+    {
+      "id": "bcrypt-generator",
+      "name": "Bcrypt Generator",
+      "version": "1.0.0",
+      "description": "Generate bcrypt hashes locally.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/bcrypt-generator-1.0.0.zip",
+      "sha256": "9a3046a65aabe38396d1b80e5baa5fc5c0cfc0c4c5dec798a331b949a523a688",
+      "size": 88810,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:KeyRound"
+    },
+    {
+      "id": "case-converter",
+      "name": "Case Converter",
+      "version": "1.0.0",
+      "description": "Convert names to camelCase, snake_case, kebab-case, and 8 more cases live, one name per line, and make URL slugs.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/case-converter-1.0.0.zip",
+      "sha256": "a9406d02225b6eab9a19d0a2ee461b9d98b702889739b571cad59b7010a2374d",
+      "size": 90298,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Type"
+    },
+    {
+      "id": "certificate-decoder",
+      "name": "X.509 Certificate Decoder",
+      "version": "1.0.0",
+      "description": "Read PEM and DER certificates and CSRs, check validity and fingerprints, and verify a chain offline.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/certificate-decoder-1.0.0.zip",
+      "sha256": "4d627c2d84ef6c8456a72e6eac3e85a585b6b80b8b5016763dc79a8bcf5bd31b",
+      "size": 135302,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileBadge"
+    },
+    {
+      "id": "checksum",
+      "name": "Checksum",
+      "version": "1.0.0",
+      "description": "Calculate six common CRC variants from text, hex bytes, or a file, and validate or append Luhn check digits.",
+      "category": "Utilities",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/checksum-1.0.0.zip",
+      "sha256": "6d588b395ef81a48f1a1b8dccb47031328f31b08eaa68d11e582e7781b32a335",
+      "size": 71001,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Hash"
+    },
+    {
+      "id": "chmod-calculator",
+      "name": "chmod Calculator",
+      "version": "1.0.0",
+      "description": "Set file permissions with checkboxes, octal, or rwx text, apply expressions such as u+x, and see the chmod commands, a plain-English summary, and umask defaults.",
+      "category": "Utilities",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/chmod-calculator-1.0.0.zip",
+      "sha256": "42a9160a5f2e3cc9fd1f2c1890f7c1e5f18afa3a83c63cb6b427600eecfb3def",
+      "size": 78568,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileLock2"
+    },
+    {
+      "id": "code-formatter",
+      "name": "Code Formatter",
+      "version": "1.0.0",
+      "description": "Beautify or minify HTML, CSS, JavaScript, XML, and SQL.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/code-formatter-1.0.0.zip",
+      "sha256": "fdaaf8a8f796a1fee465ee3d2539292bcaeb69287c1581d942abc0806a4dcd41",
+      "size": 195836,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Braces"
+    },
+    {
+      "id": "color-palette",
+      "name": "Color Palette",
+      "version": "1.0.0",
+      "description": "Convert CSS colors, build palettes and gradients, check WCAG contrast and color blindness.",
+      "category": "Media",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy colors, palettes and CSS",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/color-palette-1.0.0.zip",
+      "sha256": "3bbca6565f6efe09aaa3e6c188956661d1a370335dafdb85fd8a90d486fcd55c",
+      "size": 74491,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Palette"
+    },
+    {
+      "id": "compression",
+      "name": "Compression",
+      "version": "1.0.0",
+      "description": "Decompress GZIP, zlib, and raw deflate from Base64, hex, or a .gz file, and compress text back, with format detection.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/compression-1.0.0.zip",
+      "sha256": "a5943cd6685bf4e93b9886b08dc22f497e36a575f71f6b7461f33e3abcffcdcc",
+      "size": 90510,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileArchive"
+    },
+    {
+      "id": "cron-calculator",
+      "name": "Cron Calculator",
+      "version": "1.0.0",
+      "description": "Explain any cron expression in plain English, with a field breakdown and the next runs.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy the cron expression",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/cron-calculator-1.0.0.zip",
+      "sha256": "8b7703125dcf00ec95eef3efa5c943ba17900f45f790967c7435b4fdaf53e7c3",
+      "size": 65523,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Scan"
+    },
+    {
+      "id": "csv-json",
+      "name": "CSV to JSON",
+      "version": "1.0.0",
+      "description": "Bidirectional CSV and JSON conversion with custom delimiters and nested key flattening.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/csv-json-1.0.0.zip",
+      "sha256": "e7b22e82e9905a1712ce6e882bfe2c676b6532302683ede3a8ea4a786ce5cf4d",
+      "size": 91352,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Database"
+    },
+    {
+      "id": "curl-to-code",
+      "name": "cURL to Code",
+      "version": "1.0.0",
+      "description": "Convert a cURL command to fetch, Node, Python, Go, PHP, Rust, or HTTPie code.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/curl-to-code-1.0.0.zip",
+      "sha256": "30d0e03a8e3c2a44b22de94d6fcb18a87c53fbc0bb82d63685225fa6842d88f3",
+      "size": 98239,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Terminal"
+    },
+    {
+      "id": "date-difference",
+      "name": "Date Difference",
+      "version": "1.0.0",
+      "description": "Calculate the difference between two dates.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/date-difference-1.0.0.zip",
+      "sha256": "572f1582e08ad4760a35222dafc749c6936cedad21995f9066581c027a853a9b",
+      "size": 68933,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Calculator"
+    },
+    {
+      "id": "date-format",
+      "name": "Date Format Translator",
+      "version": "1.0.0",
+      "description": "Translate date format strings between Go, strftime, Java, date-fns, Moment.js, PHP, and .NET, with a live preview.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/date-format-1.0.0.zip",
+      "sha256": "8d11fbca236d7b78517e6dcf038dd13f3e34b4f3c36a613378e961509820b576",
+      "size": 95535,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:CalendarCog"
+    },
+    {
+      "id": "escape-tools",
+      "name": "Escape Tools",
+      "version": "1.0.0",
+      "description": "Escape and unescape HTML entities, backslash strings, Unicode, and hex, and convert domain names to and from Punycode.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/escape-tools-1.0.0.zip",
+      "sha256": "dd12d66100d5547af343c5f7be1c3026a7826453712fc51ee5c5df2c3e9db5c9",
+      "size": 94236,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:CodeXml"
+    },
+    {
+      "id": "har-viewer",
+      "name": "HAR Viewer",
+      "version": "1.0.0",
+      "description": "Filter, sort, and inspect the requests in a .har file from the browser, copy a request as cURL, and save a sanitized copy without credentials and cookies.",
+      "category": "Network",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/har-viewer-1.0.0.zip",
+      "sha256": "8084416ea83e32f2902a648181b2516f580c37319c962197f49b4691c0007c61",
+      "size": 102644,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileSearch"
+    },
+    {
+      "id": "hash-generator",
+      "name": "Hash Generator",
+      "version": "1.0.0",
+      "description": "MD5, SHA-1, SHA-2, SHA-3 and Keccak-256 hashes, HMAC and file hashing.",
+      "category": "Generators",
+      "runtime": "web+wasm",
+      "permissions": [
+        {
+          "name": "files:open",
+          "reason": "Hash a file you choose",
+          "optional": true
+        },
+        {
+          "name": "clipboard:write",
+          "reason": "Copy hashes",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/hash-generator-1.0.0.zip",
+      "sha256": "60eff914aaf0f080bfb5eec93b241caecbc829d9cc14d5bb78a5cc147e505569",
+      "size": 69388,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard. The hashes are computed by a WebAssembly module.",
+      "icon": "lucide:Hash"
+    },
+    {
+      "id": "html-preview",
+      "name": "HTML Preview",
+      "version": "1.0.0",
+      "description": "Render HTML in a sandbox that cannot reach the network or the app.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/html-preview-1.0.0.zip",
+      "sha256": "c830239b3bb6542f667d24387426da1506f35b56193522af98e9bbfcfcf56ecb",
+      "size": 84240,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:MonitorPlay"
+    },
+    {
+      "id": "html-to-jsx",
+      "name": "HTML to JSX",
+      "version": "1.0.0",
+      "description": "Convert HTML markup into React JSX.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/html-to-jsx-1.0.0.zip",
+      "sha256": "a5f3d2ad11eb8814c6c542494f25997d4b049288ba4c32070c5e01c828b9be2c",
+      "size": 85853,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Code2"
+    },
+    {
+      "id": "image-converter",
+      "name": "Image Converter",
+      "version": "1.0.0",
+      "description": "Convert and compress single images or batches locally to JPEG (MozJPEG), PNG (OxiPNG), WebP, or AVIF. Resize with Lanczos3 and other filters, and reduce the color palette. Crop, rotate, and flip an image in the Edit Image tab.",
+      "category": "Media",
+      "runtime": "web+wasm",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/image-converter-1.0.0.zip",
+      "sha256": "225f0707d40552b45b986e91296b01d7c623c20ef453d78aa6a01a55fe165301",
+      "size": 3069337,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Image"
+    },
+    {
+      "id": "image-metadata",
+      "name": "Image Metadata Cleaner",
+      "version": "1.0.0",
+      "description": "Remove AI prompts, Content Credentials (C2PA), AI-generated labels, GPS, and camera data from JPEG, PNG, and WebP images. Keep the original pixels, or save a clean copy as JPG, PNG, WebP, or AVIF.",
+      "category": "AI Tools",
+      "runtime": "web+wasm",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/image-metadata-1.0.0.zip",
+      "sha256": "3bd0a1628bd3863298f47228af90033c6d6e74a050c11c0c86fcb13a5cbf4df4",
+      "size": 3049604,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:ShieldOff"
+    },
+    {
+      "id": "ip-cidr",
+      "name": "IP / CIDR Calculator",
+      "version": "1.0.0",
+      "description": "Get the network, broadcast, host range, masks, and address type for IPv4 and IPv6 blocks, and split, merge, or check ranges.",
+      "category": "Network",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/ip-cidr-1.0.0.zip",
+      "sha256": "d3c2e0909bb208f7df16361de44d4d0a896b593053ac4ed8d340baf0fccf18c8",
+      "size": 110265,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Network"
+    },
+    {
+      "id": "key-generator",
+      "name": "Key Pair Generator",
+      "version": "1.0.0",
+      "description": "Generate RSA, ECDSA, and Ed25519 key pairs as PEM, JWK, and OpenSSH keys with fingerprints, or convert a key you paste.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/key-generator-1.0.0.zip",
+      "sha256": "1c1102190219da088d67f61678da59ef1b0555daad2017c7cb4be9798fd76de5",
+      "size": 94736,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:KeySquare"
+    },
+    {
+      "id": "line-tools",
+      "name": "Line Tools",
+      "version": "1.0.0",
+      "description": "Filter, sort, reverse, dedupe, trim, and shuffle lines, and compare two lists. Split, join, wrap, replace, sum, or multiply lines in Transform mode.",
+      "category": "Text Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/line-tools-1.0.0.zip",
+      "sha256": "175691972cb0de71f708378df111233dee03b86f2c1050f59ce640ce559d3756",
+      "size": 95302,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:ListOrdered"
+    },
+    {
+      "id": "lorem-generator",
+      "name": "Lorem Ipsum",
+      "version": "1.0.0",
+      "description": "Generate placeholder text and fake names, emails, URLs, and titles as text or a JSON array.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/lorem-generator-1.0.0.zip",
+      "sha256": "6e987296afb1cdda7421078242c432d7e467e14600213a34d1fd727760db9107",
+      "size": 90450,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Quote"
+    },
+    {
+      "id": "markdown",
+      "name": "Markdown",
+      "version": "1.0.0",
+      "description": "Write Markdown and see a live, sanitized HTML preview.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy the Markdown and the generated HTML"
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/markdown-1.0.0.zip",
+      "sha256": "bfe4d2fbb967f993accf07209aef0c96efaa7c0b4f54237256620192506f2deb",
+      "size": 70844,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileText"
+    },
+    {
+      "id": "mermaid-renderer",
+      "name": "Mermaid Renderer",
+      "version": "1.0.0",
+      "description": "Render Mermaid flowcharts and sequence, class, ER, state, Gantt, and other diagrams as you type, and save them as SVG or PNG.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/mermaid-renderer-1.0.0.zip",
+      "sha256": "e37c6b6a7db9d57ac9dbd9853232492d4dd6a0cf8acef0e4a32d1be3dc5429cc",
+      "size": 1083844,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Workflow"
+    },
+    {
+      "id": "number-base",
+      "name": "Number Base",
+      "version": "1.0.0",
+      "description": "See a number in binary, octal, decimal, hex, any base to 36, and Roman numerals as you type, with two's complement views, integer expressions, and a clickable bit grid.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/number-base-1.0.0.zip",
+      "sha256": "17fc127ec110efc60ce7263f2671480b6045a14abbcad413a665195764a4e9df",
+      "size": 77353,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Binary"
+    },
+    {
+      "id": "password-generator",
+      "name": "Password Generator",
+      "version": "1.0.0",
+      "description": "Generate secure passwords and passphrases with strength analysis.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/password-generator-1.0.0.zip",
+      "sha256": "a949bd2eaa40b2fc56eb9c241f41c58248b5c0300f54219d5d5c6b2f32c6fcb8",
+      "size": 79740,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Lock"
+    },
+    {
+      "id": "php-tools",
+      "name": "PHP Tools",
+      "version": "1.0.0",
+      "description": "Convert serialize() data, session data, and PHP arrays to JSON and back, and repair broken string lengths.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/php-tools-1.0.0.zip",
+      "sha256": "8073eaf54cdb54a6ec8dcd25d86928498946b4060b2604e201a4a2961481c027",
+      "size": 94387,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Brackets"
+    },
+    {
+      "id": "qr-generator",
+      "name": "QR Generator",
+      "version": "1.0.0",
+      "description": "Make QR codes for text, Wi-Fi, contacts, email, phone, SMS, locations and events, with an optional logo, and save them as PNG or SVG.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/qr-generator-1.0.0.zip",
+      "sha256": "622fc581ca9c885851867aa7b4dab56595f161c0792e5a814907b492976a3efe",
+      "size": 108787,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Barcode"
+    },
+    {
+      "id": "qr-reader",
+      "name": "QR Reader",
+      "version": "1.0.0",
+      "description": "QR Reader. Runs sandboxed; nothing is uploaded.",
+      "category": "Media",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/qr-reader-1.0.0.zip",
+      "sha256": "d1c5a0f7ed36bf748fb6ec39ac4f038e330f5b69e6c4a564fa7e9cf5e4e702f2",
+      "size": 119172,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:ScanLine"
+    },
+    {
+      "id": "random-string",
+      "name": "Random String",
+      "version": "1.0.0",
+      "description": "Generate Nano IDs, hex and Base64URL tokens, and strings from a custom alphabet.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/random-string-1.0.0.zip",
+      "sha256": "853dfb67dc976ed1d5ef40f8dd9ca2db26842b15584b534d0d908aa14a37b6ad",
+      "size": 94444,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Dices"
+    },
+    {
+      "id": "secret-redactor",
+      "name": "Secret & PII Redactor",
+      "version": "1.0.0",
+      "description": "Secret & PII Redactor. Runs sandboxed; nothing is uploaded.",
+      "category": "AI Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/secret-redactor-1.0.0.zip",
+      "sha256": "62a05a3216af7273cfca563a55a38383ad7e9dc84b99328d3f733850b5064808",
+      "size": 94447,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:ShieldAlert"
+    },
+    {
+      "id": "semver",
+      "name": "Semver Calculator",
+      "version": "1.0.0",
+      "description": "Check versions against npm, Cargo, Composer, or Python ranges, see the range as plain comparators, and compare two versions.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/semver-1.0.0.zip",
+      "sha256": "f716492d256e2ec2a6da32b22105ac0a3f02e9616b04c59199b5cb52cc4c0ced",
+      "size": 120652,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Tags"
+    },
+    {
+      "id": "stopwatch",
+      "name": "Stopwatch",
+      "version": "1.0.0",
+      "description": "Record laps and split times, and copy or export them as CSV. The stopwatch keeps running while you use other tools.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/stopwatch-1.0.0.zip",
+      "sha256": "2861f15aa54db24e6ea6e0b807e439fb7b2c706998d31f3bd1da58997d60cc5d",
+      "size": 68847,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Clock"
+    },
+    {
+      "id": "string-inspector",
+      "name": "String Inspector",
+      "version": "1.0.0",
+      "description": "Count characters, words, lines, and bytes, find hidden Unicode characters, and check Unicode normalization (NFC, NFD, NFKC, NFKD).",
+      "category": "Text Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/string-inspector-1.0.0.zip",
+      "sha256": "503d6536b6a2dfcc3e68915c2ef07a557dccd700c635fb0f3203ca715a9cae2b",
+      "size": 74432,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:ScanText"
+    },
+    {
+      "id": "svg-to-css",
+      "name": "SVG to CSS",
+      "version": "1.0.0",
+      "description": "Turn an SVG into a small data URI and ready CSS for backgrounds and masks.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/svg-to-css-1.0.0.zip",
+      "sha256": "a955262afffffb73fb40e6ba46b66b602104842b78f402d5fc26e124ace51de8",
+      "size": 73208,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileImage"
+    },
+    {
+      "id": "time-zone-converter",
+      "name": "Time Zone Converter",
+      "version": "1.0.0",
+      "description": "Convert a date and time from one time zone to UTC, local time, and other zones. It handles daylight saving time changes and shows when the date changes.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/time-zone-converter-1.0.0.zip",
+      "sha256": "fa2d1ef2e0c156cb64fa7ca6abaeb13c1b7af90e8c1e01611282a1f51db3a97c",
+      "size": 69399,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Earth"
+    },
+    {
+      "id": "timestamp",
+      "name": "Timestamp",
+      "version": "1.0.0",
+      "description": "Convert Unix timestamps (seconds to nanoseconds) and date strings as you type, with offsets such as now - 1d and extra time zones.",
+      "category": "Time & Date",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/timestamp-1.0.0.zip",
+      "sha256": "2346f7b99f8dc19a7d1f3c92995361f71b25ad4e6ef9d0d2c83c5ef51ea1dcb4",
+      "size": 70074,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Clock"
+    },
+    {
+      "id": "token-counter",
+      "name": "Token Counter",
+      "version": "1.0.0",
+      "description": "Token Counter. Runs sandboxed; nothing is uploaded.",
+      "category": "AI Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/token-counter-1.0.0.zip",
+      "sha256": "5efd91f9d5188a8d64c9b5f1eb7c15c2f142a7e83e7fcd03f01a0f5babf47a0f",
+      "size": 1147245,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Coins"
+    },
+    {
+      "id": "unit-converter",
+      "name": "Unit Converter",
+      "version": "1.0.0",
+      "description": "Convert length, weight, temperature, and data units.",
+      "category": "Utilities",
+      "runtime": "web",
+      "permissions": [],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/unit-converter-1.0.0.zip",
+      "sha256": "0771c7c1bce391ac1155565739179700746d9d13412a64603dc253f9ae51dfb7",
+      "size": 101996,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Ruler"
+    },
+    {
+      "id": "url-encoder",
+      "name": "URL Encoder",
+      "version": "1.0.0",
+      "description": "Encode and decode URLs, and parse a URL into editable parts and query parameters.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/url-encoder-1.0.0.zip",
+      "sha256": "7c1ffae6a15db006b087e789acdb42ef08b647d41f3bfd3860fda43f9487ebe6",
+      "size": 90741,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Globe"
+    },
+    {
+      "id": "uuid-generator",
+      "name": "UUID Generator",
+      "version": "1.0.0",
+      "description": "Generate v1/v3/v4/v5/v6/v7 UUIDs and ULIDs, and inspect existing IDs.",
+      "category": "Generators",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy generated IDs",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/uuid-generator-1.0.0.zip",
+      "sha256": "28eefc3801b398c5bf7c38dec81d9f542ad3460d776cd6dd1dd964e7b9df524b",
+      "size": 59193,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:Key"
+    },
+    {
+      "id": "video-metadata",
+      "name": "Video Metadata Cleaner",
+      "version": "1.0.0",
+      "description": "Video Metadata Cleaner. Runs sandboxed; nothing is uploaded.",
+      "category": "AI Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/video-metadata-1.0.0.zip",
+      "sha256": "2f369cc91a372c0c36e95e1c72bd52974050ae241aed58e4f2d44c53a6462311",
+      "size": 96732,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileVideo"
+    },
+    {
+      "id": "xml-inspector",
+      "name": "XML Inspector",
+      "version": "1.0.0",
+      "description": "Format or minify XML, and query nodes or values with XPath 1.0 and namespace prefixes.",
+      "category": "Development Tools",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        },
+        {
+          "name": "files:save",
+          "reason": "Save results to a file",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/xml-inspector-1.0.0.zip",
+      "sha256": "55ab7be4b0292c433bf79ea0bbb0803643afd1438086da999b468b2aa16da700",
+      "size": 107825,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:CodeXml"
+    },
+    {
+      "id": "yaml-json",
+      "name": "Config Converter",
+      "version": "1.0.0",
+      "description": "Convert between JSON, YAML, TOML, .env, Java .properties, and TOON files, including multi-document YAML, and see how many LLM tokens TOON saves against JSON.",
+      "category": "Converters",
+      "runtime": "web",
+      "permissions": [
+        {
+          "name": "clipboard:write",
+          "reason": "Copy results",
+          "optional": true
+        }
+      ],
+      "minAppVersion": "1.0.0",
+      "url": "https://github.com/kinan9011/shard-plugins/releases/download/v1/yaml-json-1.0.0.zip",
+      "sha256": "538e834987c2867dbbc8f65c890927889add26318d38e345ee215e60f26eef8c",
+      "size": 1183594,
+      "released": "2026-11-02",
+      "changelog": "Moved out of Shard.",
+      "icon": "lucide:FileCode2"
+    }
+  ]
 }
