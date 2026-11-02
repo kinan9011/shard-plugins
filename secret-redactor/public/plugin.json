@@ -1,0 +1,33 @@
+{
+  "id": "secret-redactor",
+  "name": "Secret & PII Redactor",
+  "version": "1.0.0",
+  "description": "Mask API keys, tokens, passwords, emails, and other personal data before you paste text into an AI chat, and restore the values in the reply.",
+  "category": "AI Tools",
+  "keywords": [
+    "redact",
+    "secrets",
+    "api key",
+    "token",
+    "password",
+    "pii",
+    "mask",
+    "sanitize",
+    "chatgpt",
+    "privacy"
+  ],
+  "icon": "lucide:ShieldAlert",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

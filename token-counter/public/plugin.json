@@ -1,0 +1,33 @@
+{
+  "id": "token-counter",
+  "name": "Token Counter",
+  "version": "1.0.0",
+  "description": "Count GPT tokens exactly, estimate Claude, Gemini, and Llama tokens, check the context window, and estimate cost from your own price table.",
+  "category": "AI Tools",
+  "keywords": [
+    "tokens",
+    "tokenizer",
+    "gpt",
+    "openai",
+    "o200k",
+    "llm",
+    "prompt",
+    "cost",
+    "context window",
+    "claude"
+  ],
+  "icon": "lucide:Coins",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

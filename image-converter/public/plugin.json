@@ -1,0 +1,41 @@
+{
+  "id": "image-converter",
+  "name": "Image Converter",
+  "version": "1.0.0",
+  "description": "Convert and compress single images or batches locally to JPEG (MozJPEG), PNG (OxiPNG), WebP, or AVIF. Resize with Lanczos3 and other filters, and reduce the color palette. Crop, rotate, and flip an image in the Edit Image tab.",
+  "category": "Media",
+  "keywords": [
+    "image",
+    "png",
+    "jpg",
+    "webp",
+    "avif",
+    "mozjpeg",
+    "oxipng",
+    "palette",
+    "compress",
+    "resize",
+    "crop",
+    "rotate",
+    "flip"
+  ],
+  "icon": "lucide:Image",
+  "entry": "index.html",
+  "runtime": "web+wasm",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}

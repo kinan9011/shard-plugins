@@ -69,6 +69,13 @@ It can only do what the user approves: see the
 | `xml-inspector/` | XML Inspector | web | `clipboard:write`, `files:save` (both optional) |
 | `asn1-inspector/` | ASN.1 Inspector | web | `clipboard:write` (optional) |
 | `mermaid-renderer/` | Mermaid Renderer | web | `clipboard:write`, `files:save` (both optional) |
+| `image-converter/` | Image Converter | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
+| `qr-reader/` | QR Reader | web | `clipboard:write` (optional) |
+| `image-metadata/` | Image Metadata Cleaner | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
+| `video-metadata/` | Video Metadata Cleaner | web | `clipboard:write`, `files:save` (both optional) |
+| `secret-redactor/` | Secret & PII Redactor | web | `clipboard:write` (optional) |
+| `token-counter/` | Token Counter | web | `clipboard:write` (optional) |
+| `ai-text-cleaner/` | AI Text Cleaner | web | `clipboard:write` (optional) |
 
 These used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one

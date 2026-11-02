@@ -1,0 +1,46 @@
+{
+  "id": "video-metadata",
+  "name": "Video Metadata Cleaner",
+  "version": "1.0.0",
+  "description": "Remove AI labels (C2PA, XMP), GPS, device data, dates, and telemetry tracks from MP4, MOV, MKV, and WebM videos without re-encoding. The audio and video data do not change.",
+  "category": "AI Tools",
+  "keywords": [
+    "video metadata",
+    "remove metadata",
+    "mp4",
+    "mov",
+    "mkv",
+    "webm",
+    "c2pa",
+    "content credentials",
+    "ai video",
+    "sora",
+    "veo",
+    "runway",
+    "gps",
+    "gopro",
+    "iphone video",
+    "exif",
+    "privacy",
+    "strip metadata"
+  ],
+  "icon": "lucide:FileVideo",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    {
+      "name": "clipboard:write",
+      "reason": "Copy results",
+      "optional": true
+    },
+    {
+      "name": "files:save",
+      "reason": "Save results to a file",
+      "optional": true
+    }
+  ],
+  "minAppVersion": "3.0.0",
+  "license": "MIT",
+  "source": "https://github.com/kinan9011/shard-plugins",
+  "changelog": "CHANGELOG.md"
+}
