@@ -91,6 +91,23 @@ Hash Generator's hashing is a Rust crate in `hash-generator/wasm/`: `npm run tes
 `npm run build:wasm` rebuilds `public/hash.wasm` from it (needs `rustup target add wasm32-unknown-unknown`).
 Commit the rebuilt `hash.wasm`: the release workflow does not run Rust.
 
+## Repository commands
+
+Install [Go Task v3](https://taskfile.dev/docs/installation) and Node/npm. Run `task` for help and `task plugins` to list plugin IDs. Commands run from the repository root, including when invoked inside a plugin folder.
+
+```sh
+task install -- pdf-organizer   # npm ci when a lockfile exists, npm install otherwise
+task dev -- pdf-organizer       # Vite development server
+task build -- pdf-organizer     # dist/ plus release ZIP and SHA-256
+task test -- pdf-organizer      # unit/component tests
+task typecheck -- pdf-organizer
+task check -- pdf-organizer     # typecheck, tests, then build; stops on failure
+task browser -- pdf-organizer   # built-package smoke; build and install Chromium first
+task test:tasks                 # regression checks for the Task commands
+```
+
+`task build PLUGIN=pdf-organizer` is equivalent to `task build -- pdf-organizer`. Substitute any ID from `task plugins`; browser tests run only when that plugin defines `test:browser`. Install dependencies before running the other commands. PDF Organizer browser tests also need `cd pdf-organizer && npx playwright install chromium`. Tasks reuse each plugin's npm scripts; a build writes its existing `dist/` and `release/` outputs. Node requirements follow the selected plugin (PDF Organizer requires Node 22.13+). Hash Generator's optional Rust rebuild remains `cd hash-generator && npm run build:wasm`.
+
 ## Porting a tool from the app
 
 Most tools that were built into Shard are being moved here. `shared/` is what they need from the app, on top of the SDK:
