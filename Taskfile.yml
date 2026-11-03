@@ -1,0 +1,102 @@
+version: '3'
+
+vars:
+  PLUGIN: '{{.CLI_ARGS}}'
+
+tasks:
+  default:
+    desc: Show available commands
+    cmds:
+      - task --list
+
+  plugins:
+    desc: List plugin IDs, versions and names
+    cmds:
+      - |
+        node -e '
+          const fs = require("node:fs");
+          for (const dir of fs.readdirSync(".", { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+            if (!dir.isDirectory() || !fs.existsSync(`${dir.name}/package.json`) || !fs.existsSync(`${dir.name}/public/plugin.json`)) continue;
+            const plugin = JSON.parse(fs.readFileSync(`${dir.name}/public/plugin.json`, "utf8"));
+            console.log(`${dir.name}\t${plugin.version}\t${plugin.name}`);
+          }
+        '
+
+  install:
+    desc: Install one plugin's dependencies (task install -- pdf-organizer)
+    deps: [_plugin]
+    cmds:
+      - |
+        plugin_id={{.PLUGIN | shellQuote}}
+        if [ -f "$plugin_id/package-lock.json" ]; then
+          npm --prefix "$plugin_id" ci
+        else
+          npm --prefix "$plugin_id" install
+        fi
+
+  dev:
+    desc: Start one plugin's Vite server
+    cmds:
+      - task: _npm
+        vars: {SCRIPT: dev}
+
+  build:
+    desc: Build one plugin's dist, ZIP and checksum
+    cmds:
+      - task: _npm
+        vars: {SCRIPT: build}
+
+  test:
+    desc: Run one plugin's unit/component tests
+    cmds:
+      - task: _npm
+        vars: {SCRIPT: test}
+
+  typecheck:
+    desc: Typecheck one plugin
+    cmds:
+      - task: _npm
+        vars: {SCRIPT: typecheck}
+
+  browser:
+    desc: Run a plugin's browser tests (build first; currently PDF Organizer only)
+    cmds:
+      - task: _npm
+        vars: {SCRIPT: 'test:browser'}
+
+  check:
+    desc: Typecheck, test and build one plugin in order
+    cmds:
+      - task: typecheck
+      - task: test
+      - task: build
+
+  test:tasks:
+    desc: Verify repository Task commands without building plugins
+    cmds:
+      - node --test tests/taskfile.test.mjs
+
+  _plugin:
+    internal: true
+    requires:
+      vars: [PLUGIN]
+    preconditions:
+      - sh: >-
+          node -e 'const fs = require("node:fs"), id = process.argv[1];
+          process.exit(/^[a-z0-9][a-z0-9-]{1,63}$/.test(id ?? "") &&
+          fs.existsSync(`${id}/package.json`) && fs.existsSync(`${id}/public/plugin.json`) ? 0 : 1)' {{.PLUGIN | shellQuote}}
+        msg: 'Choose an existing plugin: task build -- pdf-organizer (or PLUGIN=pdf-organizer). Use task plugins to list IDs.'
+
+  _npm:
+    internal: true
+    deps: [_plugin]
+    requires:
+      vars: [SCRIPT]
+    preconditions:
+      - sh: >-
+          node -e 'const fs = require("node:fs");
+          const pkg = JSON.parse(fs.readFileSync(`${process.argv[1]}/package.json`, "utf8"));
+          process.exit(typeof pkg.scripts?.[process.argv[2]] === "string" ? 0 : 1)' {{.PLUGIN | shellQuote}} {{.SCRIPT | shellQuote}}
+        msg: 'The selected plugin does not define the requested npm script.'
+    cmds:
+      - npm --prefix {{.PLUGIN | shellQuote}} run {{.SCRIPT | shellQuote}}

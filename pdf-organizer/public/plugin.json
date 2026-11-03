@@ -1,10 +1,10 @@
 {
   "id": "pdf-organizer",
   "name": "PDF Organizer",
-  "version": "1.0.0",
-  "description": "Merge PDFs and images, preview, reorder, rotate, duplicate, delete, extract and split pages locally. Undo edits within your session and export PDF or ZIP files.",
+  "version": "1.1.0",
+  "description": "Merge PDFs and images, then reorder by drag and drop, rotate, crop, split, scale, merge pages, copy, delete, extract and export pages locally, in the style of PDF Arranger. Undo within your session; save PDF or ZIP.",
   "category": "PDF Tools",
-  "keywords": ["pdf", "merge", "split", "pages", "rotate", "extract", "organize"],
+  "keywords": ["pdf", "merge", "split", "pages", "rotate", "crop", "extract", "organize", "arranger"],
   "icon": "lucide:Files",
   "entry": "index.html",
   "runtime": "web",
