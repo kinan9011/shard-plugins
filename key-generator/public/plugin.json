@@ -1,7 +1,7 @@
 {
   "id": "key-generator",
   "name": "Key Pair Generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generate RSA, ECDSA, and Ed25519 key pairs as PEM, JWK, and OpenSSH keys with fingerprints, or convert a key you paste.",
   "category": "Generators",
   "keywords": [

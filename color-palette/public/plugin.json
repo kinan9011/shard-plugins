@@ -1,7 +1,7 @@
 {
   "id": "color-palette",
   "name": "Color Palette",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert CSS colors, build palettes and gradients, check WCAG contrast and color blindness.",
   "longDescription": "Converts any CSS color to HEX, RGB, HSL, HWB, OKLCH and HSV with alpha. Builds shades and harmony palettes and copies them as CSS variables or JSON. Checks WCAG contrast with a suggested fix, simulates color blindness on colors and images, keeps the last 8 colors, and builds linear and radial CSS gradients. Everything happens in the plugin; nothing is uploaded.",
   "category": "Media",

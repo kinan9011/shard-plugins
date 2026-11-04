@@ -1,7 +1,7 @@
 {
   "id": "video-metadata",
   "name": "Video Metadata Cleaner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Remove AI labels (C2PA, XMP), GPS, device data, dates, and telemetry tracks from MP4, MOV, MKV, and WebM videos without re-encoding. The audio and video data do not change.",
   "category": "AI Tools",
   "keywords": [

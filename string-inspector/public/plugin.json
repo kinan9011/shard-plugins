@@ -1,7 +1,7 @@
 {
   "id": "string-inspector",
   "name": "String Inspector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Count characters, words, lines, and bytes, find hidden Unicode characters, and check Unicode normalization (NFC, NFD, NFKC, NFKD).",
   "category": "Text Tools",
   "keywords": [

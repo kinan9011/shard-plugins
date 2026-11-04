@@ -80,7 +80,7 @@ export function GradientBar({ stops, css, selectedId, onSelect, onAdd, onMove, o
 
   return (
     <div
-      className="rounded-lg border"
+      className="rounded-md border"
       style={{
         backgroundImage: "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%)",
         backgroundSize: "16px 16px",

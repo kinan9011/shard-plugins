@@ -1,7 +1,7 @@
 {
   "id": "checksum",
   "name": "Checksum",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Calculate six common CRC variants from text, hex bytes, or a file, and validate or append Luhn check digits.",
   "category": "Utilities",
   "keywords": [

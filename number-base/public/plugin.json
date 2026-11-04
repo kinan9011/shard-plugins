@@ -1,7 +1,7 @@
 {
   "id": "number-base",
   "name": "Number Base",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "See a number in binary, octal, decimal, hex, any base to 36, and Roman numerals as you type, with two's complement views, integer expressions, and a clickable bit grid.",
   "category": "Converters",
   "keywords": [

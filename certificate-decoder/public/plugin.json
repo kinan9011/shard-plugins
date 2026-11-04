@@ -1,7 +1,7 @@
 {
   "id": "certificate-decoder",
   "name": "X.509 Certificate Decoder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Read PEM and DER certificates and CSRs, check validity and fingerprints, and verify a chain offline.",
   "category": "Development Tools",
   "keywords": [

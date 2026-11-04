@@ -1,7 +1,7 @@
 {
   "id": "escape-tools",
   "name": "Escape Tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Escape and unescape HTML entities, backslash strings, Unicode, and hex, and convert domain names to and from Punycode.",
   "category": "Converters",
   "keywords": [

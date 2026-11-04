@@ -44,7 +44,7 @@ function Field({
       </legend>
       <div className="flex flex-wrap items-center gap-2">
         <select
-          className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+          className="rounded border bg-background px-2 pr-7 py-1 text-sm"
           aria-label={`${field.label} builder mode`}
           value={mode}
           onChange={(e) => {
@@ -98,7 +98,7 @@ export function CronBuilder({
   const read = readCronInput(input);
   const parsed = parseCron(read.expression, { aws: read.aws });
   return (
-    <details className="rounded-lg border p-4">
+    <details className="rounded-md border p-4">
       <summary className="cursor-pointer text-sm font-medium">
         Visual builder
       </summary>

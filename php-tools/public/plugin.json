@@ -1,7 +1,7 @@
 {
   "id": "php-tools",
   "name": "PHP Tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert serialize() data, session data, and PHP arrays to JSON and back, and repair broken string lengths.",
   "category": "Converters",
   "keywords": [

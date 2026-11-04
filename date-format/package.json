@@ -1,7 +1,7 @@
 {
   "name": "date-format",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Date Format Translator plugin. Keep `version` in step with public/plugin.json.",
   "license": "MIT",
   "type": "module",

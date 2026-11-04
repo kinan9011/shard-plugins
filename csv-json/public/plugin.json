@@ -1,7 +1,7 @@
 {
   "id": "csv-json",
   "name": "CSV to JSON",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Bidirectional CSV and JSON conversion with custom delimiters and nested key flattening.",
   "category": "Converters",
   "keywords": [

@@ -1,7 +1,7 @@
 {
   "name": "token-counter",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Token Counter plugin. Keep `version` in step with public/plugin.json.",
   "license": "MIT",
   "type": "module",

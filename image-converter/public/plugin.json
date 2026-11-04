@@ -1,7 +1,7 @@
 {
   "id": "image-converter",
   "name": "Image Converter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert and compress single images or batches locally to JPEG (MozJPEG), PNG (OxiPNG), WebP, or AVIF. Resize with Lanczos3 and other filters, and reduce the color palette. Crop, rotate, and flip an image in the Edit Image tab.",
   "category": "Media",
   "keywords": [

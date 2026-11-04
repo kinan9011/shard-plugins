@@ -1,7 +1,7 @@
 {
   "id": "uuid-generator",
   "name": "UUID Generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generate v1/v3/v4/v5/v6/v7 UUIDs and ULIDs, and inspect existing IDs.",
   "longDescription": "Generates UUIDs (v1, v3, v4, v5, v6, v7) and ULIDs, up to 1000 at a time, and inspects an existing UUID or ULID: its version, variant and embedded timestamp. Name-based UUIDs follow RFC 4122. Everything happens in the plugin; nothing is uploaded.",
   "category": "Generators",

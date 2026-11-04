@@ -33,8 +33,8 @@ const FAQ_ITEMS = [
 ];
 
 const encoder = new TextEncoder();
-const field = "w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
-const button = "h-7 rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground";
+const field = "w-full rounded border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+const button = "h-7 rounded px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
 
 export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) {
   const [source, setSource] = useState<Source>("text");
@@ -117,7 +117,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
               role="tab"
               aria-selected={source === value}
               onClick={() => setSource(value)}
-              className={`h-7 rounded px-3 text-sm ${source === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`h-7 rounded px-3 text-sm ${source === value ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               {value === "text" ? "Text" : "File"}
             </button>
@@ -147,7 +147,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-foreground">File</h2>
           <div>
-            <button type="button" className="h-8 rounded-md bg-primary px-3 text-sm text-primary-foreground hover:opacity-90" onClick={() => void chooseFile()}>Choose file…</button>
+            <button type="button" className="h-7 rounded bg-primary-solid px-3 text-sm text-primary-solid-foreground hover:bg-primary-solid/90" onClick={() => void chooseFile()}>Choose file…</button>
           </div>
           {file && (
             <div className="flex items-center justify-between rounded-md border border-border bg-muted px-3 py-2 text-sm">

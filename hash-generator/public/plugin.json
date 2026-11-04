@@ -1,7 +1,7 @@
 {
   "id": "hash-generator",
   "name": "Hash Generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MD5, SHA-1, SHA-2, SHA-3 and Keccak-256 hashes, HMAC and file hashing.",
   "longDescription": "Hashes text or a file with MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-512 and Keccak-256, and adds HMAC-SHA256, -SHA384 and -SHA512 with a secret key. The hashing runs in a WebAssembly module inside the plugin. Nothing is uploaded.",
   "category": "Generators",

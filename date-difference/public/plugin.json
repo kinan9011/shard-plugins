@@ -1,7 +1,7 @@
 {
   "id": "date-difference",
   "name": "Date Difference",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Calculate the difference between two dates.",
   "category": "Time & Date",
   "keywords": [

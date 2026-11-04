@@ -1,7 +1,7 @@
 {
   "id": "case-converter",
   "name": "Case Converter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert names to camelCase, snake_case, kebab-case, and 8 more cases live, one name per line, and make URL slugs.",
   "category": "Converters",
   "keywords": [
