@@ -1,3 +1,4 @@
+import { t, formatList, type TKey } from "@/lib/i18n";
 import { Range, compare as semverCompare, diff as semverDiff, inc as semverInc, parse as semverParse, type ReleaseType } from "semver";
 
 /**
@@ -14,30 +15,31 @@ export const VERSION_DIALECTS: { id: VersionDialect; label: string }[] = [
   { id: "python", label: "Python (PEP 440)" },
 ];
 
-export const RANGE_EXAMPLES: Record<VersionDialect, { label: string; range: string }[]> = {
+/** `label` is a dictionary key, translated where it is shown. */
+export const RANGE_EXAMPLES: Record<VersionDialect, { label: TKey; range: string }[]> = {
   npm: [
-    { label: "Caret or tilde", range: "^1.2 || ~2.0" },
-    { label: "Caret below 1.0", range: "^0.3.1" },
-    { label: "Hyphen range", range: "1.2.3 - 2.3" },
-    { label: "Pre-release", range: ">=2.0.0-beta.2 <2.0.0" },
+    { label: "example.caretOrTilde", range: "^1.2 || ~2.0" },
+    { label: "example.caretBelowOne", range: "^0.3.1" },
+    { label: "example.hyphen", range: "1.2.3 - 2.3" },
+    { label: "example.prerelease", range: ">=2.0.0-beta.2 <2.0.0" },
   ],
   cargo: [
-    { label: "Default (caret)", range: "1.2" },
-    { label: "Comma means AND", range: ">=1.2, <1.5" },
-    { label: "Tilde", range: "~0.3.1" },
-    { label: "Exact", range: "=1.2.3" },
+    { label: "example.defaultCaret", range: "1.2" },
+    { label: "example.commaAnd", range: ">=1.2, <1.5" },
+    { label: "example.tilde", range: "~0.3.1" },
+    { label: "example.exact", range: "=1.2.3" },
   ],
   composer: [
-    { label: "Caret or caret", range: "^1.2 || ^2.0" },
-    { label: "Tilde", range: "~1.2" },
-    { label: "Beta allowed", range: "^2.0@beta" },
-    { label: "Hyphen range", range: "1.0 - 2.0" },
+    { label: "example.caretOrCaret", range: "^1.2 || ^2.0" },
+    { label: "example.tilde", range: "~1.2" },
+    { label: "example.betaAllowed", range: "^2.0@beta" },
+    { label: "example.hyphen", range: "1.0 - 2.0" },
   ],
   python: [
-    { label: "Compatible release", range: "~=1.4.2" },
-    { label: "Prefix match", range: "==1.4.*" },
-    { label: "Bounds", range: ">=1.2, <2, !=1.5.0" },
-    { label: "Pre-release", range: ">=2.0b1" },
+    { label: "example.compatible", range: "~=1.4.2" },
+    { label: "example.prefix", range: "==1.4.*" },
+    { label: "example.bounds", range: ">=1.2, <2, !=1.5.0" },
+    { label: "example.prerelease", range: ">=2.0b1" },
   ],
 };
 
@@ -129,7 +131,7 @@ const sign = (value: number) => (value < 0 ? -1 : value > 0 ? 1 : 0);
 const npmEngine: Engine<string> = {
   parseVersion(input) {
     const parsed = semverParse(input);
-    if (!parsed) return { ok: false, error: "Not a valid SemVer version. Use MAJOR.MINOR.PATCH, such as 1.4.2." };
+    if (!parsed) return { ok: false, error: t("error.semverVersion") };
     return { ok: true, version: parsed.version, normalized: parsed.version };
   },
   compare: (a, b) => semverCompare(a, b),
@@ -140,7 +142,7 @@ const npmEngine: Engine<string> = {
       range = new Range(input);
       wide = new Range(input, { includePrerelease: true });
     } catch (error) {
-      return { ok: false, error: `${(error as Error).message}. Check the operators and versions.` };
+      return { ok: false, error: t("error.npmRange", { message: (error as Error).message }) };
     }
     const alternatives = range.set.map((set) => set.map((comparator) => comparator.value).filter(Boolean));
     const tuples = new Set<string>();
@@ -171,10 +173,9 @@ const npmEngine: Engine<string> = {
 
 function prereleaseTupleNote(tuples: string[], tool: string) {
   if (tuples.length === 0) {
-    return `Pre-releases such as 1.3.0-beta.1 never match. ${tool} matches a pre-release only when a comparator names a pre-release of the same version.`;
+    return t("note.prereleaseNone", { tool });
   }
-  const list = tuples.join(" or ");
-  return `Pre-releases match only for ${list}, because a comparator names a pre-release of ${tuples.length > 1 ? "those versions" : "that version"}.`;
+  return t("note.prereleaseSome", { list: formatList(tuples, "disjunction"), count: tuples.length });
 }
 
 // ---------- Cargo (Rust semver crate) ----------
@@ -191,17 +192,27 @@ interface CargoComparator {
 
 const isWildcard = (char: string | undefined) => char === "*" || char === "x" || char === "X";
 
+type CargoPart = "major" | "minor" | "patch" | "pre-release" | "build metadata";
+const PART_KEYS: Record<CargoPart, TKey> = {
+  major: "part.major",
+  minor: "part.minor",
+  patch: "part.patch",
+  "pre-release": "part.preRelease",
+  "build metadata": "part.build",
+};
+const partName = (part: CargoPart) => t(PART_KEYS[part]);
+
 export function parseCargoRange(input: string): { ok: true; comparators: CargoComparator[] } | { ok: false; error: string } {
   const text = input.trim();
-  if (!text) return { ok: false, error: "Enter a version requirement, such as 1.2 or >=1.2, <1.5." };
+  if (!text) return { ok: false, error: t("error.cargoEmpty") };
   if (text.includes("||")) {
-    return { ok: false, error: "Cargo does not support ||. A requirement is one list of comparators, separated by commas, that must all match." };
+    return { ok: false, error: t("error.cargoOr") };
   }
   if (isWildcard(text[0])) {
     const rest = text.slice(1).trimStart();
     if (!rest) return { ok: true, comparators: [] };
-    if (rest.startsWith(",")) return { ok: false, error: "A * wildcard must be the only comparator in a Cargo requirement." };
-    return { ok: false, error: "Unexpected text after the * wildcard." };
+    if (rest.startsWith(",")) return { ok: false, error: t("error.cargoWildcardAlone") };
+    return { ok: false, error: t("error.cargoAfterWildcard") };
   }
 
   const comparators: CargoComparator[] = [];
@@ -210,25 +221,25 @@ export function parseCargoRange(input: string): { ok: true; comparators: CargoCo
   const skipSpaces = () => {
     while (text[pos] === " ") pos += 1;
   };
-  const number = (part: string): number | string => {
+  const number = (part: "major" | "minor" | "patch"): number | string => {
     const start = pos;
     while (pos < text.length && /\d/.test(text[pos])) pos += 1;
     const digits = text.slice(start, pos);
     if (!digits) {
-      if (isWildcard(text[start]) && part === "major") return "A * wildcard must be the only comparator in a Cargo requirement.";
-      return `Expected a number for the ${part} version${text[start] ? `, found "${text[start]}"` : ""}.`;
+      if (isWildcard(text[start]) && part === "major") return t("error.cargoWildcardAlone");
+      return text[start] ? t("error.cargoExpectedNumberFound", { part: partName(part), found: text[start] }) : t("error.cargoExpectedNumber", { part: partName(part) });
     }
-    if (digits.length > 1 && digits[0] === "0") return `The ${part} version ${digits} has a leading zero.`;
+    if (digits.length > 1 && digits[0] === "0") return t("error.cargoLeadingZero", { part: partName(part), digits });
     return Number(digits);
   };
-  const identifiers = (part: string): string[] | string => {
+  const identifiers = (part: "pre-release" | "build metadata"): string[] | string => {
     const start = pos;
     while (pos < text.length && /[0-9A-Za-z.-]/.test(text[pos])) pos += 1;
     const body = text.slice(start, pos);
     const parts = body.split(".");
-    if (!body || parts.some((item) => !item)) return `The ${part} has an empty part.`;
+    if (!body || parts.some((item) => !item)) return t("error.cargoEmptyPart", { part: partName(part) });
     if (part === "pre-release" && parts.some((item) => NUMERIC.test(item) && item.length > 1 && item[0] === "0")) {
-      return "A numeric pre-release part cannot have a leading zero.";
+      return t("error.cargoPreLeadingZero");
     }
     return parts;
   };
@@ -249,7 +260,7 @@ export function parseCargoRange(input: string): { ok: true; comparators: CargoCo
     let minor: number | undefined;
     let patch: number | undefined;
     let hasWildcard = false;
-    let position = "major";
+    let position: CargoPart = "major";
     if (peek() === ".") {
       pos += 1;
       position = "minor";
@@ -270,7 +281,7 @@ export function parseCargoRange(input: string): { ok: true; comparators: CargoCo
         pos += 1;
         if (defaultOp) op = "*";
       } else if (hasWildcard) {
-        return { ok: false, error: "A number cannot follow a wildcard, as in 1.*.3." };
+        return { ok: false, error: t("error.cargoAfterWildcardNumber") };
       } else {
         const value = number("patch");
         if (typeof value === "string") return { ok: false, error: value };
@@ -297,13 +308,13 @@ export function parseCargoRange(input: string): { ok: true; comparators: CargoCo
     const char = peek();
     if (char !== ",") {
       if ((char === "-" || char === "+") && patch === undefined) {
-        return { ok: false, error: `A ${char === "-" ? "pre-release" : "build"} needs a full version, such as 1.2.0-beta.` };
+        return { ok: false, error: t(char === "-" ? "error.cargoPreNeedsFull" : "error.cargoBuildNeedsFull") };
       }
-      return { ok: false, error: `Expected a comma after the ${position}, found "${char}". Cargo separates comparators with commas.` };
+      return { ok: false, error: t("error.cargoExpectedComma", { part: partName(position), found: char }) };
     }
     pos += 1;
     skipSpaces();
-    if (comparators.length === 32) return { ok: false, error: "Cargo allows at most 32 comparators." };
+    if (comparators.length === 32) return { ok: false, error: t("error.cargoTooMany") };
   }
   return { ok: true, comparators };
 }
@@ -440,8 +451,7 @@ const cargoEngine: Engine<SemVer> = {
     const text = input.trim();
     const version = parseStrictSemver(text);
     if (!version) {
-      const hint = /^[vV=]/.test(text) ? " Cargo versions have no v or = prefix." : " Use MAJOR.MINOR.PATCH, such as 1.4.2.";
-      return { ok: false, error: `Not a valid Cargo version.${hint}` };
+      return { ok: false, error: t(/^[vV=]/.test(text) ? "error.cargoVersionPrefix" : "error.cargoVersion") };
     }
     return { ok: true, version, normalized: text.replace(/\+.*$/, "") };
   },
@@ -489,7 +499,7 @@ export function normalizeComposerVersion(input: string): string {
   let version = input.trim();
   const original = version;
   version = version.replace(/@(?:stable|RC|beta|alpha|dev)$/i, "");
-  const branchError = () => new Error(`Branch versions such as dev-main or 2.x-dev are not supported here: "${original}".`);
+  const branchError = () => new Error(t("error.composerBranchVersion", { input: original }));
   if (/^(?:master|trunk|default)$/.test(version) || /^dev-/i.test(version)) throw branchError();
   const build = /^([^,\s+]+)\+[^\s]+$/.exec(version);
   if (build) version = build[1];
@@ -502,7 +512,7 @@ export function normalizeComposerVersion(input: string): string {
     match = new RegExp(`^v?(\\d{4}(?:[.:-]?\\d{2}){1,6}(?:[.:-]?\\d{1,3}){0,2})${MODIFIER}$`, "i").exec(version);
     if (!match) {
       if (/[.-]?dev$/i.test(version)) throw branchError();
-      throw new Error(`Invalid version string "${original}".`);
+      throw new Error(t("error.composerInvalidVersion", { input: original }));
     }
     version = match[1].replace(/\D/g, ".");
     index = 2;
@@ -612,10 +622,10 @@ function parseComposerConstraint(raw: string): ComposerConstraint[] {
   const any = /^(v)?[xX*](\.[xX*])*$/i.exec(constraint);
   if (any) return any[1] || any[2] ? [{ op: ">=", version: "0.0.0.0-dev" }] : [{ op: "*", version: "" }];
 
-  const branch = () => new Error(`Branch constraints such as 2.x-dev are not supported here: "${raw}".`);
+  const branch = () => new Error(t("error.composerBranchConstraint", { input: raw }));
   const tilde = new RegExp(`^~>?${COMPOSER_VERSION}$`, "i").exec(constraint);
   if (tilde) {
-    if (constraint.startsWith("~>")) throw new Error(`Invalid operator "~>" in "${raw}". Use the ~ operator.`);
+    if (constraint.startsWith("~>")) throw new Error(t("error.composerBadOperator", { input: raw }));
     if (tilde[8]) throw branch();
     const position = tilde[4] ? 4 : tilde[3] ? 3 : tilde[2] ? 2 : 1;
     const suffix = !tilde[5] && !tilde[7] ? "-dev" : "";
@@ -659,7 +669,7 @@ function parseComposerConstraint(raw: string): ComposerConstraint[] {
     try {
       version = normalizeComposerVersion(basic[2]);
     } catch (error) {
-      throw new Error(`Could not parse version constraint "${raw}": ${(error as Error).message}`);
+      throw new Error(t("error.composerParseDetail", { input: raw, message: (error as Error).message }));
     }
     const op = basic[1] || "=";
     if (op !== "==" && op !== "=" && modifier && composerStability(version) === "stable") {
@@ -670,12 +680,12 @@ function parseComposerConstraint(raw: string): ComposerConstraint[] {
     const normalizedOp = op === "=" ? "==" : op === "<>" ? "!=" : (op as ComposerConstraint["op"]);
     return [{ op: normalizedOp, version }];
   }
-  throw new Error(`Could not parse version constraint "${raw}".`);
+  throw new Error(t("error.composerParse", { input: raw }));
 }
 
 export function parseComposerRange(input: string): { ok: true; groups: ComposerConstraint[][]; allowed: ComposerStability } | { ok: false; error: string } {
   const text = input.trim();
-  if (!text) return { ok: false, error: "Enter a constraint, such as ^1.2 or ~1.2.3." };
+  if (!text) return { ok: false, error: t("error.composerEmpty") };
   try {
     const groups = text.split(/\s*\|\|?\s*/).map((orPart) => {
       const andParts = orPart.split(/(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)/);
@@ -735,10 +745,7 @@ const composerEngine: Engine<string> = {
     const parsed = parseComposerRange(input);
     if ("error" in parsed) return { ok: false, error: parsed.error };
     const { groups, allowed } = parsed;
-    const notes =
-      allowed === "stable"
-        ? ["Composer matches pre-releases inside the bounds. With the default minimum-stability (stable), it installs only stable versions. Add a flag such as @beta to allow more."]
-        : [`Composer installs versions that are ${allowed} or more stable for this constraint. Less stable versions still need minimum-stability.`];
+    const notes = [allowed === "stable" ? t("note.composerStable") : t("note.composerAllowed", { stability: allowed })];
     return {
       ok: true,
       range: {
@@ -848,38 +855,37 @@ const PREFIX_RE = /^v?(?:(\d+)!)?(\d+(?:\.\d+)*)\.\*$/i;
 
 export function parsePep440Specifiers(input: string): { ok: true; specifiers: PepSpecifier[] } | { ok: false; error: string } {
   const text = input.trim();
-  if (!text) return { ok: false, error: "Enter specifiers, such as >=1.4, <2 or ~=1.4.2." };
-  if (text.includes("||")) return { ok: false, error: "PEP 440 has no OR (||). Separate specifiers with commas. All of them must match." };
+  if (!text) return { ok: false, error: t("error.pepEmpty") };
+  if (text.includes("||")) return { ok: false, error: t("error.pepOr") };
   const specifiers: PepSpecifier[] = [];
   for (const part of text.split(",").map((item) => item.trim()).filter(Boolean)) {
     const match = /^(~=|===|==|!=|<=|>=|<|>)\s*(.*)$/.exec(part);
     if (!match) {
-      if (/^[\^~]/.test(part)) return { ok: false, error: `"${part}": PEP 440 has no ^ or ~ operator. Use ~=, as in ~=1.4.2.` };
-      return { ok: false, error: `"${part}" needs an operator, such as ==${part} or >=${part}.` };
+      if (/^[\^~]/.test(part)) return { ok: false, error: t("error.pepNoCaret", { spec: part }) };
+      return { ok: false, error: t("error.pepNeedsOperator", { spec: part }) };
     }
     const op = match[1] as PepOp;
     const body = match[2].trim();
     if (op === "===") {
-      if (!body || /[\s;)]/.test(body)) return { ok: false, error: `"${part}" is not a valid === specifier.` };
+      if (!body || /[\s;)]/.test(body)) return { ok: false, error: t("error.pepBadTriple", { spec: part }) };
       specifiers.push({ op, raw: body });
       continue;
     }
     const prefix = PREFIX_RE.exec(body);
     if (prefix) {
-      if (op !== "==" && op !== "!=") return { ok: false, error: `"${part}": only == and != can end with .*.` };
+      if (op !== "==" && op !== "!=") return { ok: false, error: t("error.pepWildcardOperator", { spec: part }) };
       specifiers.push({ op, raw: body, prefix: { epoch: prefix[1] ? Number(prefix[1]) : 0, release: prefix[2].split(".").map(Number) } });
       continue;
     }
     const version = parsePep440(body);
     if (!version) {
-      const hint = body.endsWith(".*") ? " The .* must follow the release numbers, as in ==1.4.*." : "";
-      return { ok: false, error: `"${body}" in "${part}" is not a valid PEP 440 version.${hint}` };
+      return { ok: false, error: t(body.endsWith(".*") ? "error.pepBadVersionWildcard" : "error.pepBadVersion", { body, spec: part }) };
     }
-    if (version.local && op !== "==" && op !== "!=") return { ok: false, error: `"${part}": only == and != accept a local version (+...).` };
-    if (op === "~=" && version.release.length < 2) return { ok: false, error: `"${part}": ~= needs at least two release numbers, as in ~=1.4.` };
+    if (version.local && op !== "==" && op !== "!=") return { ok: false, error: t("error.pepLocal", { spec: part }) };
+    if (op === "~=" && version.release.length < 2) return { ok: false, error: t("error.pepCompatible", { spec: part }) };
     specifiers.push({ op, raw: body, version });
   }
-  if (specifiers.length === 0) return { ok: false, error: "Enter specifiers, such as >=1.4, <2 or ~=1.4.2." };
+  if (specifiers.length === 0) return { ok: false, error: t("error.pepEmpty") };
   return { ok: true, specifiers };
 }
 
@@ -936,7 +942,7 @@ function pepAllowsPrereleases(spec: PepSpecifier) {
 const pythonEngine: Engine<Pep440Version> = {
   parseVersion(input) {
     const version = parsePep440(input);
-    if (!version) return { ok: false, error: "Not a valid PEP 440 version, such as 1.4.2, 2.0rc1, or 1.0.post1." };
+    if (!version) return { ok: false, error: t("error.pepVersion") };
     return { ok: true, version, normalized: formatPep440(version) };
   },
   compare: comparePep440,
@@ -951,9 +957,7 @@ const pythonEngine: Engine<Pep440Version> = {
         alternatives: [specifiers.flatMap(pepComparators)],
         joinAnd: ", ",
         notes: [
-          prereleases
-            ? "A specifier names a pre-release, so pre-releases and dev releases can match."
-            : "Pre-releases and dev releases match only with pip --pre, or when a specifier names one, as in >=2.0b1.",
+          prereleases ? t("note.pepPre") : t("note.pepNoPre"),
         ],
         check(version) {
           if (!specifiers.every((spec) => pepSpecMatches(spec, version))) return "miss";
@@ -1013,10 +1017,10 @@ export function evaluateRange(dialect: VersionDialect, rangeText: string, versio
   if (!best && bestPre) {
     highestNote =
       dialect === "python"
-        ? `No final release matches. PEP 440 lets an installer fall back to a pre-release then. The highest is ${bestPre.text}.`
+        ? t("note.highestPython", { version: bestPre.text })
         : dialect === "composer"
-          ? `Only less stable versions match. The highest is ${bestPre.text}. Add a stability flag, such as @beta, to allow it.`
-          : `Only pre-releases fall inside the bounds, and the pre-release rule excludes them. The highest is ${bestPre.text}.`;
+          ? t("note.highestComposer", { version: bestPre.text })
+          : t("note.highestPre", { version: bestPre.text });
   }
   const { alternatives, joinAnd, notes } = range.range;
   const normalized = alternatives.map((set) => (set.length ? set.join(joinAnd) : "*")).join(" || ");
@@ -1033,7 +1037,7 @@ export function evaluateRange(dialect: VersionDialect, rangeText: string, versio
 const shortComposer = (version: string) => version.replace(/^(\d+\.\d+\.\d+)\.0(?=-|$)/, "$1");
 
 function describeComparator(text: string, dialect: VersionDialect): string {
-  if (text === "*" || text === "") return "any version";
+  if (text === "*" || text === "") return t("describe.any");
   const match = /^(===|==|!=|>=|<=|>|<|=)?(.*)$/.exec(text)!; // strict-mode only: the pattern matches any string
   const op = match[1] ?? "=";
   let version = match[2];
@@ -1043,37 +1047,37 @@ function describeComparator(text: string, dialect: VersionDialect): string {
   } else if (dialect === "composer") {
     if (version.endsWith("-dev") && (op === "<" || op === ">=")) {
       version = shortComposer(version.slice(0, -4));
-      detail = op === "<" ? ` (no ${version} pre-releases)` : ` (${version} pre-releases count)`;
+      detail = op === "<" ? t("describe.noPrereleases", { version }) : t("describe.prereleasesCount", { version });
     } else {
       version = shortComposer(version);
     }
   }
   if (version.endsWith(".*")) {
     const prefix = version.slice(0, -2);
-    return op === "!=" ? `not a ${prefix}.x version` : `any ${prefix}.x version`;
+    return t(op === "!=" ? "describe.notPrefix" : "describe.prefix", { prefix });
   }
+  const withDetail = (text: string) => (detail ? t("describe.withDetail", { text, detail }) : text);
   switch (op) {
     case ">=":
-      return `at least ${version}${detail}`;
+      return withDetail(t("describe.atLeast", { version }));
     case ">":
-      return `above ${version}${detail}`;
+      return withDetail(t("describe.above", { version }));
     case "<":
-      return `below ${version}${detail}`;
+      return withDetail(t("describe.below", { version }));
     case "<=":
-      return `at most ${version}${detail}`;
+      return withDetail(t("describe.atMost", { version }));
     case "!=":
-      return `not ${version}`;
+      return t("describe.not", { version });
     case "===":
-      return `exactly the string ${version}`;
+      return t("describe.exactString", { version });
     default:
-      return `exactly ${version}`;
+      return t("describe.exactly", { version });
   }
 }
 
 export function describeComparators(comparators: string[], dialect: VersionDialect): string {
-  if (comparators.length === 0) return "Any version.";
-  const text = comparators.map((item) => describeComparator(item, dialect)).join(" and ");
-  return `${text[0].toUpperCase()}${text.slice(1)}.`;
+  const text = comparators.length === 0 ? t("describe.any") : formatList(comparators.map((item) => describeComparator(item, dialect)));
+  return t("describe.sentence", { text: `${text[0].toUpperCase()}${text.slice(1)}` });
 }
 
 // ---------- compare mode ----------
@@ -1090,10 +1094,20 @@ export type CompareResult =
     }
   | { ok: false; error: string; side?: "left" | "right" };
 
+const BUMP_KEYS: Record<string, TKey> = {
+  major: "bump.major",
+  premajor: "bump.premajor",
+  minor: "bump.minor",
+  preminor: "bump.preminor",
+  patch: "bump.patch",
+  prepatch: "bump.prepatch",
+  prerelease: "bump.prerelease",
+};
+
 function releaseBump(a: number[], b: number[], names: string[]): string | undefined {
   const length = Math.max(a.length, b.length);
   for (let index = 0; index < length; index += 1) {
-    if ((a[index] ?? 0) !== (b[index] ?? 0)) return names[index] ?? `segment ${index + 1}`;
+    if ((a[index] ?? 0) !== (b[index] ?? 0)) return names[index] ?? t("bump.segment", { n: index + 1 });
   }
   return undefined;
 }
@@ -1101,28 +1115,36 @@ function releaseBump(a: number[], b: number[], names: string[]): string | undefi
 export function compareVersions(dialect: VersionDialect, leftText: string, rightText: string): CompareResult {
   const engine = ENGINES[dialect];
   const left = engine.parseVersion(leftText);
-  if ("error" in left) return { ok: false, error: `First version: ${left.error}`, side: "left" };
+  if ("error" in left) return { ok: false, error: t("compare.firstError", { error: left.error }), side: "left" };
   const right = engine.parseVersion(rightText);
-  if ("error" in right) return { ok: false, error: `Second version: ${right.error}`, side: "right" };
+  if ("error" in right) return { ok: false, error: t("compare.secondError", { error: right.error }), side: "right" };
   const order = sign(engine.compare(left.version, right.version)) as -1 | 0 | 1;
   const base = { ok: true as const, order, left: left.normalized, right: right.normalized };
   if (dialect === "npm" || dialect === "cargo") {
-    const bump = semverDiff(left.normalized, right.normalized) ?? undefined;
+    const diff = semverDiff(left.normalized, right.normalized);
+    const bump = diff ? t(BUMP_KEYS[diff] ?? "bump.release") : undefined;
     const sameBuild = (semverParse(leftText.trim())?.build.join(".") ?? "") === (semverParse(rightText.trim())?.build.join(".") ?? "");
-    return { ...base, bump, note: order === 0 && !sameBuild ? "Build metadata (+...) does not change the order." : undefined };
+    return { ...base, bump, note: order === 0 && !sameBuild ? t("note.buildMetadata") : undefined };
   }
   if (dialect === "composer") {
     const nums = (version: string) => version.split("-")[0].split(".").map(Number);
-    const bump = releaseBump(nums(left.normalized), nums(right.normalized), ["major", "minor", "patch", "fourth number"]);
-    return { ...base, bump: bump ?? (order === 0 ? undefined : "stability") };
+    const bump = releaseBump(nums(left.normalized), nums(right.normalized), [t("bump.major"), t("bump.minor"), t("bump.patch"), t("bump.fourthNumber")]);
+    return { ...base, bump: bump ?? (order === 0 ? undefined : t("bump.stability")) };
   }
   const a = left.version as Pep440Version;
   const b = right.version as Pep440Version;
-  let bump = a.epoch !== b.epoch ? "epoch" : releaseBump(a.release, b.release, ["major", "minor", "micro"]);
+  let bump = a.epoch !== b.epoch ? t("bump.epoch") : releaseBump(a.release, b.release, [t("bump.major"), t("bump.minor"), t("bump.micro")]);
   if (!bump && order !== 0) {
-    bump = a.pre?.join() !== b.pre?.join() ? "pre-release" : a.post !== b.post ? "post-release" : a.dev !== b.dev ? "dev release" : "local";
+    bump =
+      a.pre?.join() !== b.pre?.join()
+        ? t("bump.preRelease")
+        : a.post !== b.post
+          ? t("bump.postRelease")
+          : a.dev !== b.dev
+            ? t("bump.devRelease")
+            : t("bump.local");
   }
-  const note = order === 0 && formatPep440(a) !== formatPep440(b) ? "Trailing zeros do not count. 1.0 and 1.0.0 are the same version." : undefined;
+  const note = order === 0 && formatPep440(a) !== formatPep440(b) ? t("note.trailingZeros") : undefined;
   return { ...base, bump, note };
 }
 
@@ -1138,13 +1160,13 @@ export function nextVersions(dialect: VersionDialect, text: string, preid: strin
   if (dialect === "npm" || dialect === "cargo") {
     const id = preid.trim() || undefined;
     const kinds: [string, ReleaseType][] = [
-      ["Major", "major"],
-      ["Minor", "minor"],
-      ["Patch", "patch"],
-      ["Pre-major", "premajor"],
-      ["Pre-minor", "preminor"],
-      ["Pre-patch", "prepatch"],
-      ["Pre-release", "prerelease"],
+      [t("next.major"), "major"],
+      [t("next.minor"), "minor"],
+      [t("next.patch"), "patch"],
+      [t("next.premajor"), "premajor"],
+      [t("next.preminor"), "preminor"],
+      [t("next.prepatch"), "prepatch"],
+      [t("next.prerelease"), "prerelease"],
     ];
     return kinds.flatMap(([label, kind]) => {
       try {
@@ -1164,8 +1186,8 @@ export function nextVersions(dialect: VersionDialect, text: string, preid: strin
   // Like npm, a pre-release moves up to its own release first: the next major after 2.0.0b1 is 2.0.0.
   const pre = dialect === "python" ? isPrerelease(parsed.version as Pep440Version) : composerStability(parsed.normalized) !== "stable";
   return [
-    { label: "Major", version: `${epoch}${pre && minor === 0 && patch === 0 ? major : major + 1}.0.0` },
-    { label: "Minor", version: `${epoch}${major}.${pre && patch === 0 ? minor : minor + 1}.0` },
-    { label: dialect === "python" ? "Micro" : "Patch", version: `${epoch}${major}.${minor}.${pre ? patch : patch + 1}` },
+    { label: t("next.major"), version: `${epoch}${pre && minor === 0 && patch === 0 ? major : major + 1}.0.0` },
+    { label: t("next.minor"), version: `${epoch}${major}.${pre && patch === 0 ? minor : minor + 1}.0` },
+    { label: t(dialect === "python" ? "next.micro" : "next.patch"), version: `${epoch}${major}.${minor}.${pre ? patch : patch + 1}` },
   ];
 }

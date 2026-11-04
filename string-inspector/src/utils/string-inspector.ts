@@ -2,6 +2,7 @@
  * String Inspector utilities: text statistics and a per-code-point breakdown
  * that flags invisible, control, and bidirectional characters.
  */
+import { t, type TKey, type TVars } from "@/lib/i18n";
 
 type Granularity = "grapheme" | "word" | "sentence";
 
@@ -205,7 +206,9 @@ export type CharFlag = "invisible" | "control" | "bidi";
 
 interface KnownChar {
   abbr: string;
-  label: string;
+  /** Dictionary key of the name, translated when the character is described. */
+  label: TKey;
+  labelVars?: TVars;
   flag?: CharFlag;
 }
 
@@ -214,76 +217,76 @@ interface KnownChar {
  * bundled, so only these characters get a name.
  */
 const KNOWN_CHARS: Record<number, KnownChar> = {
-  0x00: { abbr: "NUL", label: "Null", flag: "control" },
-  0x09: { abbr: "TAB", label: "Tab" },
-  0x0a: { abbr: "LF", label: "Line feed" },
-  0x0b: { abbr: "VT", label: "Vertical tab", flag: "control" },
-  0x0c: { abbr: "FF", label: "Form feed", flag: "control" },
-  0x0d: { abbr: "CR", label: "Carriage return" },
-  0x1b: { abbr: "ESC", label: "Escape", flag: "control" },
-  0x20: { abbr: "SP", label: "Space" },
-  0x7f: { abbr: "DEL", label: "Delete", flag: "control" },
-  0x85: { abbr: "NEL", label: "Next line", flag: "control" },
-  0xa0: { abbr: "NBSP", label: "No-break space", flag: "invisible" },
-  0xad: { abbr: "SHY", label: "Soft hyphen", flag: "invisible" },
-  0x34f: { abbr: "CGJ", label: "Combining grapheme joiner", flag: "invisible" },
-  0x61c: { abbr: "ALM", label: "Arabic letter mark", flag: "bidi" },
-  0x115f: { abbr: "HCF", label: "Hangul choseong filler", flag: "invisible" },
-  0x1160: { abbr: "HJF", label: "Hangul jungseong filler", flag: "invisible" },
-  0x180e: { abbr: "MVS", label: "Mongolian vowel separator", flag: "invisible" },
-  0x2000: { abbr: "NQSP", label: "En quad", flag: "invisible" },
-  0x2001: { abbr: "MQSP", label: "Em quad", flag: "invisible" },
-  0x2002: { abbr: "ENSP", label: "En space", flag: "invisible" },
-  0x2003: { abbr: "EMSP", label: "Em space", flag: "invisible" },
-  0x2004: { abbr: "3/MSP", label: "Three-per-em space", flag: "invisible" },
-  0x2005: { abbr: "4/MSP", label: "Four-per-em space", flag: "invisible" },
-  0x2006: { abbr: "6/MSP", label: "Six-per-em space", flag: "invisible" },
-  0x2007: { abbr: "FSP", label: "Figure space", flag: "invisible" },
-  0x2008: { abbr: "PSP", label: "Punctuation space", flag: "invisible" },
-  0x2009: { abbr: "THSP", label: "Thin space", flag: "invisible" },
-  0x200a: { abbr: "HSP", label: "Hair space", flag: "invisible" },
-  0x200b: { abbr: "ZWSP", label: "Zero-width space", flag: "invisible" },
-  0x200c: { abbr: "ZWNJ", label: "Zero-width non-joiner", flag: "invisible" },
-  0x200d: { abbr: "ZWJ", label: "Zero-width joiner", flag: "invisible" },
-  0x200e: { abbr: "LRM", label: "Left-to-right mark", flag: "bidi" },
-  0x200f: { abbr: "RLM", label: "Right-to-left mark", flag: "bidi" },
-  0x2028: { abbr: "LSEP", label: "Line separator", flag: "invisible" },
-  0x2029: { abbr: "PSEP", label: "Paragraph separator", flag: "invisible" },
-  0x202a: { abbr: "LRE", label: "Left-to-right embedding", flag: "bidi" },
-  0x202b: { abbr: "RLE", label: "Right-to-left embedding", flag: "bidi" },
-  0x202c: { abbr: "PDF", label: "Pop directional formatting", flag: "bidi" },
-  0x202d: { abbr: "LRO", label: "Left-to-right override", flag: "bidi" },
-  0x202e: { abbr: "RLO", label: "Right-to-left override", flag: "bidi" },
-  0x202f: { abbr: "NNBSP", label: "Narrow no-break space", flag: "invisible" },
-  0x205f: { abbr: "MMSP", label: "Medium mathematical space", flag: "invisible" },
-  0x2060: { abbr: "WJ", label: "Word joiner", flag: "invisible" },
-  0x2061: { abbr: "FA", label: "Function application", flag: "invisible" },
-  0x2062: { abbr: "IT", label: "Invisible times", flag: "invisible" },
-  0x2063: { abbr: "IS", label: "Invisible separator", flag: "invisible" },
-  0x2064: { abbr: "IP", label: "Invisible plus", flag: "invisible" },
-  0x2066: { abbr: "LRI", label: "Left-to-right isolate", flag: "bidi" },
-  0x2067: { abbr: "RLI", label: "Right-to-left isolate", flag: "bidi" },
-  0x2068: { abbr: "FSI", label: "First strong isolate", flag: "bidi" },
-  0x2069: { abbr: "PDI", label: "Pop directional isolate", flag: "bidi" },
-  0x3000: { abbr: "IDSP", label: "Ideographic space", flag: "invisible" },
-  0x3164: { abbr: "HF", label: "Hangul filler", flag: "invisible" },
-  0xfeff: { abbr: "BOM", label: "Byte order mark (zero-width no-break space)", flag: "invisible" },
-  0xffa0: { abbr: "HWHF", label: "Halfwidth Hangul filler", flag: "invisible" },
-  0xfffc: { abbr: "OBJ", label: "Object replacement character", flag: "invisible" },
-  0xfffd: { abbr: "FFFD", label: "Replacement character" },
+  0x00: { abbr: "NUL", label: "charName.null", flag: "control" },
+  0x09: { abbr: "TAB", label: "charName.tab" },
+  0x0a: { abbr: "LF", label: "charName.lineFeed" },
+  0x0b: { abbr: "VT", label: "charName.verticalTab", flag: "control" },
+  0x0c: { abbr: "FF", label: "charName.formFeed", flag: "control" },
+  0x0d: { abbr: "CR", label: "charName.carriageReturn" },
+  0x1b: { abbr: "ESC", label: "charName.escape", flag: "control" },
+  0x20: { abbr: "SP", label: "charName.space" },
+  0x7f: { abbr: "DEL", label: "charName.delete", flag: "control" },
+  0x85: { abbr: "NEL", label: "charName.nextLine", flag: "control" },
+  0xa0: { abbr: "NBSP", label: "charName.noBreakSpace", flag: "invisible" },
+  0xad: { abbr: "SHY", label: "charName.softHyphen", flag: "invisible" },
+  0x34f: { abbr: "CGJ", label: "charName.combiningGraphemeJoiner", flag: "invisible" },
+  0x61c: { abbr: "ALM", label: "charName.arabicLetterMark", flag: "bidi" },
+  0x115f: { abbr: "HCF", label: "charName.hangulChoseongFiller", flag: "invisible" },
+  0x1160: { abbr: "HJF", label: "charName.hangulJungseongFiller", flag: "invisible" },
+  0x180e: { abbr: "MVS", label: "charName.mongolianVowelSeparator", flag: "invisible" },
+  0x2000: { abbr: "NQSP", label: "charName.enQuad", flag: "invisible" },
+  0x2001: { abbr: "MQSP", label: "charName.emQuad", flag: "invisible" },
+  0x2002: { abbr: "ENSP", label: "charName.enSpace", flag: "invisible" },
+  0x2003: { abbr: "EMSP", label: "charName.emSpace", flag: "invisible" },
+  0x2004: { abbr: "3/MSP", label: "charName.threePerEmSpace", flag: "invisible" },
+  0x2005: { abbr: "4/MSP", label: "charName.fourPerEmSpace", flag: "invisible" },
+  0x2006: { abbr: "6/MSP", label: "charName.sixPerEmSpace", flag: "invisible" },
+  0x2007: { abbr: "FSP", label: "charName.figureSpace", flag: "invisible" },
+  0x2008: { abbr: "PSP", label: "charName.punctuationSpace", flag: "invisible" },
+  0x2009: { abbr: "THSP", label: "charName.thinSpace", flag: "invisible" },
+  0x200a: { abbr: "HSP", label: "charName.hairSpace", flag: "invisible" },
+  0x200b: { abbr: "ZWSP", label: "charName.zeroWidthSpace", flag: "invisible" },
+  0x200c: { abbr: "ZWNJ", label: "charName.zeroWidthNonJoiner", flag: "invisible" },
+  0x200d: { abbr: "ZWJ", label: "charName.zeroWidthJoiner", flag: "invisible" },
+  0x200e: { abbr: "LRM", label: "charName.leftToRightMark", flag: "bidi" },
+  0x200f: { abbr: "RLM", label: "charName.rightToLeftMark", flag: "bidi" },
+  0x2028: { abbr: "LSEP", label: "charName.lineSeparator", flag: "invisible" },
+  0x2029: { abbr: "PSEP", label: "charName.paragraphSeparator", flag: "invisible" },
+  0x202a: { abbr: "LRE", label: "charName.leftToRightEmbedding", flag: "bidi" },
+  0x202b: { abbr: "RLE", label: "charName.rightToLeftEmbedding", flag: "bidi" },
+  0x202c: { abbr: "PDF", label: "charName.popDirectionalFormatting", flag: "bidi" },
+  0x202d: { abbr: "LRO", label: "charName.leftToRightOverride", flag: "bidi" },
+  0x202e: { abbr: "RLO", label: "charName.rightToLeftOverride", flag: "bidi" },
+  0x202f: { abbr: "NNBSP", label: "charName.narrowNoBreakSpace", flag: "invisible" },
+  0x205f: { abbr: "MMSP", label: "charName.mediumMathematicalSpace", flag: "invisible" },
+  0x2060: { abbr: "WJ", label: "charName.wordJoiner", flag: "invisible" },
+  0x2061: { abbr: "FA", label: "charName.functionApplication", flag: "invisible" },
+  0x2062: { abbr: "IT", label: "charName.invisibleTimes", flag: "invisible" },
+  0x2063: { abbr: "IS", label: "charName.invisibleSeparator", flag: "invisible" },
+  0x2064: { abbr: "IP", label: "charName.invisiblePlus", flag: "invisible" },
+  0x2066: { abbr: "LRI", label: "charName.leftToRightIsolate", flag: "bidi" },
+  0x2067: { abbr: "RLI", label: "charName.rightToLeftIsolate", flag: "bidi" },
+  0x2068: { abbr: "FSI", label: "charName.firstStrongIsolate", flag: "bidi" },
+  0x2069: { abbr: "PDI", label: "charName.popDirectionalIsolate", flag: "bidi" },
+  0x3000: { abbr: "IDSP", label: "charName.ideographicSpace", flag: "invisible" },
+  0x3164: { abbr: "HF", label: "charName.hangulFiller", flag: "invisible" },
+  0xfeff: { abbr: "BOM", label: "charName.byteOrderMarkZeroWidthNoBreakSpace", flag: "invisible" },
+  0xffa0: { abbr: "HWHF", label: "charName.halfwidthHangulFiller", flag: "invisible" },
+  0xfffc: { abbr: "OBJ", label: "charName.objectReplacementCharacter", flag: "invisible" },
+  0xfffd: { abbr: "FFFD", label: "charName.replacementCharacter" },
 };
 
 function knownChar(codePoint: number): KnownChar | undefined {
   const known = KNOWN_CHARS[codePoint];
   if (known) return known;
   if (codePoint >= 0xfe00 && codePoint <= 0xfe0f) {
-    return { abbr: `VS${codePoint - 0xfe00 + 1}`, label: `Variation selector ${codePoint - 0xfe00 + 1}` };
+    return { abbr: `VS${codePoint - 0xfe00 + 1}`, label: "charName.variationSelector", labelVars: { n: codePoint - 0xfe00 + 1 } };
   }
   if (codePoint >= 0xe0000 && codePoint <= 0xe007f) {
-    return { abbr: "TAG", label: "Tag character", flag: "invisible" };
+    return { abbr: "TAG", label: "charName.tagCharacter", flag: "invisible" };
   }
   if (codePoint < 0x20 || (codePoint >= 0x80 && codePoint <= 0x9f)) {
-    return { abbr: `^${codePoint.toString(16).toUpperCase().padStart(2, "0")}`, label: "Control character", flag: "control" };
+    return { abbr: `^${codePoint.toString(16).toUpperCase().padStart(2, "0")}`, label: "charName.controlCharacter", flag: "control" };
   }
   return undefined;
 }
@@ -368,7 +371,7 @@ function describeChar(char: string, codePoint: number, line: number, column: num
     utf8: utf8Hex(char),
     count: 0,
     abbr: known?.abbr,
-    label: known?.label ?? (category === "format" ? "Format character" : category === "surrogate" ? "Lone surrogate" : undefined),
+    label: known ? t(known.label, known.labelVars) : category === "format" ? t("charName.formatCharacter") : category === "surrogate" ? t("charName.loneSurrogate") : undefined,
     flag,
     firstLine: line,
     firstColumn: column,

@@ -1,0 +1,25 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "option.component": "Wrap in a component",
+  "option.name": "Name",
+  "pane.html": "HTML",
+  "pane.jsx": "JSX",
+  "copy.jsx": "Copy JSX",
+  "empty.title": "JSX appears here",
+  "empty.hint": "Type or paste HTML in the input.",
+  "status.invalidName": "Invalid name",
+  "status.ready": "Ready",
+  "status.lines_one": "{n} line",
+  "status.lines_other": "{n} lines",
+  "status.handlers_one": "{n} event handler needs code",
+  "status.handlers_other": "{n} event handlers need code",
+  "error.componentName": "The component name must start with a capital letter and use only letters, digits, $, or _.",
+  "faq.noRun.q": "Is the HTML run or loaded while it converts?",
+  "faq.noRun.a": "No. The HTML is parsed into a separate document that is never shown. Scripts do not run, and images and other files do not load.",
+  "faq.events.q": "What happens to onclick and other event attributes?",
+  "faq.events.a": "Each one becomes a React prop such as `onClick={() => {}}`. The original code is kept in a comment next to it. React needs a function, so write the handler yourself.",
+  "faq.defaultValue.q": "Why do some inputs get defaultValue?",
+  "faq.defaultValue.a": "In React, `value` and `checked` make a field controlled. The tool uses `defaultValue` and `defaultChecked` so the field keeps working without state.",
+  "faq.whitespace.q": "How is whitespace handled?",
+  "faq.whitespace.a": "Indentation in the source is dropped, as JSX does. A space between inline elements is kept as `{\" \"}`. Text inside `<pre>`, `<textarea>`, `<script>`, and `<style>` is kept exactly in a template literal."
+};

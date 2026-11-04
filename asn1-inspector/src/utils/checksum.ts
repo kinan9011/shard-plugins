@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export const CRC_PRESETS = {
   "CRC-8/SMBUS": {
     width: 8,
@@ -46,9 +48,7 @@ export type CrcPreset = keyof typeof CRC_PRESETS;
 export function decodeHex(input: string): Uint8Array {
   const text = input.replace(/\s/g, "");
   if (!/^(?:[a-f0-9]{2})*$/i.test(text))
-    throw new Error(
-      "Enter complete hex byte pairs, separated by optional spaces.",
-    );
+    throw new Error(t("error.hex"));
   return Uint8Array.from(text.match(/../g) ?? [], (x) => parseInt(x, 16));
 }
 const tables = new Map<CrcPreset, Uint32Array>();
@@ -96,7 +96,7 @@ export function crc(bytes: Uint8Array, preset: CrcPreset): string {
 }
 export function luhnCheckDigit(input: string): string {
   if (!/^\d+$/.test(input))
-    throw new Error("Enter digits only, without spaces or punctuation.");
+    throw new Error(t("error.luhnDigits"));
   let sum = 0;
   for (let i = input.length - 1, double = true; i >= 0; i--, double = !double) {
     let digit = Number(input[i]);
@@ -110,6 +110,6 @@ export function luhnCheckDigit(input: string): string {
 }
 export function luhnValid(input: string): boolean {
   if (!/^\d{2,}$/.test(input))
-    throw new Error("Enter at least two digits, including the check digit.");
+    throw new Error(t("error.luhnMin"));
   return luhnCheckDigit(input.slice(0, -1)) === input.slice(-1);
 }

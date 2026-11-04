@@ -14,29 +14,39 @@ import {
   ToolWorkspace,
 } from "./ToolWorkspace";
 import { CopyButton } from "./CopyButton";
+import { useT, type TKey } from "@/lib/i18n";
+
+const CLASS_KEYS: Record<string, TKey> = {
+  Universal: "class.universal",
+  Application: "class.application",
+  "Context-specific": "class.contextSpecific",
+  Private: "class.private",
+};
+
 function Tree({ nodes }: { nodes: AsnNode[] }) {
+  const t = useT();
   return (
-    <ul className="pl-4 space-y-2">
+    <ul className="ps-4 space-y-2">
       {nodes.map((n) => (
         <li key={n.offset}>
           <details>
             <summary className="cursor-pointer text-sm">
               <span className="font-medium">{n.name}</span>{" "}
               <span className="text-muted-foreground">
-                @{n.offset} · {n.length} bytes
+                <span dir="ltr">@{n.offset}</span> · {t("unit.bytes", { count: n.length })}
               </span>
               {n.value && (
-                <span className="font-mono break-all"> · {n.value}</span>
+                <span dir="ltr" className="font-mono break-all"> · {n.value}</span>
               )}
             </summary>
-            <div className="border-l pl-3 py-2 space-y-2 text-sm">
+            <div className="border-s ps-3 py-2 space-y-2 text-sm">
               <p>
-                {n.tagClass} · tag {n.tag} ·{" "}
-                {n.constructed ? "constructed" : "primitive"} · header{" "}
-                {n.header} bytes
+                {CLASS_KEYS[n.tagClass] ? t(CLASS_KEYS[n.tagClass]) : n.tagClass} · {t("node.tag", { tag: n.tag })} ·{" "}
+                {n.constructed ? t("node.constructed") : t("node.primitive")} ·{" "}
+                {t("node.header", { size: t("unit.bytes", { count: n.header }) })}
               </p>
-              <pre className="whitespace-pre-wrap break-all font-mono">
-                {n.hex || "Empty value"}
+              <pre dir="ltr" className="whitespace-pre-wrap break-all font-mono">
+                {n.hex || t("node.empty")}
               </pre>
               {n.children.length > 0 && <Tree nodes={n.children} />}
             </div>
@@ -47,6 +57,7 @@ function Tree({ nodes }: { nodes: AsnNode[] }) {
   );
 }
 export function Asn1Inspector() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [format, setFormat] = useState<"pem" | "hex" | "base64">("pem");
   const [file, setFile] = useState<{
@@ -70,7 +81,7 @@ export function Asn1Inspector() {
     } catch (e) {
       return { nodes: null, error: (e as Error).message };
     }
-  }, [text, format, file]);
+  }, [text, format, file, t]);
   return (
     <ToolWorkspace
       wrapToolbar
@@ -78,8 +89,8 @@ export function Asn1Inspector() {
       toolbar={
         <>
           <select
-            className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
-            aria-label="ASN.1 input format"
+            className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm text-foreground"
+            aria-label={t("format.aria")}
             value={format}
             onChange={(e) => setFormat(e.target.value as typeof format)}
           >
@@ -92,7 +103,7 @@ export function Asn1Inspector() {
             type="file"
             className="sr-only"
             tabIndex={-1}
-            aria-label="Open DER file"
+            aria-label={t("file.aria")}
             onChange={async (e) => {
               const f = e.target.files?.[0];
               // Clear the input so choosing the same file again fires a change.
@@ -104,7 +115,7 @@ export function Asn1Inspector() {
               setFile(null);
               try {
                 if (f.size > 1000000)
-                  throw new Error("Files are limited to 1 MB.");
+                  throw new Error(t("error.fileLimit"));
                 const bytes = await blobSource(f).read(0, f.size);
                 if (id === request.current) setFile({ name: f.name, bytes });
               } catch (e) {
@@ -120,7 +131,7 @@ export function Asn1Inspector() {
             onClick={() => fileInput.current?.click()}
           >
             <FileUp size={14} aria-hidden="true" />
-            Open file
+            {t("action.openFile")}
           </button>
           <button
             className="toolbar-text-button"
@@ -133,7 +144,7 @@ export function Asn1Inspector() {
               setInput("30 08 02 01 2a 0c 03 48 65 79");
             }}
           >
-            Example
+            {t("action.example")}
           </button>
         </>
       }
@@ -146,7 +157,7 @@ export function Asn1Inspector() {
       }
       first={
         <EditorPane
-          title="ASN.1 data"
+          title={t("pane.input")}
           htmlFor="asn-input"
           actions={
             file && (
@@ -154,53 +165,51 @@ export function Asn1Inspector() {
                 className="toolbar-text-button"
                 onClick={() => setFile(null)}
               >
-                Clear file
+                {t("action.clearFile")}
               </button>
             )
           }
         >
           {file ? (
             <p className="p-4">
-              {file.name} · {file.bytes.length} bytes
+              {file.name} · {t("unit.bytes", { count: file.bytes.length })}
             </p>
           ) : (
             <CodeTextarea
               id="asn-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a PEM block or choose Hex / Base64"
+              placeholder={t("input.placeholder")}
             />
           )}
         </EditorPane>
       }
       second={
         <EditorPane
-          title="Structure"
+          title={t("pane.structure")}
           actions={
             <CopyButton
               value={result.nodes ? JSON.stringify(result.nodes, null, 2) : ""}
-              label="Copy JSON"
+              label={t("copy.json")}
             />
           }
         >
           {busy ? (
-            <PaneEmpty title="Reading file" />
+            <PaneEmpty title={t("empty.reading")} />
           ) : result.nodes ? (
             <div className="p-3">
               <Tree nodes={result.nodes} />
             </div>
           ) : (
             <PaneEmpty
-              title="Inspect ASN.1 structure"
-              hint="Definite-length DER/BER. This inspector does not validate certificate trust or enforce canonical DER."
+              title={t("empty.title")}
+              hint={t("empty.hint")}
             />
           )}
         </EditorPane>
       }
       status={
-        <span>
-          1 MB limit · 40 nesting levels · raw previews up to 256 bytes
-        </span>
+        <span>{t("status.limits")}</span>
       }
     />
   );

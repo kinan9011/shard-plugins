@@ -1,0 +1,25 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "option.component": "In eine Komponente einpacken",
+  "option.name": "Name",
+  "pane.html": "HTML",
+  "pane.jsx": "JSX",
+  "copy.jsx": "JSX kopieren",
+  "empty.title": "Das JSX erscheint hier",
+  "empty.hint": "Tippe HTML in die Eingabe oder füge es dort ein.",
+  "status.invalidName": "Ungültiger Name",
+  "status.ready": "Bereit",
+  "status.lines_one": "{n} Zeile",
+  "status.lines_other": "{n} Zeilen",
+  "status.handlers_one": "{n} Event-Handler braucht Code",
+  "status.handlers_other": "{n} Event-Handler brauchen Code",
+  "error.componentName": "Der Komponentenname muss mit einem Großbuchstaben beginnen und darf nur Buchstaben, Ziffern, $ oder _ enthalten.",
+  "faq.noRun.q": "Wird das HTML bei der Umwandlung ausgeführt oder geladen?",
+  "faq.noRun.a": "Nein. Das HTML wird in ein separates Dokument geparst, das nie angezeigt wird. Skripte laufen nicht, und Bilder und andere Dateien werden nicht geladen.",
+  "faq.events.q": "Was passiert mit onclick und anderen Event-Attributen?",
+  "faq.events.a": "Jedes wird zu einer React-Prop wie `onClick={() => {}}`. Der ursprüngliche Code bleibt als Kommentar daneben stehen. React braucht eine Funktion, also schreibe den Handler selbst.",
+  "faq.defaultValue.q": "Warum bekommen manche Eingabefelder defaultValue?",
+  "faq.defaultValue.a": "In React machen `value` und `checked` ein Feld kontrolliert. Das Tool verwendet `defaultValue` und `defaultChecked`, damit das Feld auch ohne State weiter funktioniert.",
+  "faq.whitespace.q": "Wie werden Leerzeichen behandelt?",
+  "faq.whitespace.a": "Einrückungen im Quelltext entfallen, wie es JSX tut. Ein Leerzeichen zwischen Inline-Elementen bleibt als `{\" \"}` erhalten. Text in `<pre>`, `<textarea>`, `<script>` und `<style>` bleibt exakt in einem Template-Literal erhalten."
+};

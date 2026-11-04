@@ -3,6 +3,7 @@
  */
 
 import bcrypt from "bcryptjs";
+import { t } from "@/lib/i18n";
 
 export const BCRYPT_MIN_ROUNDS = 4;
 export const BCRYPT_MAX_ROUNDS = 14;
@@ -15,10 +16,10 @@ export const BCRYPT_DEFAULT_ROUNDS = 12;
  */
 export async function hashBcrypt(plainText: string, rounds: number): Promise<string> {
   if (!plainText) {
-    throw new Error("Please enter a text to hash.");
+    throw new Error(t("error.enterText"));
   }
   if (rounds < BCRYPT_MIN_ROUNDS || rounds > BCRYPT_MAX_ROUNDS) {
-    throw new Error(`Rounds must be between ${BCRYPT_MIN_ROUNDS} and ${BCRYPT_MAX_ROUNDS}.`);
+    throw new Error(t("error.rounds", { min: BCRYPT_MIN_ROUNDS, max: BCRYPT_MAX_ROUNDS }));
   }
   const salt = await bcrypt.genSalt(rounds);
   return bcrypt.hash(plainText, salt);
@@ -31,10 +32,10 @@ export async function hashBcrypt(plainText: string, rounds: number): Promise<str
  */
 export async function verifyBcrypt(plainText: string, hash: string): Promise<boolean> {
   if (!plainText) {
-    throw new Error("Please enter the plain text to verify.");
+    throw new Error(t("error.enterPlain"));
   }
   if (!hash || !isValidBcryptHash(hash)) {
-    throw new Error("Invalid bcrypt hash provided.");
+    throw new Error(t("error.invalidHash"));
   }
   return bcrypt.compare(plainText, hash);
 }

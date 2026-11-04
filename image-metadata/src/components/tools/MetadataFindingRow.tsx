@@ -2,10 +2,12 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea } from "@/components/tools/ToolWorkspace";
+import { useT } from "@/lib/i18n";
 import type { MetadataFinding } from "@/utils/image-metadata";
 
 /** One metadata item with its source, a Removed or Kept badge, and its full value when it is long. */
 export function MetadataFindingRow({ finding, id, removed }: { finding: MetadataFinding; id: string; removed: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const value = finding.raw ?? finding.detail;
   return (
@@ -15,10 +17,10 @@ export function MetadataFindingRow({ finding, id, removed }: { finding: Metadata
           {finding.label}
           <span className="block text-2xs font-normal">{finding.source}</span>
         </span>
-        <span className="result-row-value">
+        <span className="result-row-value" dir="auto">
           {finding.detail}
-          <span className={`ml-2 rounded px-1.5 py-0.5 font-sans text-2xs ${removed ? "bg-muted text-muted-foreground" : "bg-secondary text-secondary-foreground"}`}>
-            {removed ? "Removed" : "Kept"}
+          <span className={`ms-2 rounded px-1.5 py-0.5 font-sans text-2xs ${removed ? "bg-muted text-muted-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            {removed ? t("badge.removed") : t("badge.kept")}
           </span>
         </span>
         <span className="flex items-center gap-1">
@@ -28,13 +30,13 @@ export function MetadataFindingRow({ finding, id, removed }: { finding: Metadata
               className="toolbar-text-button"
               aria-expanded={open}
               aria-controls={`${id}-raw`}
-              aria-label={`${open ? "Hide" : "Show"} full value of ${finding.label}`}
+              aria-label={t(open ? "finding.hideValue" : "finding.showValue", { label: finding.label })}
               onClick={() => setOpen((v) => !v)}
             >
-              {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+              {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} className="rtl:-scale-x-100" aria-hidden="true" />}
             </button>
           )}
-          <CopyButton value={value} iconOnly label={`Copy ${finding.label}`} />
+          <CopyButton value={value} iconOnly label={t("finding.copy", { label: finding.label })} />
         </span>
       </div>
       {finding.raw && open && (
@@ -42,7 +44,7 @@ export function MetadataFindingRow({ finding, id, removed }: { finding: Metadata
           <CodeTextarea
             readOnly
             value={finding.raw}
-            aria-label={`Full value of ${finding.label}`}
+            aria-label={t("finding.fullValue", { label: finding.label })}
             rows={Math.min(14, finding.raw.split("\n").length + 1)}
             className="h-auto max-h-80 rounded-md border bg-muted/40 text-xs"
           />

@@ -1,0 +1,17 @@
+export default {
+  "title": "秒表",
+  "time.label": "已用时间",
+  "action.start": "开始",
+  "action.pause": "暂停",
+  "action.resume": "继续",
+  "action.lap": "计次",
+  "action.reset": "重置",
+  "note": "切换工具标签页时会继续计时，并包含设备休眠的时间。关闭此工具会清除秒表。",
+  "action.copyLaps": "复制计次",
+  "action.exportLaps": "导出计次",
+  "table.lap": "计次",
+  "table.split": "分段",
+  "table.total": "总计",
+  "empty.laps": "启动秒表后记录计次，即可比较分段时间。",
+  "error.save": "无法保存计次。请改为复制。",
+};

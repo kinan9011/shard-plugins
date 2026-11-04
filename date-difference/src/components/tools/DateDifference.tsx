@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
-import { toast } from "@/shims/sonner";
+import { formatNumber, useT } from "@/lib/i18n";
 
 export function DateDifference() {
+  const t = useT();
   const [date1, setDate1] = useState("");
   const [date2, setDate2] = useState("");
   const [time1, setTime1] = useState("00:00");
@@ -82,32 +83,34 @@ export function DateDifference() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Date Difference Calculator</CardTitle>
-          <CardDescription>Calculate the difference between two dates</CardDescription>
+          <CardTitle>{t("card.title")}</CardTitle>
+          <CardDescription>{t("card.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6">
             {/* First Date */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>First Date</Label>
+                <Label>{t("date.first")}</Label>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setDateToNow("first")}
                 >
-                  <Clock className="h-3 w-3 mr-1" />
-                  Now
+                  <Clock className="h-3 w-3 me-1" />
+                  {t("action.now")}
                 </Button>
               </div>
               <input
                 type="date"
+                aria-label={t("date.firstDate")}
                 value={date1}
                 onChange={(e) => setDate1(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border bg-background"
               />
               <input
                 type="time"
+                aria-label={t("date.firstTime")}
                 value={time1}
                 onChange={(e) => setTime1(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border bg-background"
@@ -116,30 +119,32 @@ export function DateDifference() {
 
             {/* Arrow */}
             <div className="hidden md:flex items-center justify-center">
-              <ArrowRight className="h-6 w-6 text-muted-foreground" />
+              <ArrowRight className="h-6 w-6 text-muted-foreground rtl:-scale-x-100" />
             </div>
 
             {/* Second Date */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Second Date</Label>
+                <Label>{t("date.second")}</Label>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setDateToNow("second")}
                 >
-                  <Clock className="h-3 w-3 mr-1" />
-                  Now
+                  <Clock className="h-3 w-3 me-1" />
+                  {t("action.now")}
                 </Button>
               </div>
               <input
                 type="date"
+                aria-label={t("date.secondDate")}
                 value={date2}
                 onChange={(e) => setDate2(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border bg-background"
               />
               <input
                 type="time"
+                aria-label={t("date.secondTime")}
                 value={time2}
                 onChange={(e) => setTime2(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border bg-background"
@@ -152,44 +157,44 @@ export function DateDifference() {
       {difference && (
         <Card>
           <CardHeader>
-            <CardTitle>Difference</CardTitle>
+            <CardTitle>{t("result.title")}</CardTitle>
             <CardDescription>
-              {difference.isNegative ? "Second date is earlier" : "Second date is later"}
+              {difference.isNegative ? t("result.earlier") : t("result.later")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.years}</div>
-                <div className="text-sm text-muted-foreground">Years</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.years)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.years")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.months}</div>
-                <div className="text-sm text-muted-foreground">Months</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.months)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.months")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.weeks}</div>
-                <div className="text-sm text-muted-foreground">Weeks</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.weeks)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.weeks")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.days}</div>
-                <div className="text-sm text-muted-foreground">Days</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.days)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.days")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.hours}</div>
-                <div className="text-sm text-muted-foreground">Hours</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.hours)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.hours")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.minutes}</div>
-                <div className="text-sm text-muted-foreground">Minutes</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.minutes)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.minutes")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.seconds}</div>
-                <div className="text-sm text-muted-foreground">Seconds</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.seconds)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.seconds")}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg text-center">
-                <div className="text-2xl font-bold">{difference.breakdown.milliseconds.toLocaleString()}</div>
-                <div className="text-sm text-muted-foreground">Milliseconds</div>
+                <div className="text-2xl font-bold">{formatNumber(difference.breakdown.milliseconds)}</div>
+                <div className="text-sm text-muted-foreground">{t("unit.milliseconds")}</div>
               </div>
             </div>
           </CardContent>

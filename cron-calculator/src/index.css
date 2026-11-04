@@ -38,7 +38,7 @@ body {
 .toolbar-text-button:disabled { opacity: .4; }
 .tool-help { border-top: 1px solid hsl(var(--border)); padding-top: 16px; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .tool-help summary { cursor: pointer; padding: 6px 0; font-weight: 500; }
-.tool-help-content { padding: 10px 0 0 14px; }
+.tool-help-content { padding: 10px 0 0; padding-inline-start: 14px; }
 .tool-help-question + .tool-help-question { border-top: 1px solid hsl(var(--border) / .6); }
 .tool-help-question summary { color: hsl(var(--foreground)); padding: 10px 0; }
 .tool-help-question p { max-width: 72ch; line-height: 1.65; padding: 0 0 14px; }

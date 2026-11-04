@@ -1,7 +1,7 @@
 {
   "name": "pdf-organizer",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Merge, split and organize PDF pages locally in Shard.",
   "license": "MIT",
   "type": "module",

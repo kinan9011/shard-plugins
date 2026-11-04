@@ -1,0 +1,16 @@
+export default {
+  "length.label": "Passwortlänge: {length}",
+  "option.uppercase": "Großbuchstaben (A-Z)",
+  "option.lowercase": "Kleinbuchstaben (a-z)",
+  "option.numbers": "Ziffern (0-9)",
+  "option.symbols": "Sonderzeichen (!@#$...)",
+  "output.label": "Generiertes Passwort",
+  "output.copy": "Passwort kopieren",
+  "output.regenerate": "Neues Passwort generieren",
+  "strength.label": "Stärke",
+  "strength.weak": "Schwach",
+  "strength.fair": "Mittel",
+  "strength.good": "Gut",
+  "strength.strong": "Stark",
+  "error.noCharacterType": "Wähle mindestens eine Zeichenart aus",
+};

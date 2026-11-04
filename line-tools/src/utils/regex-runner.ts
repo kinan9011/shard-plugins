@@ -4,6 +4,7 @@ import { runRegex, type RegexRequest, type RegexResult } from "./regex";
 /** A run that takes longer than this is stopped, so a runaway pattern cannot freeze the tool. */
 export const REGEX_TIMEOUT_MS = 2000;
 
+/** English, and the identity of the timeout: the UI shows `t("error.regexTimeout")` when it gets this. */
 export const TIMEOUT_ERROR = `The pattern ran for more than ${REGEX_TIMEOUT_MS / 1000} seconds and was stopped. Nested quantifiers such as (a+)+ can backtrack without end. Make the pattern more specific.`;
 
 // Plugin version of the app's regex-runner: the frame's opaque origin cannot start `new Worker(new URL(...))`,

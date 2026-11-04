@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { errorAt, setOwn } from "./conversion-error";
 
 /** How nested keys join in .env output: "__" (ASP.NET Core, pydantic) or "_" (Spring Boot). */
@@ -30,7 +31,7 @@ export function parseEnv(input: string): Record<string, string> {
     }
     const match = KEY_LINE.exec(raw);
     if (!match) {
-      throw errorAt("Expected KEY=value. Keys use letters, digits, and underscores.", line, raw.length - raw.trimStart().length + 1);
+      throw errorAt(t("error.envKeyValue"), line, raw.length - raw.trimStart().length + 1);
     }
     const key = match[1];
     const start = pos + match[0].length;
@@ -45,14 +46,14 @@ export function parseEnv(input: string): Record<string, string> {
           break;
         }
       }
-      if (close === -1) throw errorAt(`The value of ${key} has no closing quote.`, line, start - pos + 1);
+      if (close === -1) throw errorAt(t("error.envUnclosed", { key }), line, start - pos + 1);
       const body = text.slice(start + 1, close);
       const closeLine = line + (body.match(/\n/g)?.length ?? 0);
       const after = text.indexOf("\n", close);
       const restEnd = after === -1 ? text.length : after;
       if (!/^\s*(#.*)?$/.test(text.slice(close + 1, restEnd))) {
         const closeColumn = close - text.lastIndexOf("\n", close - 1);
-        throw errorAt(`Unexpected text after the closing quote of ${key}.`, closeLine, closeColumn + 1);
+        throw errorAt(t("error.envAfterQuote", { key }), closeLine, closeColumn + 1);
       }
       setOwn(result, key, quote === '"' ? unescapeDouble(body) : body);
       pos = restEnd + 1;

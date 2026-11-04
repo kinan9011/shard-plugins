@@ -1,0 +1,17 @@
+export default {
+  "title": "Cronómetro",
+  "time.label": "Tiempo transcurrido",
+  "action.start": "Iniciar",
+  "action.pause": "Pausa",
+  "action.resume": "Reanudar",
+  "action.lap": "Vuelta",
+  "action.reset": "Reiniciar",
+  "note": "Continúa entre las pestañas de herramientas e incluye el tiempo en suspensión. Al cerrar esta herramienta se borra el cronómetro.",
+  "action.copyLaps": "Copiar vueltas",
+  "action.exportLaps": "Exportar vueltas",
+  "table.lap": "Vuelta",
+  "table.split": "Parcial",
+  "table.total": "Total",
+  "empty.laps": "Inicia el cronómetro y registra una vuelta para comparar los parciales.",
+  "error.save": "No se pudieron guardar las vueltas. Prueba a copiarlas.",
+};

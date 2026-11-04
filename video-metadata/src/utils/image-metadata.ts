@@ -1,4 +1,5 @@
 import { unzlibSync } from "fflate";
+import { formatNumber, t, type TKey } from "@/lib/i18n";
 
 /**
  * Reads and removes metadata from JPEG, PNG and WebP files without
@@ -53,14 +54,15 @@ export interface CleanResult {
 
 export const DEFAULT_CLEAN_OPTIONS: CleanOptions = { keepColorProfile: true, keepOrientation: true };
 
-export const FINDING_KIND_LABELS: Record<FindingKind, string> = {
-  ai: "AI generation",
-  location: "Location",
-  camera: "Camera and capture",
-  provenance: "Provenance and authorship",
-  text: "Text and comments",
-  "color-profile": "Color profile",
-  other: "Other",
+/** Translation keys of the group headings, so the UI translates them when it renders. */
+export const FINDING_KIND_LABEL_KEYS: Record<FindingKind, TKey> = {
+  ai: "kind.ai",
+  location: "kind.location",
+  camera: "kind.camera",
+  provenance: "kind.provenance",
+  text: "kind.text",
+  "color-profile": "kind.colorProfile",
+  other: "kind.other",
 };
 
 export const FINDING_KIND_ORDER: FindingKind[] = ["ai", "location", "camera", "provenance", "text", "color-profile", "other"];
@@ -148,7 +150,7 @@ const summarize = (text: string) => {
   return flat.length > SUMMARY_LIMIT ? `${flat.slice(0, SUMMARY_LIMIT - 1)}…` : flat;
 };
 
-const formatSize = (size: number) => (size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`);
+const formatSize = (size: number) => (size < 1024 ? `${formatNumber(size, { useGrouping: false })} B` : `${formatNumber(size / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} KB`);
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -189,9 +191,10 @@ export function detectImageFormat(bytes: Uint8Array): DetectedFormat {
 /* AI hints                                                            */
 /* ------------------------------------------------------------------ */
 
-const AI_HINTS: Array<[RegExp, string]> = [
-  [/compositeWithTrainedAlgorithmicMedia/i, "Edited with generative AI (IPTC)"],
-  [/trainedAlgorithmicMedia/i, "Created by generative AI (IPTC)"],
+/** A tool name stays as it is; a few hints are phrases, so they carry a translation key as the third entry. */
+const AI_HINTS: Array<[RegExp, string, TKey?]> = [
+  [/compositeWithTrainedAlgorithmicMedia/i, "Edited with generative AI (IPTC)", "ai.editedGenerative"],
+  [/trainedAlgorithmicMedia/i, "Created by generative AI (IPTC)", "ai.createdGenerative"],
   [/midjourney/i, "Midjourney"],
   [/DALL[·\-.\s]?E/i, "DALL·E"],
   [/\bOpenAI\b|\bChatGPT\b|gpt-image/i, "OpenAI"],
@@ -205,7 +208,7 @@ const AI_HINTS: Array<[RegExp, string]> = [
   [/Negative prompt:|\bSampler:\s|\bCFG scale:/i, "Stable Diffusion"],
   [/\bImagen\b|\bGemini\b|SynthID/i, "Google AI"],
   [/\bFLUX(\.1)?\b/, "FLUX"],
-  [/Leonardo\.Ai|\bIdeogram\b|Bing Image Creator|Microsoft Designer|\bGrok\b|\bAurora\b/i, "AI image service"],
+  [/Leonardo\.Ai|\bIdeogram\b|Bing Image Creator|Microsoft Designer|\bGrok\b|\bAurora\b/i, "AI image service", "ai.imageService"],
   [/\bSora\b/, "OpenAI Sora"],
   [/\bVeo\b/, "Google Veo"],
   [/\bRunway\b|\bGen-[234]\b/, "Runway"],
@@ -213,12 +216,12 @@ const AI_HINTS: Array<[RegExp, string]> = [
   [/\bPika\b/, "Pika"],
   [/Dream Machine|\bLuma AI\b/, "Luma Dream Machine"],
   [/\bHailuo\b|\bMiniMax\b/, "Hailuo"],
-  [/Made with AI|AI[- ]generated|Generated (by|with) AI/i, "AI label"],
+  [/Made with AI|AI[- ]generated|Generated (by|with) AI/i, "AI label", "ai.label"],
 ];
 
 /** Returns the name of the AI tool or label the text mentions, or null. */
 export function findAiHint(text: string): string | null {
-  for (const [pattern, name] of AI_HINTS) if (pattern.test(text)) return name;
+  for (const [pattern, name, key] of AI_HINTS) if (pattern.test(text)) return key ? t(key) : name;
   return null;
 }
 
@@ -243,8 +246,8 @@ export class Findings {
     this.add(
       {
         kind: hint ? "ai" : fallbackKind,
-        label: hint && fallbackKind !== "ai" ? `${label} (mentions ${hint})` : label,
-        detail: summarize(value) || "(empty)",
+        label: hint && fallbackKind !== "ai" ? t("label.mentions", { label, hint }) : label,
+        detail: summarize(value) || t("detail.empty"),
         raw,
         source,
       },
@@ -465,22 +468,22 @@ export function buildOrientationTiff(orientation: number): Uint8Array {
 /* XMP                                                                 */
 /* ------------------------------------------------------------------ */
 
-const DIGITAL_SOURCE_LABELS: Record<string, string> = {
-  trainedAlgorithmicMedia: "Created by generative AI",
-  compositeWithTrainedAlgorithmicMedia: "Edited with generative AI",
-  algorithmicMedia: "Algorithmic media (no training data)",
-  compositeSynthetic: "Composite with synthetic elements",
-  algorithmicallyEnhanced: "Algorithmically enhanced",
-  digitalCapture: "Digital capture",
-  computationalCapture: "Computational capture",
-  negativeFilm: "Scan of negative film",
-  positiveFilm: "Scan of positive film",
-  print: "Scan of print",
-  minorHumanEdits: "Minor human edits",
-  compositeCapture: "Composite of captures",
-  digitalArt: "Digital art",
-  virtualRecording: "Virtual recording",
-  screenCapture: "Screen capture",
+const DIGITAL_SOURCE_LABELS: Record<string, TKey> = {
+  trainedAlgorithmicMedia: "dst.trainedAlgorithmicMedia",
+  compositeWithTrainedAlgorithmicMedia: "dst.compositeWithTrainedAlgorithmicMedia",
+  algorithmicMedia: "dst.algorithmicMedia",
+  compositeSynthetic: "dst.compositeSynthetic",
+  algorithmicallyEnhanced: "dst.algorithmicallyEnhanced",
+  digitalCapture: "dst.digitalCapture",
+  computationalCapture: "dst.computationalCapture",
+  negativeFilm: "dst.negativeFilm",
+  positiveFilm: "dst.positiveFilm",
+  print: "dst.print",
+  minorHumanEdits: "dst.minorHumanEdits",
+  compositeCapture: "dst.compositeCapture",
+  digitalArt: "dst.digitalArt",
+  virtualRecording: "dst.virtualRecording",
+  screenCapture: "dst.screenCapture",
 };
 
 const AI_SOURCE_TYPES = new Set(["trainedAlgorithmicMedia", "compositeWithTrainedAlgorithmicMedia", "algorithmicMedia", "compositeSynthetic"]);
@@ -511,23 +514,23 @@ export function xmpProperty(xml: string, name: string): string | null {
   return null;
 }
 
-const XMP_FIELDS: Array<[string, string, FindingKind]> = [
-  ["photoshop:Credit", "Credit", "provenance"],
-  ["dc:creator", "Creator", "provenance"],
-  ["dc:rights", "Rights", "provenance"],
-  ["xmpRights:WebStatement", "Rights statement", "provenance"],
-  ["xmp:CreatorTool", "Creator tool", "other"],
-  ["dc:title", "Title", "text"],
-  ["dc:description", "Description", "text"],
-  ["exif:UserComment", "User comment", "text"],
-  ["tiff:Make", "Camera make", "camera"],
-  ["tiff:Model", "Camera model", "camera"],
-  ["exifEX:BodySerialNumber", "Camera serial number", "camera"],
-  ["aux:SerialNumber", "Camera serial number", "camera"],
-  ["photoshop:City", "City", "location"],
-  ["photoshop:State", "State or province", "location"],
-  ["photoshop:Country", "Country", "location"],
-  ["Iptc4xmpCore:Location", "Location", "location"],
+const XMP_FIELDS: Array<[string, TKey, FindingKind]> = [
+  ["photoshop:Credit", "label.credit", "provenance"],
+  ["dc:creator", "label.creator", "provenance"],
+  ["dc:rights", "label.rights", "provenance"],
+  ["xmpRights:WebStatement", "label.rightsStatement", "provenance"],
+  ["xmp:CreatorTool", "label.creatorTool", "other"],
+  ["dc:title", "label.title", "text"],
+  ["dc:description", "label.description", "text"],
+  ["exif:UserComment", "label.userComment", "text"],
+  ["tiff:Make", "label.cameraMake", "camera"],
+  ["tiff:Model", "label.cameraModel", "camera"],
+  ["exifEX:BodySerialNumber", "label.cameraSerial", "camera"],
+  ["aux:SerialNumber", "label.cameraSerial", "camera"],
+  ["photoshop:City", "label.city", "location"],
+  ["photoshop:State", "label.state", "location"],
+  ["photoshop:Country", "label.country", "location"],
+  ["Iptc4xmpCore:Location", "label.location", "location"],
 ];
 
 /** Reads an XMP packet into findings. */
@@ -540,8 +543,8 @@ export function readXmp(xml: string, out: Findings, source: string) {
     aiFound = isAi;
     out.add({
       kind: isAi ? "ai" : "provenance",
-      label: "Digital source type",
-      detail: `${DIGITAL_SOURCE_LABELS[code] ?? code} (${code})`,
+      label: t("label.digitalSourceType"),
+      detail: `${DIGITAL_SOURCE_LABELS[code] ? t(DIGITAL_SOURCE_LABELS[code]) : code} (${code})`,
       source,
     });
   }
@@ -549,20 +552,20 @@ export function readXmp(xml: string, out: Findings, source: string) {
     const value = xmpProperty(xml, name);
     if (!value) continue;
     const before = out.items.length;
-    out.addText(label, value, source, kind);
+    out.addText(t(label), value, source, kind);
     if (out.items[before].kind === "ai") aiFound = true;
   }
   const lat = xmpProperty(xml, "exif:GPSLatitude");
   const lon = xmpProperty(xml, "exif:GPSLongitude");
-  if (lat || lon) out.add({ kind: "location", label: "GPS position", detail: [lat, lon].filter(Boolean).join(", "), source });
+  if (lat || lon) out.add({ kind: "location", label: t("label.gpsPosition"), detail: [lat, lon].filter(Boolean).join(", "), source });
   if (/c2pa|contentauth|Content Credentials/i.test(xml)) {
-    out.add({ kind: "provenance", label: "Content Credentials reference", detail: "The XMP packet points to a C2PA manifest", source });
+    out.add({ kind: "provenance", label: t("label.contentCredentialsRef"), detail: t("detail.contentCredentialsRef"), source });
   }
   if (!aiFound) {
     const hint = findAiHint(xml);
-    if (hint) out.add({ kind: "ai", label: "AI tool mentioned", detail: hint, source });
+    if (hint) out.add({ kind: "ai", label: t("label.aiToolMentioned"), detail: hint, source });
   }
-  out.add({ kind: "other", label: "XMP packet", detail: `XML metadata, ${formatSize(xml.length)}`, raw: xml.trim(), source });
+  out.add({ kind: "other", label: t("label.xmpPacket"), detail: t("detail.xmpPacket", { size: formatSize(xml.length) }), raw: xml.trim(), source });
 }
 
 /* ------------------------------------------------------------------ */
@@ -576,13 +579,13 @@ export function readC2pa(data: Uint8Array, out: Findings, source: string) {
   const hint = findAiHint(text);
   out.add({
     kind: "provenance",
-    label: isC2pa ? "Content Credentials (C2PA)" : "JUMBF metadata box",
-    detail: [isC2pa ? "C2PA manifest present" : "JPEG universal metadata box", generator ? `made by ${generator}` : "", formatSize(data.length)]
+    label: isC2pa ? t("label.c2pa") : t("label.jumbf"),
+    detail: [isC2pa ? t("detail.c2paManifest") : t("detail.jumbfBox"), generator ? t("detail.madeBy", { generator }) : "", formatSize(data.length)]
       .filter(Boolean)
       .join(", "),
     source,
   });
-  if (hint) out.add({ kind: "ai", label: "AI noted in Content Credentials", detail: hint, source });
+  if (hint) out.add({ kind: "ai", label: t("label.aiInContentCredentials"), detail: hint, source });
 }
 
 /** Reads the profile description from an ICC profile, if the bytes hold it. */

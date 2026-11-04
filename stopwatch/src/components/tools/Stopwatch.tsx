@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "./CopyButton";
 import { saveFile } from "@/lib/desktop";
+import { formatNumber, useT } from "@/lib/i18n";
 import {
   elapsedAt,
   emptyStopwatch,
@@ -11,6 +12,7 @@ import {
 } from "@/utils/stopwatch";
 // Only the time display ticks, so the laps table does not render again on every frame.
 function ElapsedTime({ state }: { state: StopwatchState }) {
+  const t = useT();
   const ref = useRef<HTMLParagraphElement>(null);
   const [now, setNow] = useState(Date.now);
   const [visible, setVisible] = useState(true);
@@ -34,38 +36,44 @@ function ElapsedTime({ state }: { state: StopwatchState }) {
   return (
     <p
       ref={ref}
-      className="font-mono text-4xl sm:text-6xl tabular-nums"
-      aria-label="Elapsed time"
+      dir="ltr"
+      className="font-mono text-4xl sm:text-6xl tabular-nums text-start"
+      aria-label={t("time.label")}
     >
       {formatElapsed(elapsedAt(state, Math.max(now, state.startedAt ?? 0)))}
     </p>
   );
 }
 const LapTable = memo(function LapTable({ laps }: { laps: number[] }) {
+  const t = useT();
   return (
-    <table className="w-full text-sm text-left">
+    <table className="w-full text-sm text-start">
       <thead>
         <tr>
-          <th className="p-2">Lap</th>
-          <th>Split</th>
-          <th>Total</th>
+          <th className="p-2 text-start">{t("table.lap")}</th>
+          <th className="text-start">{t("table.split")}</th>
+          <th className="text-start">{t("table.total")}</th>
         </tr>
       </thead>
       <tbody>
         {laps.map((total, i) => (
           <tr key={i} className="border-t">
-            <td className="p-2">{i + 1}</td>
-            <td className="font-mono">
+            <td className="p-2">{formatNumber(i + 1)}</td>
+            <td className="font-mono" dir="ltr">
               {formatElapsed(total - (laps[i - 1] ?? 0))}
             </td>
-            <td className="font-mono">{formatElapsed(total)}</td>
+            <td className="font-mono" dir="ltr">{formatElapsed(total)}</td>
           </tr>
         ))}
       </tbody>
     </table>
   );
 });
+/** A CSV field, quoted when the translated heading holds a comma or a quote. */
+const csvField = (text: string) => (/[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+
 export function Stopwatch() {
+  const t = useT();
   const [state, setState] = useState(emptyStopwatch);
   const [error, setError] = useState("");
   const running = state.startedAt !== null;
@@ -76,46 +84,45 @@ export function Stopwatch() {
   const csv = useMemo(
     () =>
       [
-        "Lap,Split,Total",
+        [t("table.lap"), t("table.split"), t("table.total")].map(csvField).join(","),
         ...state.laps.map(
           (total, i) =>
             `${i + 1},${formatElapsed(total - (state.laps[i - 1] ?? 0))},${formatElapsed(total)}`,
         ),
       ].join("\n"),
-    [state.laps],
+    [state.laps, t],
   );
   return (
-    <section className="space-y-6" aria-label="Stopwatch">
+    <section className="space-y-6" aria-label={t("title")}>
       <div className="rounded-lg border p-6 space-y-6">
         <ElapsedTime state={state} />
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => act(running ? "pause" : "start")}>
-            {running ? "Pause" : state.elapsed ? "Resume" : "Start"}
+            {running ? t("action.pause") : state.elapsed ? t("action.resume") : t("action.start")}
           </Button>
           <Button
             variant="outline"
             disabled={!running}
             onClick={() => act("lap")}
           >
-            Lap
+            {t("action.lap")}
           </Button>
           <Button
             variant="outline"
             disabled={!running && !state.elapsed}
             onClick={() => act("reset")}
           >
-            Reset
+            {t("action.reset")}
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Continues across tool tabs and includes time spent asleep. Closing
-          this tool clears the stopwatch.
+          {t("note")}
         </p>
       </div>
       {state.laps.length > 0 ? (
         <div className="space-y-3">
           <div className="flex gap-3">
-            <CopyButton value={csv} label="Copy laps" />
+            <CopyButton value={csv} label={t("action.copyLaps")} />
             <Button
               variant="outline"
               onClick={async () => {
@@ -125,18 +132,18 @@ export function Stopwatch() {
                     "stopwatch-laps.csv",
                   );
                 } catch {
-                  setError("Could not save laps. Try copying them instead.");
+                  setError(t("error.save"));
                 }
               }}
             >
-              Export laps
+              {t("action.exportLaps")}
             </Button>
           </div>
           <LapTable laps={state.laps} />
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Start the stopwatch, then record a lap to compare split times.
+          {t("empty.laps")}
         </p>
       )}
       {error && (

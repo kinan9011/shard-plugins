@@ -61,13 +61,14 @@ export function usePageReorder(options: Options) {
       const distance = (c: (typeof cards)[number]) => Math.max(c.box.top - y, y - c.box.bottom, 0);
       const nearest = cards.reduce((best, c) => distance(c) < distance(best) ? c : best);
       const row = cards.filter(c => c.box.top === nearest.box.top);
-      const before = row.find(c => x < c.box.left + c.box.width / 2);
+      const rtl = getComputedStyle(grid).direction === "rtl";   // the row runs right to left
+      const before = row.find(c => rtl ? x > c.box.left + c.box.width / 2 : x < c.box.left + c.box.width / 2);
       const target = y < cards[0].box.top ? cards[0] : y > cards[cards.length - 1].box.bottom ? cards[cards.length - 1] : before ?? row[row.length - 1];
       const after = y > cards[cards.length - 1].box.bottom || (y >= cards[0].box.top && !before);
       const targetId = target.card.dataset.pageId!;
       if (!current.ids.has(targetId)) next = {
         targetId, after, position: target.index + (after ? 1 : 0),
-        left: (after ? target.box.right + 6 : target.box.left - 10) - gridBox.left, top: target.box.top - gridBox.top, height: target.box.height,
+        left: (after !== rtl ? target.box.right + 6 : target.box.left - 10) - gridBox.left, top: target.box.top - gridBox.top, height: target.box.height,
       };
     }
     current.marker = next;

@@ -1,0 +1,17 @@
+export default {
+  "title": "Stopwatch",
+  "time.label": "Elapsed time",
+  "action.start": "Start",
+  "action.pause": "Pause",
+  "action.resume": "Resume",
+  "action.lap": "Lap",
+  "action.reset": "Reset",
+  "note": "Continues across tool tabs and includes time spent asleep. Closing this tool clears the stopwatch.",
+  "action.copyLaps": "Copy laps",
+  "action.exportLaps": "Export laps",
+  "table.lap": "Lap",
+  "table.split": "Split",
+  "table.total": "Total",
+  "empty.laps": "Start the stopwatch, then record a lap to compare split times.",
+  "error.save": "Could not save laps. Try copying them instead.",
+};

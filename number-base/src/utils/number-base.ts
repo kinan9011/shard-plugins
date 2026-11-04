@@ -1,6 +1,7 @@
 /**
  * Number Base Converter utility functions
  */
+import { t } from '@/lib/i18n';
 
 export type NumberBase = 2 | 8 | 10 | 16;
 
@@ -54,7 +55,7 @@ export function convertBase(
     const trimmed = value.trim();
 
     if (!trimmed) {
-      return { value: '', valid: false, error: 'Empty input' };
+      return { value: '', valid: false, error: t('error.emptyInput') };
     }
 
     // Parse the number from the source base (exact, BigInt based)
@@ -64,7 +65,7 @@ export function convertBase(
       return {
         value: '',
         valid: false,
-        error: `Invalid number for base ${fromBase}`,
+        error: t('error.invalidForBase', { base: fromBase }),
       };
     }
 
@@ -76,7 +77,7 @@ export function convertBase(
     return {
       value: '',
       valid: false,
-      error: `Conversion error: ${(error as Error).message}`,
+      error: t('error.conversion', { message: (error as Error).message }),
     };
   }
 }
@@ -157,7 +158,7 @@ const PREFIX_BASES: Record<string, number> = { x: 16, o: 8, b: 2 };
  */
 export function parseNumber(input: string, base: 'auto' | number = 'auto'): ParsedNumber {
   let text = input.trim().replace(/[_\s]/g, '');
-  if (!text) return { ok: false, error: 'Enter a number.' };
+  if (!text) return { ok: false, error: t('error.enterNumber') };
 
   let negative = false;
   if (text[0] === '-' || text[0] === '+') {
@@ -178,14 +179,14 @@ export function parseNumber(input: string, base: 'auto' | number = 'auto'): Pars
     radix = 16;
   }
 
-  if (!text) return { ok: false, error: 'Enter digits after the prefix.' };
+  if (!text) return { ok: false, error: t('error.enterDigits') };
 
   let value = 0n;
   const bigRadix = BigInt(radix);
   for (const ch of text) {
     const digit = parseInt(ch, 36);
     if (Number.isNaN(digit) || digit >= radix) {
-      return { ok: false, error: `"${ch}" is not a valid base ${radix} digit.` };
+      return { ok: false, error: t('error.badDigit', { char: ch, base: radix }) };
     }
     value = value * bigRadix + BigInt(digit);
   }
@@ -325,11 +326,11 @@ export function toRoman(value: bigint): string | null {
 /** Strictly parse a Roman numeral in standard form, in any case. IIII, VX and IC are errors. */
 export function parseRoman(input: string): { ok: true; value: bigint } | { ok: false; error: string } {
   const text = input.trim().toUpperCase();
-  if (!text) return { ok: false, error: 'Enter a Roman numeral.' };
+  if (!text) return { ok: false, error: t('error.enterRoman') };
   if (!/^[MDCLXVI]+$/.test(text) || !ROMAN_PATTERN.test(text)) {
     return {
       ok: false,
-      error: `"${input.trim()}" is not a valid Roman numeral. Use the standard form from I to MMMCMXCIX, such as IV for 4.`,
+      error: t('error.badRoman', { value: input.trim() }),
     };
   }
   let value = 0;

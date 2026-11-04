@@ -2,6 +2,7 @@
  * Converts HTML markup to JSX. The markup is parsed into an inert document
  * that is never attached to the page, so scripts do not run and nothing loads.
  */
+import { t } from "@/lib/i18n";
 
 export interface HtmlToJsxOptions {
   /** Wrap the JSX in `export function Name() { return (...) }`. */
@@ -433,7 +434,7 @@ const parseRoots = (html: string): ChildNode[] => {
 export function htmlToJsx(html: string, options: HtmlToJsxOptions = {}): HtmlToJsxResult {
   const componentName = (options.componentName ?? "Component").trim();
   if (options.component && !/^[A-Z][A-Za-z0-9_$]*$/.test(componentName)) {
-    return { ok: false, error: "The component name must start with a capital letter and use only letters, digits, $, or _." };
+    return { ok: false, error: t("error.componentName") };
   }
   if (!html.trim()) return { ok: true, value: "", handlers: 0 };
 

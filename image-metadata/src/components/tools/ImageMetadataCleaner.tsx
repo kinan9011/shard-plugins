@@ -4,13 +4,14 @@ import { FileUp, ImageIcon, LoaderCircle, ShieldOff, Sparkles, X } from "lucide-
 import { toast } from "@/shims/sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { MetadataFindingRow } from "@/components/tools/MetadataFindingRow";
 import { EditorPane, PaneEmpty, PaneOpenFile, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { saveFile } from "@/lib/desktop";
+import { formatList, t as tNow, useT } from "@/lib/i18n";
 import { formatBytes } from "@/utils/format-bytes";
 import {
-  FINDING_KIND_LABELS,
+  FINDING_KIND_KEYS,
   FINDING_KIND_ORDER,
   FORMAT_LABELS,
   FORMAT_MIME,
@@ -34,28 +35,7 @@ import {
   type OutputFormat,
 } from "@/utils/image-reencode";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which metadata does the tool find?",
-    a: "It reads EXIF (camera, dates, GPS position, software), XMP (including the IPTC digital source type that marks AI images), C2PA Content Credentials, IPTC captions and credits, JPEG comments, and PNG text chunks. PNG text chunks often hold Stable Diffusion, ComfyUI, or NovelAI prompts and workflows.",
-  },
-  {
-    q: "What is the difference between Preserve original quality and re-encoding?",
-    a: "With Preserve original quality on, the tool removes the metadata blocks and copies the compressed image data unchanged. The pixels and the format stay the same. When it is off, the tool decodes the image and encodes new pixels in the format you choose. The new file has no metadata, and the image is turned upright. The new file no longer matches the original byte for byte, so exact-hash lookups do not find it.",
-  },
-  {
-    q: "Does cleaning remove AI watermarks?",
-    a: "No. Some AI tools hide an invisible watermark in the pixels, for example Google SynthID or Meta Stable Signature. Metadata removal does not touch the pixels, and re-encoding does not reliably remove these watermarks or defeat reverse image search. The image looks the same after cleaning.",
-  },
-  {
-    q: "Why can a cleaned image show rotated?",
-    a: "Phones often store the photo sideways and add an EXIF orientation tag. If you remove that tag, some apps show the photo sideways. Turn on Keep orientation to keep only that tag, or turn off Preserve original quality so that the tool writes upright pixels.",
-  },
-  {
-    q: "Can I share AI images without a label after cleaning?",
-    a: "Removing metadata does not change where an image came from. Many platforms have their own AI-disclosure rules, and you must follow them. Images stay on your device during cleaning. Nothing is uploaded.",
-  },
-];
+const FAQ_KEYS = ["find", "preserve", "watermark", "rotated", "share"] as const;
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
@@ -83,7 +63,7 @@ const readBytes = (file: Blob) =>
   new Promise<Uint8Array>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
+    reader.onerror = () => reject(reader.error ?? new Error(tNow("error.readFile")));
     reader.readAsArrayBuffer(file);
   });
 
@@ -123,17 +103,20 @@ const uniqueName = (name: string, used: Map<string, number>) => {
   return dot < 0 ? `${name}-${count + 1}` : `${name.slice(0, dot)}-${count + 1}${name.slice(dot)}`;
 };
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
 /** Four format cards with radio group keyboard behavior. */
 function FormatPicker({ value, onChange, disabled }: { value: OutputFormat; onChange: (f: OutputFormat) => void; disabled: boolean }) {
+  const t = useT();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = OUTPUT_FORMATS.length - 1;
+    // In a right-to-left page the arrow keys follow the reading direction.
+    const rtl = document.documentElement.dir === "rtl";
+    const forward = rtl ? "ArrowLeft" : "ArrowRight";
+    const back = rtl ? "ArrowRight" : "ArrowLeft";
     const next =
-      event.key === "ArrowRight" || event.key === "ArrowDown"
+      event.key === forward || event.key === "ArrowDown"
         ? (index + 1) % OUTPUT_FORMATS.length
-        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+        : event.key === back || event.key === "ArrowUp"
           ? (index - 1 + OUTPUT_FORMATS.length) % OUTPUT_FORMATS.length
           : event.key === "Home"
             ? 0
@@ -146,7 +129,7 @@ function FormatPicker({ value, onChange, disabled }: { value: OutputFormat; onCh
     refs.current[next]?.focus();
   };
   return (
-    <div role="radiogroup" aria-label="Output format" aria-disabled={disabled || undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div role="radiogroup" aria-label={t("format.group")} aria-disabled={disabled || undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {OUTPUT_FORMATS.map((format, index) => {
         const checked = value === format.id;
         return (
@@ -160,12 +143,12 @@ function FormatPicker({ value, onChange, disabled }: { value: OutputFormat; onCh
             disabled={disabled}
             onClick={() => onChange(format.id)}
             onKeyDown={(event) => onKeyDown(event, index)}
-            className={`flex min-w-28 flex-col items-start rounded-md border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`flex min-w-28 flex-col items-start rounded-md border px-3 py-2 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               checked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"
             }`}
           >
             <span className="text-sm font-semibold">{format.title}</span>
-            <span className={`text-2xs ${checked ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{format.caption}</span>
+            <span className={`text-2xs ${checked ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{t(format.captionKey)}</span>
           </button>
         );
       })}
@@ -174,6 +157,7 @@ function FormatPicker({ value, onChange, disabled }: { value: OutputFormat; onCh
 }
 
 export function ImageMetadataCleaner() {
+  const t = useT();
   const [items, setItems] = useState<Item[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
@@ -197,7 +181,7 @@ export function ImageMetadataCleaner() {
   const options: CleanOptions = useMemo(() => ({ keepColorProfile, keepOrientation }), [keepColorProfile, keepOrientation]);
 
   // Output settings changed, so earlier outputs no longer match.
-  useEffect(() => setOutputs({}), [preserve, options, outputFormat, quality]);
+  useEffect(() => setOutputs({}), [preserve, options, outputFormat, quality, t]);
 
   const analyses = useMemo(() => {
     const map = new Map<string, { result?: CleanResult; error?: string }>();
@@ -205,11 +189,11 @@ export function ImageMetadataCleaner() {
       try {
         map.set(item.id, { result: cleanImage(item.bytes, options) });
       } catch (e) {
-        map.set(item.id, { error: e instanceof Error ? e.message : "Could not read this image." });
+        map.set(item.id, { error: e instanceof Error ? e.message : t("error.unreadable") });
       }
     }
     return map;
-  }, [items, options]);
+  }, [items, options, t]);
 
   const addFiles = async (files: File[]) => {
     if (!files.length) return;
@@ -221,7 +205,7 @@ export function ImageMetadataCleaner() {
         const bytes = await readBytes(file);
         const format = detectImageFormat(bytes);
         if (format !== "jpeg" && format !== "png" && format !== "webp") {
-          rejected.push(file.name || "Pasted file");
+          rejected.push(file.name || t("file.pasted"));
           continue;
         }
         added.push({
@@ -233,7 +217,7 @@ export function ImageMetadataCleaner() {
           previewUrl: objectUrl(file),
         });
       } catch {
-        setError(`Could not read ${file.name || "the pasted image"}. Open it again.`);
+        setError(file.name ? t("error.readNamed", { name: file.name }) : t("error.readPasted"));
       }
     }
     setSkipped(rejected);
@@ -286,7 +270,7 @@ export function ImageMetadataCleaner() {
     setDragging(false);
     const files = Array.from(event.dataTransfer.files ?? []);
     if (files.length) void addFiles(files);
-    else setError("Drop JPEG, PNG or WebP image files.");
+    else setError(t("error.dropImages"));
   };
 
   /** Builds clean outputs for the given items. */
@@ -301,7 +285,7 @@ export function ImageMetadataCleaner() {
           results[item.id] = cached;
         } else if (preserve) {
           const analysis = analyses.get(item.id);
-          if (!analysis?.result) throw new Error(`${item.name}: ${analysis?.error ?? "Could not read this image."}`);
+          if (!analysis?.result) throw new Error(t("error.item", { name: item.name, message: analysis?.error ?? t("error.unreadable") }));
           const { bytes, after } = analysis.result;
           results[item.id] = {
             bytes,
@@ -315,7 +299,7 @@ export function ImageMetadataCleaner() {
           try {
             bytes = await reencodeImage(item.blob, outputFormat, quality);
           } catch (e) {
-            throw new Error(`${item.name}: ${e instanceof Error ? e.message : "Could not re-encode this image."}`);
+            throw new Error(t("error.item", { name: item.name, message: e instanceof Error ? e.message : t("error.reencode") }));
           }
           const format = detectImageFormat(bytes);
           const remaining =
@@ -336,7 +320,7 @@ export function ImageMetadataCleaner() {
       return results;
     } catch (e) {
       setOutputs((prev) => ({ ...prev, ...results }));
-      setError(e instanceof Error ? e.message : "Could not clean the images.");
+      setError(e instanceof Error ? e.message : t("error.cleanFailed"));
       return null;
     } finally {
       setProgress(null);
@@ -345,9 +329,9 @@ export function ImageMetadataCleaner() {
 
   const saveOne = async (output: Output) => {
     try {
-      if (await saveFile(new Blob([output.bytes.slice()], { type: output.mime }), output.name)) toast.success(`Saved ${output.name}.`);
+      if (await saveFile(new Blob([output.bytes.slice()], { type: output.mime }), output.name)) toast.success(t("toast.saved", { name: output.name }));
     } catch {
-      setError("Could not save the clean copy. Try again.");
+      setError(t("error.save"));
     }
   };
 
@@ -357,10 +341,10 @@ export function ImageMetadataCleaner() {
     const zip = zipSync(entries, { level: 0 });
     try {
       if (await saveFile(new Blob([zip.slice()], { type: "application/zip" }), "clean-images.zip")) {
-        toast.success(`Saved ${plural(list.length, "clean image")} as a ZIP file.`);
+        toast.success(t("toast.savedZip", { count: list.length }));
       }
     } catch {
-      setError("Could not save the ZIP file. Try again.");
+      setError(t("error.saveZip"));
     }
   };
 
@@ -404,15 +388,16 @@ export function ImageMetadataCleaner() {
   const isRemoved = (finding: MetadataFinding) => (preserve ? finding.removable : finding.label !== "JFIF header");
   const orientationWarning = preserve && !keepOrientation && (selectedResult?.before.orientation ?? 1) > 1;
   const mainLabel = busy
-    ? `Cleaning ${Math.min(progress.done + 1, progress.total)} of ${progress.total}`
-    : `Clean ${plural(items.length, "image")}`;
+    ? t("action.cleaning", { current: Math.min(progress.done + 1, progress.total), total: progress.total })
+    : t("action.clean", { count: items.length });
 
-  const outputSummary = (item: Item, output: Output) => (
-    <>
-      {output.formatLabel} · {formatBytes(item.size)} → {formatBytes(output.bytes.length)} ·{" "}
-      {output.remaining.length ? `Still has ${output.remaining.join(", ")}` : "No metadata left"}
-    </>
-  );
+  const outputSummary = (item: Item, output: Output) =>
+    t("output.summary", {
+      format: output.formatLabel,
+      from: formatBytes(item.size),
+      to: formatBytes(output.bytes.length),
+      rest: output.remaining.length ? t("output.stillHas", { labels: formatList(output.remaining) }) : t("output.clean"),
+    });
 
   return (
     <ToolWorkspace
@@ -435,21 +420,21 @@ export function ImageMetadataCleaner() {
           />
           <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
             <FileUp aria-hidden="true" />
-            Open images
+            {t("action.openImages")}
           </Button>
           {items.length > 0 && (
             <button type="button" className="toolbar-text-button" onClick={clearAll} disabled={busy}>
-              Clear
+              {t("common.clear")}
             </button>
           )}
           {preserve && (
             <>
               <label className="option-switch indent-control" htmlFor="image-metadata-keep-color">
-                Keep color profile
+                {t("option.keepColorProfile")}
                 <Switch id="image-metadata-keep-color" checked={keepColorProfile} onCheckedChange={setKeepColorProfile} disabled={busy} />
               </label>
               <label className="option-switch" htmlFor="image-metadata-keep-orientation">
-                Keep orientation
+                {t("option.keepOrientation")}
                 <Switch id="image-metadata-keep-orientation" checked={keepOrientation} onCheckedChange={setKeepOrientation} disabled={busy} />
               </label>
             </>
@@ -460,7 +445,7 @@ export function ImageMetadataCleaner() {
           </Button>
           {items.length > 1 && selected && (
             <button type="button" className="toolbar-text-button" onClick={() => void saveSelected()} disabled={busy}>
-              Save clean copy
+              {t("action.saveCopy")}
             </button>
           )}
         </>
@@ -469,19 +454,17 @@ export function ImageMetadataCleaner() {
         <div className="flex w-full flex-wrap items-start gap-x-6 gap-y-3">
           <div className="max-w-xs space-y-1">
             <label className="option-switch" htmlFor="image-metadata-preserve">
-              Preserve original quality
+              {t("option.preserve")}
               <Switch id="image-metadata-preserve" checked={preserve} onCheckedChange={setPreserve} disabled={busy} aria-describedby="image-metadata-preserve-help" />
             </label>
             <p id="image-metadata-preserve-help" className="text-2xs text-muted-foreground">
-              {preserve
-                ? "Remove metadata only. Keeps the exact pixels and format with no recompression."
-                : "Re-encoding writes new upright pixels with no metadata. The file no longer matches the original byte for byte, so exact-hash lookups fail. It does not reliably defeat reverse image search or remove pixel watermarks such as SynthID."}
+              {t(preserve ? "preserve.helpOn" : "preserve.helpOff")}
             </p>
           </div>
           <FormatPicker value={outputFormat} onChange={setOutputFormat} disabled={preserve || busy} />
           {!preserve && usesQuality(outputFormat) && (
             <div className="flex items-center gap-2 self-center text-xs">
-              <label htmlFor="image-metadata-quality">Quality</label>
+              <label htmlFor="image-metadata-quality">{t("quality.label")}</label>
               <input
                 id="image-metadata-quality"
                 type="range"
@@ -506,13 +489,13 @@ export function ImageMetadataCleaner() {
           )}
           {skipped.length > 0 && (
             <div className="workspace-notice" role="status">
-              Only JPEG, PNG and WebP images are supported. Skipped: {skipped.join(", ")}.
+              {t("notice.unsupported", { names: formatList(skipped) })}
             </div>
           )}
         </>
       }
       first={
-        <EditorPane title="Images">
+        <EditorPane title={t("pane.images")}>
           <div
             ref={dropRef}
             className={`flex h-full min-h-full flex-col ${dragging ? "bg-accent" : ""}`}
@@ -523,17 +506,17 @@ export function ImageMetadataCleaner() {
             onDrop={onDrop}
           >
             {items.length ? (
-              <ul className="flex flex-col" aria-label="Opened images">
+              <ul className="flex flex-col" aria-label={t("list.label")}>
                 {items.map((item) => {
                   const analysis = analyses.get(item.id);
                   const before = analysis?.result?.before;
                   const output = outputs[item.id];
                   const active = item.id === selectedId;
                   return (
-                    <li key={item.id} className={`flex items-center gap-2 border-b border-border/50 pr-2 ${active ? "bg-muted" : ""}`}>
+                    <li key={item.id} className={`flex items-center gap-2 border-b border-border/50 pe-2 ${active ? "bg-muted" : ""}`}>
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2 text-start"
                         aria-pressed={active}
                         onClick={() => setSelectedId(item.id)}
                       >
@@ -545,10 +528,10 @@ export function ImageMetadataCleaner() {
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm">{item.name}</span>
+                          <span className="block truncate text-sm" dir="auto">{item.name}</span>
                           <span className="block text-xs text-muted-foreground">
-                            {before ? FORMAT_LABELS[before.format] : "Unreadable"} · {formatBytes(item.size)} ·{" "}
-                            {before ? plural(before.findings.length, "item") : analysis?.error}
+                            {before ? FORMAT_LABELS[before.format] : t("list.unreadable")} · {formatBytes(item.size)} ·{" "}
+                            {before ? t("list.items", { count: before.findings.length }) : analysis?.error}
                           </span>
                           {output && <span className="block text-2xs text-muted-foreground">{outputSummary(item, output)}</span>}
                         </span>
@@ -559,7 +542,7 @@ export function ImageMetadataCleaner() {
                       <button
                         type="button"
                         className="toolbar-text-button"
-                        aria-label={`Remove ${item.name}`}
+                        aria-label={t("list.remove", { name: item.name })}
                         onClick={() => removeItem(item.id)}
                         disabled={busy}
                       >
@@ -572,8 +555,8 @@ export function ImageMetadataCleaner() {
             ) : (
               <PaneOpenFile
                 icon={<ImageIcon size={22} aria-hidden="true" />}
-                title="Drop images here or click to open"
-                hint="JPEG, PNG or WebP. You can also paste an image. Images stay on this device."
+                title={t("empty.drop.title")}
+                hint={t("empty.drop.hint")}
                 onClick={() => fileInputRef.current?.click()}
               />
             )}
@@ -581,24 +564,24 @@ export function ImageMetadataCleaner() {
         </EditorPane>
       }
       second={
-        <EditorPane title={selected ? `Metadata in ${selected.name}` : "Metadata"}>
+        <EditorPane title={selected ? t("pane.metadataIn", { name: selected.name }) : t("pane.metadata")}>
           {selected && selectedResult ? (
             <div className="flex flex-col">
               <div className="space-y-1 border-b border-border/50 px-4 py-3 text-xs" data-testid="image-metadata-summary">
                 {preserve ? (
                   <p>
                     {selectedResult.removedCount
-                      ? `Removed ${plural(selectedResult.removedCount, "item")} · ${formatBytes(Math.max(0, selectedResult.savedBytes))} smaller`
-                      : "No removable metadata"}
+                      ? t("summary.removed", { count: selectedResult.removedCount, size: formatBytes(Math.max(0, selectedResult.savedBytes)) })
+                      : t("summary.none")}
                   </p>
                 ) : (
-                  <p>Re-encoding writes a new {OUTPUT_FORMATS.find((f) => f.id === outputFormat)!.title} file without any of these items.</p>
+                  <p>{t("summary.reencode", { format: OUTPUT_FORMATS.find((f) => f.id === outputFormat)!.title })}</p>
                 )}
-                {selectedOutput && <p className="text-muted-foreground">Output: {outputSummary(selected, selectedOutput)}</p>}
+                {selectedOutput && <p className="text-muted-foreground">{t("output.label", { summary: outputSummary(selected, selectedOutput) })}</p>}
               </div>
               {orientationWarning && (
                 <div className="workspace-notice" role="status">
-                  This image has EXIF orientation {selectedResult.before.orientation}. The clean copy may show rotated. Turn on Keep orientation to keep it.
+                  {t("notice.orientation", { value: selectedResult.before.orientation ?? 1 })}
                 </div>
               )}
               {grouped.length ? (
@@ -609,7 +592,7 @@ export function ImageMetadataCleaner() {
                       className={`flex items-center gap-1.5 px-4 pb-1 pt-3 text-xs font-semibold ${group.kind === "ai" ? "text-warning" : "text-muted-foreground"}`}
                     >
                       {group.kind === "ai" && <Sparkles size={13} aria-hidden="true" />}
-                      {FINDING_KIND_LABELS[group.kind]}
+                      {t(FINDING_KIND_KEYS[group.kind])}
                     </h3>
                     <div className="result-list">
                       {group.findings.map((finding, index) => (
@@ -619,29 +602,29 @@ export function ImageMetadataCleaner() {
                   </section>
                 ))
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">This image has no metadata.</p>
+                <p className="px-4 py-3 text-sm text-muted-foreground">{t("empty.noMetadata")}</p>
               )}
               <p className="px-4 py-3 text-xs text-muted-foreground">
-                Cleaning does not change how the image looks. It does not remove invisible watermarks in the pixels, such as Google SynthID or Meta Stable Signature. Platforms can have their own AI-disclosure rules.
+                {t("note.watermark")}
               </p>
             </div>
           ) : selected && selectedAnalysis?.error ? (
-            <PaneEmpty title="Could not read this image" hint={selectedAnalysis.error} />
+            <PaneEmpty title={t("empty.unreadable.title")} hint={selectedAnalysis.error} />
           ) : (
-            <PaneEmpty title="Metadata appears here" hint="Open an image to see its camera, location, AI and provenance data." />
+            <PaneEmpty title={t("empty.metadata.title")} hint={t("empty.metadata.hint")} />
           )}
         </EditorPane>
       }
       status={
         items.length ? (
           <span>
-            {[plural(items.length, "image"), `${counts.ai} with AI metadata`, `${counts.location} with location`].join(" · ")}
+            {[t("status.images", { count: items.length }), t("status.ai", { count: counts.ai }), t("status.location", { count: counts.location })].join(" · ")}
           </span>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

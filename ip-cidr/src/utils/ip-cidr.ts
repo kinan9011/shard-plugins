@@ -2,6 +2,7 @@
  * IPv4 and IPv6 address and CIDR math. Addresses are BigInts, so IPv6 math is exact.
  * Everything runs offline with no dependencies.
  */
+import { t, getLocale, LOCALES, type TKey } from "@/lib/i18n";
 
 export type IpVersion = 4 | 6;
 
@@ -62,34 +63,35 @@ const allOnes = (bits: number) => (1n << BigInt(bits)) - 1n;
 /** The mask with `prefix` 1 bits on the left. */
 export const prefixMask = (prefix: number, bits: number) => allOnes(bits) ^ allOnes(bits - prefix);
 
-const ordinal = (n: number) => ["first", "second", "third", "fourth"][n] ?? `${n + 1}th`;
+const ORDINALS: TKey[] = ["ordinal.first", "ordinal.second", "ordinal.third", "ordinal.fourth"];
+const ordinal = (n: number) => t(ORDINALS[n]);
 
 export function parseIPv4(text: string): Parsed<bigint> {
   const parts = text.split(".");
-  if (parts.length !== 4) return fail(`An IPv4 address has 4 parts. "${text}" has ${parts.length}.`);
+  if (parts.length !== 4) return fail(t("error.ipv4Parts", { text, parts: parts.length }));
   let value = 0n;
   for (let i = 0; i < 4; i++) {
     const part = parts[i];
-    if (part === "") return fail(`The ${ordinal(i)} part of "${text}" is empty.`);
-    if (!/^\d+$/.test(part)) return fail(`The ${ordinal(i)} part ("${part}") is not a number from 0 to 255.`);
+    if (part === "") return fail(t("error.ipv4Empty", { ordinal: ordinal(i), text }));
+    if (!/^\d+$/.test(part)) return fail(t("error.ipv4NotNumber", { ordinal: ordinal(i), part }));
     if (part.length > 1 && part.startsWith("0")) {
-      return fail(`The ${ordinal(i)} part ("${part}") has a leading zero. Some tools read it as octal, so remove the zero.`);
+      return fail(t("error.ipv4LeadingZero", { ordinal: ordinal(i), part }));
     }
     const octet = Number(part);
-    if (octet > 255) return fail(`The ${ordinal(i)} part is ${part}. Each part must be from 0 to 255.`);
+    if (octet > 255) return fail(t("error.ipv4TooBig", { ordinal: ordinal(i), part }));
     value = (value << 8n) | BigInt(octet);
   }
   return ok(value);
 }
 
 export function parseIPv6(text: string): Parsed<bigint> {
-  if (text.includes("%")) return fail(`Remove the zone ID ("${text.slice(text.indexOf("%"))}"). The tool reads addresses without one.`);
+  if (text.includes("%")) return fail(t("error.ipv6Zone", { zone: text.slice(text.indexOf("%")) }));
   if (text.startsWith("[") && text.endsWith("]")) text = text.slice(1, -1);
   const doubles = text.split("::").length - 1;
-  if (doubles > 1) return fail('An IPv6 address can have only one "::".');
-  if (/:::/.test(text)) return fail('Use two colons ("::") to skip zero groups, not three.');
-  if (/^:[^:]/.test(text)) return fail('The address cannot start with a single ":". Use "::" or add a group.');
-  if (/[^:]:$/.test(text)) return fail('The address cannot end with a single ":". Use "::" or add a group.');
+  if (doubles > 1) return fail(t("error.ipv6OneDouble"));
+  if (/:::/.test(text)) return fail(t("error.ipv6TripleColon"));
+  if (/^:[^:]/.test(text)) return fail(t("error.ipv6StartColon"));
+  if (/[^:]:$/.test(text)) return fail(t("error.ipv6EndColon"));
 
   const [head, tail] = doubles ? text.split("::") : [text, undefined];
   const headGroups = head ? head.split(":") : [];
@@ -102,25 +104,25 @@ export function parseIPv6(text: string): Parsed<bigint> {
   const lastGroup = lastGroups[lastGroups.length - 1];
   if (lastGroup?.includes(".")) {
     const v4 = parseIPv4(lastGroup);
-    if (!v4.ok) return fail(`The IPv4 part is not valid. ${v4.error}`);
+    if (!v4.ok) return fail(t("error.ipv6BadIpv4", { error: v4.error }));
     embedded = v4.value;
     lastGroups.pop();
   }
   for (const group of [...headGroups, ...tailGroups]) {
-    if (group.includes(".")) return fail("An IPv4 part can only be at the end of an IPv6 address.");
-    if (group === "") return fail('A group is empty. Use "::" only once to skip zero groups.');
-    if (group.length > 4) return fail(`The group "${group}" has more than 4 hex digits.`);
+    if (group.includes(".")) return fail(t("error.ipv6Ipv4NotLast"));
+    if (group === "") return fail(t("error.ipv6EmptyGroup"));
+    if (group.length > 4) return fail(t("error.ipv6LongGroup", { group }));
     const bad = group.match(/[^0-9a-f]/i);
-    if (bad) return fail(`"${bad[0]}" in the group "${group}" is not a hex digit (0-9, a-f).`);
+    if (bad) return fail(t("error.ipv6BadHex", { char: bad[0], group }));
   }
 
   const needed = embedded === null ? 8 : 6;
   const given = headGroups.length + tailGroups.length;
-  const shown = embedded === null ? given : `${given} and an IPv4 part`;
+  const shown = embedded === null ? String(given) : t("error.ipv6GivenWithIpv4", { given });
   if (doubles) {
-    if (given >= needed) return fail(`"::" must replace at least one zero group, but the address already has ${shown}.`);
+    if (given >= needed) return fail(t("error.ipv6DoubleNeedsGap", { shown }));
   } else if (given !== needed) {
-    return fail(given > needed ? `An IPv6 address has 8 groups. This one has ${shown}.` : `An IPv6 address has 8 groups. This one has ${shown}. Add groups or use "::" for the zero groups.`);
+    return fail(t(given > needed ? "error.ipv6TooManyGroups" : "error.ipv6TooFewGroups", { shown }));
   }
 
   const groups = [...headGroups, ...Array<string>(needed - given).fill("0"), ...tailGroups];
@@ -133,12 +135,12 @@ export function parseIPv6(text: string): Parsed<bigint> {
 /** Reads an IPv4 or IPv6 address. A colon means IPv6. */
 export function parseAddress(raw: string): Parsed<IpAddress> {
   const text = raw.trim();
-  if (!text) return fail("Enter an IP address.");
+  if (!text) return fail(t("error.enterIp"));
   if (text.includes(":")) {
     const value = parseIPv6(text);
     return failed(value) ? value : ok({ version: 6 as const, value: value.value });
   }
-  if (/^[0-9a-f]+$/i.test(text) && /[a-f]/i.test(text)) return fail(`"${text}" is not an IP address. An IPv6 address needs colons between groups.`);
+  if (/^[0-9a-f]+$/i.test(text) && /[a-f]/i.test(text)) return fail(t("error.notIp", { text }));
   const value = parseIPv4(text);
   return failed(value) ? value : ok({ version: 4 as const, value: value.value });
 }
@@ -146,11 +148,11 @@ export function parseAddress(raw: string): Parsed<IpAddress> {
 /** Converts a dotted netmask such as 255.255.255.0 to a prefix length. */
 export function netmaskToPrefix(text: string): Parsed<number> {
   const mask = parseIPv4(text);
-  if (!mask.ok) return fail(`The netmask is not valid. ${mask.error}`);
+  if (!mask.ok) return fail(t("error.netmaskInvalid", { error: mask.error }));
   const value = mask.value;
   const inverted = ~value & allOnes(32);
   // A valid mask is 1 bits then 0 bits, so its inverse plus one is a power of two.
-  if ((inverted & (inverted + 1n)) !== 0n) return fail(`${text} is not a valid netmask. The 1 bits must be on the left with no gaps.`);
+  if ((inverted & (inverted + 1n)) !== 0n) return fail(t("error.netmaskGaps", { text }));
   return ok(inverted === 0n ? 32 : 32 - inverted.toString(2).length);
 }
 
@@ -160,27 +162,27 @@ export function netmaskToPrefix(text: string): Parsed<number> {
  */
 export function parseCidr(raw: string): Parsed<Cidr> {
   const text = raw.trim();
-  if (!text) return fail("Enter an IP address or a CIDR block.");
+  if (!text) return fail(t("error.enterCidr"));
   const match = text.match(/^(\S+?)\s*(?:\/\s*(\S*)|\s+(\S+))?$/);
-  if (!match) return fail(`"${text}" is not an address or a CIDR block. Use a form such as 10.0.0.0/8.`);
+  if (!match) return fail(t("error.notCidr", { text }));
   const [, addressText, slashPart, spacePart] = match;
   const address = parseAddress(addressText);
   if (failed(address)) return address;
   const bits = bitsOf(address.value.version);
   const prefixText = slashPart ?? spacePart;
   if (prefixText === undefined) return ok({ ...address.value, prefix: bits });
-  if (prefixText === "") return fail("Enter a prefix length after the slash, such as /24.");
+  if (prefixText === "") return fail(t("error.prefixMissing"));
 
   let prefix: number;
   if (prefixText.includes(".")) {
-    if (address.value.version === 6) return fail("IPv6 does not use dotted netmasks. Use a prefix length, such as /64.");
+    if (address.value.version === 6) return fail(t("error.ipv6Netmask"));
     const fromMask = netmaskToPrefix(prefixText);
     if (failed(fromMask)) return fromMask;
     prefix = fromMask.value;
   } else {
-    if (!/^\d+$/.test(prefixText)) return fail(`The prefix "${prefixText}" is not a number. Use a prefix length such as /24.`);
+    if (!/^\d+$/.test(prefixText)) return fail(t("error.prefixNotNumber", { prefix: prefixText }));
     prefix = Number(prefixText);
-    if (prefix > bits) return fail(`An IPv${address.value.version} prefix is from 0 to ${bits}. This one is ${prefixText}.`);
+    if (prefix > bits) return fail(t("error.prefixRange", { version: address.value.version, bits, prefix: prefixText }));
   }
   return ok({ ...address.value, prefix });
 }
@@ -282,8 +284,8 @@ export const binaryText = (value: bigint, version: IpVersion) =>
     .map((group) => group.host)
     .join(version === 4 ? "." : ":");
 
-/** Adds thousands separators to a BigInt. */
-export const groupThousands = (value: bigint) => value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+/** Adds thousands separators to a BigInt, in the app language (Latin digits). */
+export const groupThousands = (value: bigint) => new Intl.NumberFormat(`${LOCALES[getLocale()].tag}-u-nu-latn`).format(value);
 
 /** A count for display: exact digits, and a power of two for large IPv6 counts. */
 export function formatCount(value: bigint): string {
@@ -296,45 +298,45 @@ export function formatCount(value: bigint): string {
 
 interface SpecialBlock {
   cidr: string;
-  label: string;
-  detail: string;
+  label: TKey;
+  detail: TKey;
 }
 
 const IPV4_BLOCKS: SpecialBlock[] = [
-  { cidr: "0.0.0.0/32", label: "Unspecified", detail: "Means no address. A server that listens here accepts traffic on all interfaces." },
-  { cidr: "0.0.0.0/8", label: "This network", detail: "Reserved for this host on this network (RFC 1122). Not routable." },
-  { cidr: "10.0.0.0/8", label: "Private", detail: "Private address space (RFC 1918). Not routed on the internet." },
-  { cidr: "100.64.0.0/10", label: "Shared (CGNAT)", detail: "Shared address space for carrier-grade NAT (RFC 6598)." },
-  { cidr: "127.0.0.0/8", label: "Loopback", detail: "Loopback (RFC 1122). Traffic stays on this host." },
-  { cidr: "169.254.0.0/16", label: "Link-local", detail: "Link-local (RFC 3927). Hosts assign these when DHCP fails. Not routed." },
-  { cidr: "172.16.0.0/12", label: "Private", detail: "Private address space (RFC 1918). Not routed on the internet." },
-  { cidr: "192.0.0.0/24", label: "IETF protocol assignments", detail: "Reserved for IETF protocols (RFC 6890)." },
-  { cidr: "192.0.2.0/24", label: "Documentation", detail: "TEST-NET-1 for examples and documentation (RFC 5737)." },
-  { cidr: "192.88.99.0/24", label: "6to4 relay anycast", detail: "Deprecated 6to4 relay anycast (RFC 7526)." },
-  { cidr: "192.168.0.0/16", label: "Private", detail: "Private address space (RFC 1918). Not routed on the internet." },
-  { cidr: "198.18.0.0/15", label: "Benchmarking", detail: "Reserved for network device benchmarks (RFC 2544)." },
-  { cidr: "198.51.100.0/24", label: "Documentation", detail: "TEST-NET-2 for examples and documentation (RFC 5737)." },
-  { cidr: "203.0.113.0/24", label: "Documentation", detail: "TEST-NET-3 for examples and documentation (RFC 5737)." },
-  { cidr: "224.0.0.0/4", label: "Multicast", detail: "Multicast (RFC 5771). One sender reaches a group of receivers." },
-  { cidr: "255.255.255.255/32", label: "Limited broadcast", detail: "Reaches all hosts on the local network (RFC 919)." },
-  { cidr: "240.0.0.0/4", label: "Reserved", detail: "Reserved for future use (RFC 1112). Most systems do not route it." },
+  { cidr: "0.0.0.0/32", label: "type.unspecified", detail: "typeDetail.unspecified" },
+  { cidr: "0.0.0.0/8", label: "type.thisNetwork", detail: "typeDetail.thisNetwork" },
+  { cidr: "10.0.0.0/8", label: "type.private", detail: "typeDetail.private" },
+  { cidr: "100.64.0.0/10", label: "type.cgnat", detail: "typeDetail.cgnat" },
+  { cidr: "127.0.0.0/8", label: "type.loopback", detail: "typeDetail.loopback4" },
+  { cidr: "169.254.0.0/16", label: "type.linkLocal", detail: "typeDetail.linkLocal4" },
+  { cidr: "172.16.0.0/12", label: "type.private", detail: "typeDetail.private" },
+  { cidr: "192.0.0.0/24", label: "type.ietf", detail: "typeDetail.ietf" },
+  { cidr: "192.0.2.0/24", label: "type.documentation", detail: "typeDetail.testNet1" },
+  { cidr: "192.88.99.0/24", label: "type.sixToFourRelay", detail: "typeDetail.sixToFourRelay" },
+  { cidr: "192.168.0.0/16", label: "type.private", detail: "typeDetail.private" },
+  { cidr: "198.18.0.0/15", label: "type.benchmarking", detail: "typeDetail.benchmarking" },
+  { cidr: "198.51.100.0/24", label: "type.documentation", detail: "typeDetail.testNet2" },
+  { cidr: "203.0.113.0/24", label: "type.documentation", detail: "typeDetail.testNet3" },
+  { cidr: "224.0.0.0/4", label: "type.multicast", detail: "typeDetail.multicast4" },
+  { cidr: "255.255.255.255/32", label: "type.limitedBroadcast", detail: "typeDetail.limitedBroadcast" },
+  { cidr: "240.0.0.0/4", label: "type.reserved", detail: "typeDetail.reserved4" },
 ];
 
 const IPV6_BLOCKS: SpecialBlock[] = [
-  { cidr: "::/128", label: "Unspecified", detail: "Means no address. A server that listens here accepts traffic on all interfaces." },
-  { cidr: "::1/128", label: "Loopback", detail: "Loopback (RFC 4291). Traffic stays on this host." },
-  { cidr: "::ffff:0:0/96", label: "IPv4-mapped", detail: "An IPv4 address in IPv6 form (RFC 4291). Dual-stack sockets use it for IPv4 peers." },
-  { cidr: "64:ff9b::/96", label: "IPv4/IPv6 translation", detail: "Well-known NAT64 prefix (RFC 6052)." },
-  { cidr: "64:ff9b:1::/48", label: "IPv4/IPv6 translation", detail: "Local-use NAT64 prefix (RFC 8215)." },
-  { cidr: "100::/64", label: "Discard-only", detail: "Discard prefix for blackhole routes (RFC 6666)." },
-  { cidr: "2001::/32", label: "Teredo", detail: "Teredo tunneling of IPv6 over IPv4 UDP (RFC 4380)." },
-  { cidr: "2001:db8::/32", label: "Documentation", detail: "Reserved for examples and documentation (RFC 3849)." },
-  { cidr: "2002::/16", label: "6to4", detail: "6to4 tunneling (RFC 3056). The next 32 bits hold an IPv4 address." },
-  { cidr: "3fff::/20", label: "Documentation", detail: "Reserved for examples and documentation (RFC 9637)." },
-  { cidr: "fc00::/7", label: "Unique local", detail: "Unique local addresses (RFC 4193). The IPv6 match for private IPv4 space." },
-  { cidr: "fe80::/10", label: "Link-local", detail: "Link-local (RFC 4291). Every IPv6 interface has one. Not routed." },
-  { cidr: "ff00::/8", label: "Multicast", detail: "Multicast (RFC 4291). One sender reaches a group of receivers." },
-  { cidr: "2000::/3", label: "Global unicast", detail: "Public address space (RFC 4291). Routed on the internet." },
+  { cidr: "::/128", label: "type.unspecified", detail: "typeDetail.unspecified" },
+  { cidr: "::1/128", label: "type.loopback", detail: "typeDetail.loopback6" },
+  { cidr: "::ffff:0:0/96", label: "type.ipv4Mapped", detail: "typeDetail.ipv4Mapped" },
+  { cidr: "64:ff9b::/96", label: "type.translation", detail: "typeDetail.nat64" },
+  { cidr: "64:ff9b:1::/48", label: "type.translation", detail: "typeDetail.nat64Local" },
+  { cidr: "100::/64", label: "type.discard", detail: "typeDetail.discard" },
+  { cidr: "2001::/32", label: "type.teredo", detail: "typeDetail.teredo" },
+  { cidr: "2001:db8::/32", label: "type.documentation", detail: "typeDetail.doc6" },
+  { cidr: "2002::/16", label: "type.sixToFour", detail: "typeDetail.sixToFour" },
+  { cidr: "3fff::/20", label: "type.documentation", detail: "typeDetail.doc6New" },
+  { cidr: "fc00::/7", label: "type.uniqueLocal", detail: "typeDetail.uniqueLocal" },
+  { cidr: "fe80::/10", label: "type.linkLocal", detail: "typeDetail.linkLocal6" },
+  { cidr: "ff00::/8", label: "type.multicast", detail: "typeDetail.multicast6" },
+  { cidr: "2000::/3", label: "type.globalUnicast", detail: "typeDetail.globalUnicast" },
 ];
 
 const toRange = (block: SpecialBlock) => {
@@ -359,12 +361,12 @@ export function classifyRange(start: bigint, end: bigint, version: IpVersion): A
   const overlaps = blocks.filter((block) => block.start <= end && start <= block.end);
   // A block such as 2001::/16 is global unicast, but it also holds Teredo and documentation space.
   const mixed = overlaps.some((block) => block !== inside && !(block.start <= start && end <= block.end));
-  if (inside && !mixed) return { label: inside.label, detail: inside.detail };
+  if (inside && !mixed) return { label: t(inside.label), detail: t(inside.detail) };
   if (overlaps.length) {
-    return { label: "Mixed", detail: "The range covers more than one kind of address space." };
+    return { label: t("type.mixed"), detail: t("typeDetail.mixed") };
   }
-  if (version === 4) return { label: "Public", detail: "Public address space. Routed on the internet." };
-  return { label: "Reserved", detail: "Reserved by the IETF. Not assigned for use now." };
+  if (version === 4) return { label: t("type.public"), detail: t("typeDetail.public") };
+  return { label: t("type.reserved"), detail: t("typeDetail.reservedIetf") };
 }
 
 /** The class before CIDR (RFC 791). Only of historical interest. */
@@ -373,8 +375,8 @@ export function ipv4Class(value: bigint): string {
   if (first < 128) return "A";
   if (first < 192) return "B";
   if (first < 224) return "C";
-  if (first < 240) return "D (multicast)";
-  return "E (reserved)";
+  if (first < 240) return t("class.multicast");
+  return t("class.reserved");
 }
 
 export function describeCidr(cidr: Cidr): CidrInfo {
@@ -393,19 +395,19 @@ export function describeCidr(cidr: Cidr): CidrInfo {
   let broadcast: bigint | null = null;
   let hostNote: string;
   if (hostBits === 0) {
-    hostNote = "A single address.";
+    hostNote = t("hostNote.single");
   } else if (hostBits === 1) {
-    hostNote = version === 4 ? "A point-to-point link (RFC 3021). Both addresses are usable, and there is no broadcast." : "A point-to-point link (RFC 6164). Both addresses are usable.";
+    hostNote = t(version === 4 ? "hostNote.pointToPoint4" : "hostNote.pointToPoint6");
   } else if (version === 4) {
     broadcast = last;
     firstHost = network + 1n;
     lastHost = last - 1n;
     usable = total - 2n;
-    hostNote = "The network and broadcast addresses are not usable as hosts.";
+    hostNote = t("hostNote.ipv4");
   } else {
     firstHost = network + 1n;
     usable = total - 1n;
-    hostNote = "IPv6 has no broadcast. The first address is the Subnet-Router anycast address (RFC 4291), so it is not counted.";
+    hostNote = t("hostNote.ipv6");
   }
 
   return {
@@ -450,15 +452,15 @@ export interface IpRange {
 /** Reads a CIDR block, a single address, or a range such as "10.0.0.5 - 10.0.0.20". */
 export function parseRange(raw: string): Parsed<IpRange> {
   const text = raw.trim();
-  if (!text) return fail("Enter an address, a CIDR block, or a range.");
+  if (!text) return fail(t("error.enterRange"));
   const dash = text.match(/^(\S+)\s*-\s*(\S+)$/);
   if (dash && !text.includes("/")) {
     const start = parseAddress(dash[1]);
-    if (!start.ok) return fail(`The start address is not valid. ${start.error}`);
+    if (!start.ok) return fail(t("error.rangeStart", { error: start.error }));
     const end = parseAddress(dash[2]);
-    if (!end.ok) return fail(`The end address is not valid. ${end.error}`);
-    if (start.value.version !== end.value.version) return fail("The start and end addresses must be the same IP version.");
-    if (start.value.value > end.value.value) return fail("The start address is after the end address.");
+    if (!end.ok) return fail(t("error.rangeEnd", { error: end.error }));
+    if (start.value.version !== end.value.version) return fail(t("error.rangeVersion"));
+    if (start.value.value > end.value.value) return fail(t("error.rangeOrder"));
     return ok({ version: start.value.version, start: start.value.value, end: end.value.value });
   }
   const cidr = parseCidr(text);
@@ -474,7 +476,7 @@ export type ContainsResult = "inside" | "partial" | "outside";
 export function checkContains(info: CidrInfo, text: string): Parsed<ContainsResult> {
   const range = parseRange(text);
   if (failed(range)) return range;
-  if (range.value.version !== info.version) return fail(`The block is IPv${info.version}, but this is IPv${range.value.version}. Compare addresses of the same version.`);
+  if (range.value.version !== info.version) return fail(t("error.versionMismatch", { block: info.version, other: range.value.version }));
   const { start, end } = range.value;
   if (info.network <= start && end <= info.last) return ok("inside");
   if (start <= info.last && info.network <= end) return ok("partial");
@@ -498,9 +500,9 @@ export const MAX_SUBNETS = 256;
 
 /** Splits the block into subnets with the new prefix. Lists at most `limit` of them. */
 export function splitByPrefix(info: CidrInfo, newPrefix: number, limit = MAX_SUBNETS): Parsed<SubnetSplit> {
-  if (!Number.isInteger(newPrefix)) return fail("Enter a whole number for the prefix.");
-  if (newPrefix < info.prefix) return fail(`The new prefix must be /${info.prefix} or longer. A shorter prefix makes a bigger block, not a subnet.`);
-  if (newPrefix > info.bits) return fail(`An IPv${info.version} prefix is from 0 to ${info.bits}.`);
+  if (!Number.isInteger(newPrefix)) return fail(t("error.splitPrefixWhole"));
+  if (newPrefix < info.prefix) return fail(t("error.splitPrefixShorter", { prefix: info.prefix }));
+  if (newPrefix > info.bits) return fail(t("error.splitPrefixRange", { version: info.version, bits: info.bits }));
   const count = 1n << BigInt(newPrefix - info.prefix);
   const size = 1n << BigInt(info.bits - newPrefix);
   const shown = count < BigInt(limit) ? Number(count) : limit;
@@ -514,13 +516,13 @@ export function splitByPrefix(info: CidrInfo, newPrefix: number, limit = MAX_SUB
 
 /** Splits the block into at least `parts` equal subnets. The count rounds up to a power of two. */
 export function splitByCount(info: CidrInfo, parts: number, limit = MAX_SUBNETS): Parsed<SubnetSplit> {
-  if (!Number.isInteger(parts) || parts < 1) return fail("Enter a whole number of subnets, 1 or more.");
+  if (!Number.isInteger(parts) || parts < 1) return fail(t("error.splitCountWhole"));
   const extra = Math.ceil(Math.log2(parts));
   // Math.log2 can be off by a hair for large numbers, so check the power of two directly.
   const bitsNeeded = 2 ** extra >= parts ? extra : extra + 1;
   const available = info.bits - info.prefix;
   if (bitsNeeded > available) {
-    return fail(`A /${info.prefix} can hold at most ${formatCount(1n << BigInt(available))} subnets.`);
+    return fail(t("error.splitCountMax", { prefix: info.prefix, max: formatCount(1n << BigInt(available)) }));
   }
   return splitByPrefix(info, info.prefix + bitsNeeded, limit);
 }

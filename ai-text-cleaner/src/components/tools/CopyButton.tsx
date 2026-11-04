@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { toast } from "@/shims/sonner";
 import { sdk } from "@/sdk";
+import { useT } from "@/lib/i18n";
 
 interface CopyButtonProps {
   /** A function is read on click, so a large value is not built on every render. */
@@ -19,8 +20,10 @@ interface CopyButtonProps {
  * Copies a value and confirms in place: the icon turns into a check and a
  * polite live region announces "Copied". Only failures raise a toast.
  */
-export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false, className = "" }: CopyButtonProps) {
+export function CopyButton({ value, label, ariaLabel, iconOnly = false, className = "" }: CopyButtonProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
+  label ??= t("common.copy");
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -32,7 +35,7 @@ export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false,
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error("Could not copy. Select the text and copy it manually.");
+      toast.error(t("common.copyFailed"));
     }
   };
 
@@ -48,8 +51,8 @@ export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false,
       data-copied={copied || undefined}
     >
       <Icon size={14} aria-hidden="true" />
-      {!iconOnly && (copied ? "Copied" : label)}
-      <span className="sr-only" aria-live="polite">{copied ? "Copied" : ""}</span>
+      {!iconOnly && (copied ? t("common.copied") : label)}
+      <span className="sr-only" aria-live="polite">{copied ? t("common.copied") : ""}</span>
     </button>
   );
 }

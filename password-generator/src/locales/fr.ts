@@ -1,0 +1,16 @@
+export default {
+  "length.label": "Longueur du mot de passe : {length}",
+  "option.uppercase": "Majuscules (A-Z)",
+  "option.lowercase": "Minuscules (a-z)",
+  "option.numbers": "Chiffres (0-9)",
+  "option.symbols": "Symboles (!@#$...)",
+  "output.label": "Mot de passe généré",
+  "output.copy": "Copier le mot de passe",
+  "output.regenerate": "Générer un nouveau mot de passe",
+  "strength.label": "Robustesse",
+  "strength.weak": "Faible",
+  "strength.fair": "Moyenne",
+  "strength.good": "Bonne",
+  "strength.strong": "Forte",
+  "error.noCharacterType": "Sélectionnez au moins un type de caractère",
+};

@@ -4,41 +4,20 @@ import { toast } from "@/shims/sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { MetadataFindingRow } from "@/components/tools/MetadataFindingRow";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { EditorPane, PaneEmpty, PaneOpenFile, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { saveFile } from "@/lib/desktop";
+import { formatNumber, useT } from "@/lib/i18n";
 import { blobSource } from "@/utils/byte-source";
 import { formatBytes } from "@/utils/format-bytes";
-import { FINDING_KIND_LABELS, FINDING_KIND_ORDER } from "@/utils/image-metadata";
+import { FINDING_KIND_LABEL_KEYS, FINDING_KIND_ORDER } from "@/utils/image-metadata";
 import { DEFAULT_VIDEO_OPTIONS, MAX_VIDEO_BYTES, VIDEO_ACCEPT, VIDEO_FORMAT_LABELS, cleanVideoName, type VideoCleanOptions } from "@/utils/video-format";
 import { cleanVideo, inspectVideo, type VideoCleanResult, type VideoInspection } from "@/utils/video-metadata";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which metadata does the tool remove?",
-    a: "It removes C2PA Content Credentials, XMP (including the IPTC digital source type that marks AI video), GPS positions, camera make and model, software and encoder names, titles and comments, and recording dates. It also removes timed metadata tracks, such as GoPro telemetry and iPhone face detection data. In MKV and WebM files it removes tags, cover pictures, and app names.",
-  },
-  {
-    q: "Does cleaning change the video or the audio?",
-    a: "No. The tool does not re-encode. It overwrites each metadata block in place with empty padding of the same size, so the file size stays the same and every audio and video packet stays byte for byte the same. After cleaning, the tool reads the clean copy again and lists what is left.",
-  },
-  {
-    q: "Does cleaning remove AI watermarks?",
-    a: "No. Some AI tools hide an invisible watermark in the pixels or the audio, for example Google SynthID in Veo videos. A visible watermark is part of the picture. Metadata removal does not touch the picture or the sound, so these watermarks stay.",
-  },
-  {
-    q: "Why are some items kept?",
-    a: "Unknown vendor boxes can hold data that some players need, so the tool keeps them. Fonts in MKV files stay when Keep fonts is on, because subtitles need them. Subtitle tracks stay, but some drones and dash cameras store GPS data in them. Remove that track with a video editor if you need to.",
-  },
-  {
-    q: "Is my video uploaded?",
-    a: "No. The video stays on your device. The tool reads only the parts of the file that hold metadata, so large files open fast. Removing metadata does not change where a video came from. Follow the AI-disclosure rules of the platforms where you share it.",
-  },
-];
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const FAQ_KEYS = ["removes", "reencode", "watermark", "kept", "upload"] as const;
 
 export function VideoMetadataCleaner() {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [options, setOptions] = useState<VideoCleanOptions>(DEFAULT_VIDEO_OPTIONS);
@@ -61,7 +40,7 @@ export function VideoMetadataCleaner() {
       .catch((err: unknown) => {
         if (cancelled) return;
         setInspection(null);
-        setError(err instanceof Error ? err.message : "Could not read the video.");
+        setError(err instanceof Error ? err.message : t("error.readVideo"));
       })
       .finally(() => {
         if (!cancelled) setBusy(false);
@@ -69,7 +48,8 @@ export function VideoMetadataCleaner() {
     return () => {
       cancelled = true;
     };
-  }, [file, options]);
+    // The findings carry text in the current language, so a language change scans the file again.
+  }, [file, options, t]);
 
   const openFile = (next: File | undefined) => {
     if (!next) return;
@@ -77,7 +57,7 @@ export function VideoMetadataCleaner() {
       setFile(null);
       setInspection(null);
       setResult(null);
-      setError(`The file is ${formatBytes(next.size)}. This tool opens videos up to ${formatBytes(MAX_VIDEO_BYTES)}.`);
+      setError(t("error.tooLarge", { size: formatBytes(next.size), max: formatBytes(MAX_VIDEO_BYTES) }));
       return;
     }
     setFile(next);
@@ -90,9 +70,9 @@ export function VideoMetadataCleaner() {
       const cleaned = await cleanVideo(file, inspection, options);
       setResult(cleaned);
       const name = cleanVideoName(file.name, inspection.format);
-      if (await saveFile(cleaned.blob, name)) toast.success(`Saved ${name}.`);
+      if (await saveFile(cleaned.blob, name)) toast.success(t("toast.saved", { name }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save the clean copy.");
+      toast.error(err instanceof Error ? err.message : t("toast.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -124,22 +104,22 @@ export function VideoMetadataCleaner() {
     return (
       <div className="workspace-notice" role="status">
         {result.after.warnings.length
-          ? `Removed ${plural(result.removedCount, "item")}. The scan is incomplete; metadata may remain in the clean copy. ${result.after.warnings.join(" ")}`
+          ? t("notice.incomplete", { count: result.removedCount, number: formatNumber(result.removedCount), warnings: result.after.warnings.join(" ") })
           : left.length
-          ? `The clean copy still has ${plural(left.length, "item")}: ${left.map((f) => f.label).join(", ")}.`
-          : `Removed ${plural(result.removedCount, "item")}. The clean copy has no metadata left to remove. The audio and video data did not change.`}
+          ? t("notice.left", { count: left.length, number: formatNumber(left.length), labels: left.map((f) => f.label).join(", ") })
+          : t("notice.clean", { count: result.removedCount, number: formatNumber(result.removedCount) })}
       </div>
     );
   };
 
   const status = () => {
-    if (busy) return <span>Reading the video</span>;
-    if (!inspection) return <span>Ready</span>;
+    if (busy) return <span>{t("status.reading")}</span>;
+    if (!inspection) return <span>{t("status.ready")}</span>;
     return (
       <span>
-        {VIDEO_FORMAT_LABELS[inspection.format]} · {formatBytes(inspection.size)} · {plural(removable, "item")} to remove
-        {inspection.hasAi ? " · AI labels found" : ""}
-        {inspection.hasLocation ? " · Location found" : ""}
+        {VIDEO_FORMAT_LABELS[inspection.format]} · {formatBytes(inspection.size)} · {t("status.toRemove", { count: removable, number: formatNumber(removable) })}
+        {inspection.hasAi ? ` · ${t("status.ai")}` : ""}
+        {inspection.hasLocation ? ` · ${t("status.location")}` : ""}
       </span>
     );
   };
@@ -164,31 +144,31 @@ export function VideoMetadataCleaner() {
           />
           <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
             <FileUp aria-hidden="true" />
-            Open video
+            {t("action.open")}
           </Button>
           <label className="option-switch indent-control" htmlFor="video-metadata-dates">
-            Clear dates
+            {t("option.clearDates")}
             <Switch id="video-metadata-dates" checked={options.clearDates} onCheckedChange={setOption("clearDates")} disabled={busy} />
           </label>
           <label className="option-switch" htmlFor="video-metadata-tracks">
-            Remove metadata tracks
+            {t("option.removeTracks")}
             <Switch id="video-metadata-tracks" checked={options.removeMetadataTracks} onCheckedChange={setOption("removeMetadataTracks")} disabled={busy} />
           </label>
           {matroska && (
             <label className="option-switch" htmlFor="video-metadata-fonts">
-              Keep fonts
+              {t("option.keepFonts")}
               <Switch id="video-metadata-fonts" checked={options.keepFonts} onCheckedChange={setOption("keepFonts")} disabled={busy} />
             </label>
           )}
           <Button size="sm" onClick={() => void save()} disabled={!inspection || busy} aria-busy={busy || undefined}>
             {busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <ShieldOff aria-hidden="true" />}
-            Save clean copy
+            {t("action.save")}
           </Button>
         </>
       }
       notice={notice()}
       first={
-        <EditorPane title="Video">
+        <EditorPane title={t("pane.video")}>
           <div
             className={`flex h-full min-h-full flex-col ${dragging ? "bg-accent" : ""}`}
             data-dragging={dragging || undefined}
@@ -200,10 +180,10 @@ export function VideoMetadataCleaner() {
               <div className="space-y-3 p-4">
                 <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm">
                   <FileVideo className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{file.name}</span>
+                  <span className="truncate" dir="auto">{file.name}</span>
                   <span className="shrink-0 text-muted-foreground">{formatBytes(file.size)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">The video is read on this device. It is not uploaded.</p>
+                <p className="text-xs text-muted-foreground">{t("file.local")}</p>
                 {inspection?.warnings.map((warning) => (
                   <p key={warning} className="text-xs text-muted-foreground">
                     {warning}
@@ -213,8 +193,8 @@ export function VideoMetadataCleaner() {
             ) : (
               <PaneOpenFile
                 icon={<FileVideo size={20} aria-hidden="true" />}
-                title="Drop a video here or click to open"
-                hint="MP4, MOV, M4V, 3GP, MKV, or WebM. The video stays on this device."
+                title={t("drop.title")}
+                hint={t("drop.hint")}
                 onClick={() => inputRef.current?.click()}
               />
             )}
@@ -222,11 +202,11 @@ export function VideoMetadataCleaner() {
         </EditorPane>
       }
       second={
-        <EditorPane title="Metadata">
+        <EditorPane title={t("pane.metadata")}>
           {!inspection ? (
-            <PaneEmpty title="No video" hint="The metadata of the video shows here." />
+            <PaneEmpty title={t("empty.title")} hint={t("empty.hint")} />
           ) : findings.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-muted-foreground">This video has no metadata that this tool can remove.</p>
+            <p className="px-4 py-3 text-sm text-muted-foreground">{t("findings.none")}</p>
           ) : (
             FINDING_KIND_ORDER.filter((kind) => findings.some((f) => f.kind === kind)).map((kind) => (
               <section key={kind} aria-labelledby={`video-metadata-group-${kind}`}>
@@ -235,7 +215,7 @@ export function VideoMetadataCleaner() {
                   className={`flex items-center gap-1.5 px-4 pb-1 pt-3 text-xs font-semibold ${kind === "ai" ? "text-warning" : "text-muted-foreground"}`}
                 >
                   {kind === "ai" && <Sparkles size={13} aria-hidden="true" />}
-                  {FINDING_KIND_LABELS[kind]}
+                  {t(FINDING_KIND_LABEL_KEYS[kind])}
                 </h3>
                 <div className="result-list">
                   {findings
@@ -250,7 +230,7 @@ export function VideoMetadataCleaner() {
         </EditorPane>
       }
       status={status()}
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />}
     />
   );
 }

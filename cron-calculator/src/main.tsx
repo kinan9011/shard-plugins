@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { followHostLocale } from "./lib/i18n";
 import { connect, type Theme } from "./shard-sdk";
 import "./index.css";
 
@@ -13,7 +14,8 @@ function applyTheme(theme: Theme) {
   root.style.colorScheme = theme.isDark ? "dark" : "light";
 }
 
-createRoot(document.getElementById("root")!).render(<App sdk={sdk} />);
+// Wait for the app language first (it answers within 300 ms, or never outside the app), so the first paint is in it.
+void followHostLocale(sdk).then(() => createRoot(document.getElementById("root")!).render(<App sdk={sdk} />));
 
 sdk
   .ready()

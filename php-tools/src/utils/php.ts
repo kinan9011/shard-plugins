@@ -2,8 +2,10 @@
  * PHP data conversions between serialize() strings, PHP array literals, and JSON.
  * All formats go through one ordered value model. A JavaScript object would move integer
  * keys to the front and round 64-bit integers, so JSON is read and written by hand here.
- * Every function is pure and needs no DOM.
+ * Every function is pure and needs no DOM. Error messages are translated when they are thrown.
  */
+
+import { t } from "@/lib/i18n";
 
 export type PhpResult = { ok: true; value: string; notice?: string } | { ok: false; error: string };
 
@@ -61,10 +63,10 @@ const toKey = (key: PhpValue, position: () => string): { key: string; intKey: bo
     case "null":
       return { key: "", intKey: false };
     case "float":
-      if (!Number.isFinite(Number(key.value))) throw new PhpSyntaxError(`Array key ${key.value} is not valid ${position()}`);
+      if (!Number.isFinite(Number(key.value))) throw new PhpSyntaxError(t("error.arrayKeyInvalid", { key: key.value, position: position() }));
       return { key: String(Math.trunc(Number(key.value))), intKey: true };
     default:
-      throw new PhpSyntaxError(`Array keys must be strings or integers ${position()}`);
+      throw new PhpSyntaxError(t("error.arrayKeyType", { position: position() }));
   }
 };
 
@@ -106,17 +108,17 @@ class SerializedReader {
   }
 
   fail(message: string): never {
-    throw new PhpSyntaxError(`${message} at byte ${this.pos}`);
+    throw new PhpSyntaxError(t("error.atByte", { message, pos: this.pos }));
   }
 
   expect(char: string) {
-    if (this.bytes[this.pos] !== char.charCodeAt(0)) this.fail(this.done ? `Expected "${char}" but the input ended` : `Expected "${char}"`);
+    if (this.bytes[this.pos] !== char.charCodeAt(0)) this.fail(this.done ? t("error.expectedCharEnded", { char }) : t("error.expectedChar", { char }));
     this.pos++;
   }
 
   readUntil(char: string): string {
     const end = this.bytes.indexOf(char.charCodeAt(0), this.pos);
-    if (end < 0) this.fail(`Expected "${char}" but the input ended`);
+    if (end < 0) this.fail(t("error.expectedCharEnded", { char }));
     const text = decoder.decode(this.bytes.subarray(this.pos, end));
     this.pos = end + 1;
     return text;
@@ -127,14 +129,14 @@ class SerializedReader {
     const text = this.readUntil(terminator);
     if (!/^[+-]?\d+$/.test(text)) {
       this.pos = start;
-      this.fail("Expected an integer");
+      this.fail(t("error.expectedInteger"));
     }
     return BigInt(text).toString();
   }
 
   readCount(terminator: string): number {
     const count = Number(this.readInt(terminator));
-    if (count < 0) this.fail("Expected a length");
+    if (count < 0) this.fail(t("error.expectedLength"));
     return count;
   }
 
@@ -142,7 +144,7 @@ class SerializedReader {
   readQuoted(length: number): string {
     this.expect('"');
     const end = this.pos + length;
-    if (end > this.bytes.length) this.fail(`Expected ${length} bytes but the input ended`);
+    if (end > this.bytes.length) this.fail(t("error.expectedBytes", { length }));
     const text = decoder.decode(this.bytes.subarray(this.pos, end));
     this.pos = end;
     this.expect('"');
@@ -176,7 +178,7 @@ class SerializedReader {
       }
     }
     this.pos = start;
-    return this.fail(`String length ${length} does not match the text`);
+    return this.fail(t("error.lengthMismatch", { length }));
   }
 
   readEntries(count: number): PhpEntry[] {
@@ -186,7 +188,7 @@ class SerializedReader {
       const key = this.readValue();
       if (key.type !== "int" && key.type !== "string") {
         this.pos = keyStart;
-        this.fail("Array keys must be strings or integers");
+        this.fail(t("error.keyType"));
       }
       entries.put({ ...toKey(key, () => ""), value: this.readValue() });
     }
@@ -194,7 +196,7 @@ class SerializedReader {
   }
 
   readValue(): PhpValue {
-    if (this.done) this.fail("Expected a value but the input ended");
+    if (this.done) this.fail(t("error.expectedValueEnded"));
     const type = String.fromCharCode(this.bytes[this.pos]);
     this.pos++;
     switch (type) {
@@ -207,7 +209,7 @@ class SerializedReader {
         const text = this.readUntil(";");
         if (text !== "0" && text !== "1") {
           this.pos = start;
-          this.fail("Expected 0 or 1");
+          this.fail(t("error.expectedBool"));
         }
         return { type: "bool", value: text === "1" };
       }
@@ -220,7 +222,7 @@ class SerializedReader {
         const text = this.readUntil(";");
         if (!/^([+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?|-?INF|NAN)$/.test(text)) {
           this.pos = start;
-          this.fail("Expected a float");
+          this.fail(t("error.expectedFloat"));
         }
         return { type: "float", value: text };
       }
@@ -253,7 +255,7 @@ class SerializedReader {
         const length = this.readCount(":");
         this.expect("{");
         const end = this.pos + length;
-        if (end > this.bytes.length) this.fail(`Expected ${length} bytes but the input ended`);
+        if (end > this.bytes.length) this.fail(t("error.expectedBytes", { length }));
         const data = decoder.decode(this.bytes.subarray(this.pos, end));
         this.pos = end;
         this.expect("}");
@@ -271,7 +273,7 @@ class SerializedReader {
         return { type: "ref", value: this.readInt(";") };
       default:
         this.pos--;
-        return this.fail(`Unknown type "${type}"`);
+        return this.fail(t("error.unknownType", { type }));
     }
   }
 }
@@ -289,7 +291,7 @@ const readSession = (reader: SerializedReader): PhpValue => {
 const parseSerialized = (text: string): { value: PhpValue; repaired: number } => {
   const reader = new SerializedReader(encoder.encode(text));
   const value = /^[^|:;{}"]+\|/.test(text) ? readSession(reader) : reader.readValue();
-  if (!reader.done) reader.fail("Unexpected text after the value");
+  if (!reader.done) reader.fail(t("error.trailing"));
   return { value, repaired: reader.repaired };
 };
 
@@ -330,7 +332,7 @@ class JsonReader {
   constructor(private readonly text: string) {}
 
   fail(message: string): never {
-    throw new PhpSyntaxError(this.pos >= this.text.length ? "Unexpected end of JSON" : `${message} at position ${this.pos}`);
+    throw new PhpSyntaxError(this.pos >= this.text.length ? t("error.jsonEnded") : t("error.atPosition", { message, pos: this.pos }));
   }
 
   skipSpace() {
@@ -341,7 +343,7 @@ class JsonReader {
     // JSON forbids raw control characters in strings.
     // eslint-disable-next-line no-control-regex
     const match = /^"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/.exec(this.text.slice(this.pos));
-    if (!match) this.fail("Invalid string");
+    if (!match) this.fail(t("error.invalidString"));
     this.pos += match[0].length;
     return JSON.parse(match[0]) as string;
   }
@@ -365,7 +367,7 @@ class JsonReader {
         else if (this.text[this.pos] === "]") {
           this.pos++;
           return { type: "array", entries };
-        } else this.fail('Expected "," or "]"');
+        } else this.fail(t("error.expectedCommaBracket"));
       }
     }
     if (char === '"') return { type: "string", value: this.readString() };
@@ -382,7 +384,7 @@ class JsonReader {
       // Integers outside the 64-bit range become floats, as in PHP.
       return /[.eE]/.test(text) || !inInt64(BigInt(text)) ? { type: "float", value: text } : { type: "int", value: text };
     }
-    return this.fail(char === undefined ? "" : `Unexpected character "${char}"`);
+    return this.fail(char === undefined ? "" : t("error.unexpectedChar", { char }));
   }
 
   readObject(): PhpValue {
@@ -393,10 +395,10 @@ class JsonReader {
     else {
       for (;;) {
         this.skipSpace();
-        if (this.text[this.pos] !== '"') this.fail("Expected a property name");
+        if (this.text[this.pos] !== '"') this.fail(t("error.expectedPropertyName"));
         const name = this.readString();
         this.skipSpace();
-        if (this.text[this.pos] !== ":") this.fail('Expected ":"');
+        if (this.text[this.pos] !== ":") this.fail(t("error.expectedColon"));
         this.pos++;
         entries.put({ ...toKey({ type: "string", value: name }, () => ""), value: this.readValue() });
         this.skipSpace();
@@ -404,7 +406,7 @@ class JsonReader {
         else if (this.text[this.pos] === "}") {
           this.pos++;
           break;
-        } else this.fail('Expected "," or "}"');
+        } else this.fail(t("error.expectedCommaBrace"));
       }
     }
     return fromSpecialKeys(entries.entries);
@@ -413,7 +415,7 @@ class JsonReader {
   readDocument(): PhpValue {
     const value = this.readValue();
     this.skipSpace();
-    if (this.pos < this.text.length) this.fail("Unexpected text after the JSON value");
+    if (this.pos < this.text.length) this.fail(t("error.jsonTrailing"));
     return value;
   }
 }
@@ -504,7 +506,7 @@ const decodeDoubleQuoted = (body: string, pos: number): string => {
       i += match[0].length;
     } else if ((match = /^u\{([0-9a-fA-F]+)\}/.exec(body.slice(i + 1)))) {
       const code = parseInt(match[1], 16);
-      if (code > 0x10ffff) throw new PhpSyntaxError(`Invalid Unicode escape at position ${pos + i}`);
+      if (code > 0x10ffff) throw new PhpSyntaxError(t("error.atPosition", { message: t("error.invalidUnicode"), pos: pos + i }));
       pushText(String.fromCodePoint(code));
       i += match[0].length;
     } else bytes.push(92); // PHP keeps an unknown escape as written
@@ -521,15 +523,15 @@ const tokenize = (source: string): Token[] => {
     if ((match = /^(\s+|\/\/[^\n]*|#(?!\[)[^\n]*|\/\*[\s\S]*?\*\/|<\?php\b|\?>)/.exec(rest))) {
       i += match[0].length;
     } else if (rest.startsWith("<<<")) {
-      throw new PhpSyntaxError(`Heredoc and nowdoc strings are not supported at position ${i}`);
+      throw new PhpSyntaxError(t("error.atPosition", { message: t("error.heredoc"), pos: i }));
     } else if (rest[0] === "'") {
       match = /^'((?:[^'\\]|\\[\s\S])*)'/.exec(rest);
-      if (!match) throw new PhpSyntaxError(`Unclosed string at position ${i}`);
+      if (!match) throw new PhpSyntaxError(t("error.atPosition", { message: t("error.unclosedString"), pos: i }));
       tokens.push({ kind: "string", value: match[1].replace(/\\([\\'])/g, "$1"), pos: i });
       i += match[0].length;
     } else if (rest[0] === '"') {
       match = /^"((?:[^"\\]|\\[\s\S])*)"/.exec(rest);
-      if (!match) throw new PhpSyntaxError(`Unclosed string at position ${i}`);
+      if (!match) throw new PhpSyntaxError(t("error.atPosition", { message: t("error.unclosedString"), pos: i }));
       tokens.push({ kind: "string", value: decodeDoubleQuoted(match[1], i + 1), pos: i });
       i += match[0].length;
     } else if ((match = /^(0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|(\d[\d_]*)?\.?\d[\d_]*([eE][+-]?\d+)?|\d[\d_]*\.)/.exec(rest))) {
@@ -545,7 +547,7 @@ const tokenize = (source: string): Token[] => {
       tokens.push({ kind: "punct", text: match[0], pos: i });
       i += match[0].length;
     } else {
-      throw new PhpSyntaxError(`Unexpected character "${rest[0]}" at position ${i}`);
+      throw new PhpSyntaxError(t("error.atPosition", { message: t("error.unexpectedChar", { char: rest[0] }), pos: i }));
     }
   }
   tokens.push({ kind: "end", pos: source.length });
@@ -575,7 +577,7 @@ class PhpArrayParser {
 
   private fail(message: string): never {
     const token = this.token;
-    throw new PhpSyntaxError(token.kind === "end" ? `${message} but the input ended` : `${message} at position ${token.pos}`);
+    throw new PhpSyntaxError(token.kind === "end" ? t("error.butEnded", { message }) : t("error.atPosition", { message, pos: token.pos }));
   }
 
   private isPunct(text: string) {
@@ -587,7 +589,7 @@ class PhpArrayParser {
   }
 
   private expect(text: string) {
-    if (!this.isPunct(text)) this.fail(`Expected "${text}"`);
+    if (!this.isPunct(text)) this.fail(t("error.expectedChar", { char: text }));
     this.index++;
   }
 
@@ -600,7 +602,7 @@ class PhpArrayParser {
       let entry: PhpEntry;
       if (this.isPunct("=>")) {
         this.index++;
-        entry = { ...toKey(first, () => `at position ${keyPos}`), value: this.readValue() };
+        entry = { ...toKey(first, () => t("error.atPositionOnly", { pos: keyPos })), value: this.readValue() };
       } else {
         entry = { key: nextIndex.toString(), intKey: true, value: first };
       }
@@ -635,7 +637,7 @@ class PhpArrayParser {
     }
     if (this.isPunct("(")) {
       this.index++;
-      if (!this.isName("object")) this.fail('Expected "object" in a cast');
+      if (!this.isName("object")) this.fail(t("error.expectedObjectCast"));
       this.index++;
       this.expect(")");
       const inner = this.readValue();
@@ -655,7 +657,7 @@ class PhpArrayParser {
         this.index++;
         return { type: "float", value: `${negative && next.text.toUpperCase() === "INF" ? "-" : ""}${next.text.toUpperCase()}` };
       }
-      return this.fail("Expected a number");
+      return this.fail(t("error.expectedNumber"));
     }
     if (token.kind === "number") {
       this.index++;
@@ -678,22 +680,22 @@ class PhpArrayParser {
       if (this.isPunct("::")) {
         this.index++;
         const member = this.token;
-        if (member.kind !== "name") this.fail("Expected a name after ::");
+        if (member.kind !== "name") this.fail(t("error.expectedName"));
         this.index++;
         if (member.text === "__set_state" && this.isPunct("(")) {
           this.index++;
           const state = this.readValue();
           this.expect(")");
-          if (state.type !== "array") this.fail("Expected an array in __set_state");
+          if (state.type !== "array") this.fail(t("error.expectedSetState"));
           return { type: "object", className: token.text, entries: state.entries };
         }
         return { type: "enum", value: `${token.text}:${member.text}` };
       }
       this.index--;
-      return this.fail(`Unsupported name "${token.text}"`);
+      return this.fail(t("error.unsupportedName", { name: token.text }));
     }
-    if (token.kind === "variable") return this.fail("Variables are not supported");
-    return this.fail("Expected a value");
+    if (token.kind === "variable") return this.fail(t("error.variables"));
+    return this.fail(t("error.expectedValue"));
   }
 
   /** Reads an optional `return` or `$name =`, one value, and an optional `;`. */
@@ -702,7 +704,7 @@ class PhpArrayParser {
     else if (this.token.kind === "variable" && this.tokens[this.index + 1]?.kind === "punct" && (this.tokens[this.index + 1] as { text: string }).text === "=") this.index += 2;
     const value = this.readValue();
     if (this.isPunct(";")) this.index++;
-    if (this.token.kind !== "end") this.fail("Unexpected text after the value");
+    if (this.token.kind !== "end") this.fail(t("error.trailing"));
     return value;
   }
 }
@@ -762,7 +764,7 @@ export function unserializeToJson(text: string): PhpResult {
     },
     () =>
       repaired
-        ? `Repaired ${repaired} string length${repaired === 1 ? "" : "s"} that did not match the text. Serialize the JSON again to get valid data.`
+        ? t("notice.repaired", { count: repaired })
         : undefined,
   );
 }

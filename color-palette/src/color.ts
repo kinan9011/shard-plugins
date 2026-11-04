@@ -1,6 +1,7 @@
 /**
  * Color Palette utility functions
  */
+import { t, type TKey } from './lib/i18n';
 
 export interface Color {
   hex: string;
@@ -543,13 +544,14 @@ export function generateShadePalette(color: Color, count = 5): Color[] {
 
 export type PaletteMode = 'tints' | 'complementary' | 'analogous' | 'triadic' | 'split-complementary' | 'monochromatic';
 
-export const PALETTE_MODES: { id: PaletteMode; label: string }[] = [
-  { id: 'tints', label: 'Tints and shades' },
-  { id: 'complementary', label: 'Complementary' },
-  { id: 'analogous', label: 'Analogous' },
-  { id: 'triadic', label: 'Triadic' },
-  { id: 'split-complementary', label: 'Split complementary' },
-  { id: 'monochromatic', label: 'Monochromatic' },
+/** `labelKey` is the dictionary key of the display name; the id stays the stable value. */
+export const PALETTE_MODES: { id: PaletteMode; labelKey: TKey }[] = [
+  { id: 'tints', labelKey: 'palette.mode.tints' },
+  { id: 'complementary', labelKey: 'palette.mode.complementary' },
+  { id: 'analogous', labelKey: 'palette.mode.analogous' },
+  { id: 'triadic', labelKey: 'palette.mode.triadic' },
+  { id: 'split-complementary', labelKey: 'palette.mode.splitComplementary' },
+  { id: 'monochromatic', labelKey: 'palette.mode.monochromatic' },
 ];
 
 const MONOCHROMATIC_LIGHTNESS = [90, 75, 60, 45, 30, 15];
@@ -664,11 +666,11 @@ export function meetsWcagAAALarge(color1: Color, color2: Color): boolean {
 
 export type ContrastTarget = 'aa-normal' | 'aa-large' | 'aaa-normal' | 'aaa-large';
 
-export const WCAG_TARGETS: { id: ContrastTarget; label: string; ratio: number }[] = [
-  { id: 'aa-normal', label: 'AA normal text', ratio: 4.5 },
-  { id: 'aa-large', label: 'AA large text', ratio: 3 },
-  { id: 'aaa-normal', label: 'AAA normal text', ratio: 7 },
-  { id: 'aaa-large', label: 'AAA large text', ratio: 4.5 },
+export const WCAG_TARGETS: { id: ContrastTarget; labelKey: TKey; ratio: number }[] = [
+  { id: 'aa-normal', labelKey: 'contrast.target.aaNormal', ratio: 4.5 },
+  { id: 'aa-large', labelKey: 'contrast.target.aaLarge', ratio: 3 },
+  { id: 'aaa-normal', labelKey: 'contrast.target.aaaNormal', ratio: 7 },
+  { id: 'aaa-large', labelKey: 'contrast.target.aaaLarge', ratio: 4.5 },
 ];
 
 /** HEX with the alpha byte added when the color is not opaque. */
@@ -822,12 +824,16 @@ export function cvdMatrix(type: CvdType, severity = 1): number[] {
   return lowMatrix.map((v, i) => v + (table[low][i] - v) * t);
 }
 
-const CVD_STEMS: Record<CvdType, string> = { protan: 'Prot', deutan: 'Deuter', tritan: 'Trit', achroma: '' };
+const CVD_LABELS: Record<CvdType, { full: TKey; mild: TKey }> = {
+  protan: { full: 'cvd.protanopia', mild: 'cvd.protanomaly' },
+  deutan: { full: 'cvd.deuteranopia', mild: 'cvd.deuteranomaly' },
+  tritan: { full: 'cvd.tritanopia', mild: 'cvd.tritanomaly' },
+  achroma: { full: 'cvd.achromatopsia', mild: 'cvd.achromatomaly' },
+};
 
-/** A readable name: "Protanopia" at full severity, "Protanomaly" below it. */
+/** A readable name in the app language: "Protanopia" at full severity, "Protanomaly" below it. */
 export function cvdLabel(type: CvdType, severity = 1): string {
-  if (type === 'achroma') return severity >= 1 ? 'Achromatopsia' : 'Achromatomaly';
-  return `${CVD_STEMS[type]}${severity >= 1 ? 'anopia' : 'anomaly'}`;
+  return t(severity >= 1 ? CVD_LABELS[type].full : CVD_LABELS[type].mild);
 }
 
 /** Simulate how a color looks with a CVD. The alpha value stays the same. */

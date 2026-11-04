@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /**
  * Shared key helpers for the JWT Decoder and the Key Pair Generator: Base64, PEM,
  * a minimal DER reader and writer, and a parser for pasted PEM, JWK, and JWKS text.
@@ -134,7 +136,7 @@ export function parseKeyText(text: string): ParsedKey {
     try {
       json = JSON.parse(trimmed);
     } catch {
-      throw new KeyInputError("The key is not valid JSON.");
+      throw new KeyInputError(t("error.notJson"));
     }
     if (json && typeof json === "object" && Array.isArray((json as { keys?: unknown }).keys)) {
       return { kind: "jwks", keys: (json as { keys: JsonWebKey[] }).keys };
@@ -142,7 +144,7 @@ export function parseKeyText(text: string): ParsedKey {
     if (json && typeof json === "object" && typeof (json as JsonWebKey).kty === "string") {
       return { kind: "jwk", jwk: json as JsonWebKey };
     }
-    throw new KeyInputError("The JSON is not a JWK or a JWKS. A JWK needs a \"kty\" field.");
+    throw new KeyInputError(t("error.notJwk"));
   }
 
   const pem = PEM_PATTERN.exec(trimmed);
@@ -152,7 +154,7 @@ export function parseKeyText(text: string): ParsedKey {
   try {
     body = base64ToBytes(pem[2].replace(/\s+/g, ""));
   } catch {
-    throw new KeyInputError("The PEM body is not valid Base64.");
+    throw new KeyInputError(t("error.pemBase64"));
   }
   try {
     switch (label) {
@@ -168,16 +170,16 @@ export function parseKeyText(text: string): ParsedKey {
         return { kind: "pkcs8", der: der(0x30, [0x02, 0x01, 0x00], der(0x30, OID_RSA, [0x05, 0x00]), der(0x04, body)) };
       case "EC PRIVATE KEY": {
         const curve = sec1Curve(body);
-        if (!curve) throw new KeyInputError("The EC private key uses an unsupported curve.");
+        if (!curve) throw new KeyInputError(t("error.ecPrivateCurve"));
         return { kind: "pkcs8", der: der(0x30, [0x02, 0x01, 0x00], der(0x30, OID_EC, CURVE_OIDS[curve]), der(0x04, body)) };
       }
       case "ENCRYPTED PRIVATE KEY":
-        throw new KeyInputError("The private key is encrypted. Decrypt it first, for example with openssl pkcs8.");
+        throw new KeyInputError(t("error.encrypted"));
       default:
-        throw new KeyInputError(`PEM type "${label}" is not supported.`);
+        throw new KeyInputError(t("error.pemType", { label }));
     }
   } catch (error) {
     if (error instanceof KeyInputError) throw error;
-    throw new KeyInputError(`The ${label.toLowerCase()} is not valid DER data.`);
+    throw new KeyInputError(t("error.pemDer", { label: label.toLowerCase() }));
   }
 }

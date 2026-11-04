@@ -1,3 +1,5 @@
+import { t } from '@/lib/i18n';
+
 /**
  * URL Encoder/Decoder utility functions
  */
@@ -124,12 +126,12 @@ export type ParseUrlResult =
  */
 export function parseUrlDetails(input: string): ParseUrlResult {
   const text = input.trim();
-  if (!text) return { ok: false, error: 'Enter a URL to parse.' };
+  if (!text) return { ok: false, error: t('error.enterUrl') };
   let parsed: URL;
   try {
     parsed = new URL(text);
   } catch {
-    return { ok: false, error: 'Invalid URL. Include a protocol, for example https://example.com.' };
+    return { ok: false, error: t('error.invalidUrl') };
   }
   return {
     ok: true,

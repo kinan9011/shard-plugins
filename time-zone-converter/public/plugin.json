@@ -1,7 +1,7 @@
 {
   "id": "time-zone-converter",
   "name": "Time Zone Converter",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Convert a date and time from one time zone to UTC, local time, and other zones. It handles daylight saving time changes and shows when the date changes.",
   "category": "Time & Date",
   "keywords": [

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /** Random access to file bytes, so a large video is never read into memory at once. */
 export interface ByteSource {
   readonly size: number;
@@ -20,7 +22,7 @@ const readBlob = (blob: Blob) =>
   new Promise<Uint8Array>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
+    reader.onerror = () => reject(reader.error ?? new Error(t("error.readFile")));
     reader.readAsArrayBuffer(blob);
   });
 
@@ -34,9 +36,9 @@ export function sortPatches(patches: Patch[], size: number): Patch[] {
   const sorted = [...patches].sort((a, b) => a.offset - b.offset);
   let end = 0;
   for (const patch of sorted) {
-    if (patch.offset < end) throw new Error(`Two changes overlap at byte ${patch.offset}.`);
+    if (patch.offset < end) throw new Error(t("error.patchOverlap", { offset: patch.offset }));
     end = patch.offset + patch.bytes.length;
-    if (end > size) throw new Error(`A change at byte ${patch.offset} goes past the end of the file.`);
+    if (end > size) throw new Error(t("error.patchPast", { offset: patch.offset }));
   }
   return sorted;
 }

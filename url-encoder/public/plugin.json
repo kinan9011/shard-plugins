@@ -1,7 +1,7 @@
 {
   "id": "url-encoder",
   "name": "URL Encoder",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Encode and decode URLs, and parse a URL into editable parts and query parameters.",
   "category": "Converters",
   "keywords": [

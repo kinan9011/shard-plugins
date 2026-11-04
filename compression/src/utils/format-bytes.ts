@@ -1,8 +1,10 @@
+import { formatNumber } from "@/lib/i18n";
+
 /**
- * Format a byte count for display
+ * Format a byte count for display. Units stay as they are (B, KB, MB, GB); the number follows the app language.
  */
 export function formatBytes(size: number): string {
-  if (size < 1024) return `${size} B`;
+  if (size < 1024) return `${formatNumber(size, { useGrouping: false })} B`;
   const units = ["KB", "MB", "GB"];
   let value = size / 1024;
   let i = 0;
@@ -10,5 +12,6 @@ export function formatBytes(size: number): string {
     value /= 1024;
     i++;
   }
-  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[i]}`;
+  const digits = value >= 10 ? 1 : 2;
+  return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[i]}`;
 }

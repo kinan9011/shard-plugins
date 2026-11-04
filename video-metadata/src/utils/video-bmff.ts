@@ -1,6 +1,7 @@
 import { Findings, readC2pa, readXmp, type FindingKind } from "@/utils/image-metadata";
 import type { ByteSource, Patch } from "@/utils/byte-source";
-import { VideoError, iso6709, namedKey, type ScanResult, type VideoCleanOptions, type VideoFormat } from "@/utils/video-format";
+import { formatNumber, t, type TKey } from "@/lib/i18n";
+import { VideoError, bytesText, iso6709, namedKey, type ScanResult, type VideoCleanOptions, type VideoFormat } from "@/utils/video-format";
 
 /**
  * Reads and removes metadata in ISO base media files (MP4, MOV, M4V, 3GP).
@@ -41,22 +42,22 @@ export const printable = (b: Uint8Array) =>
 
 /** Reads the box header in `h`, where h[0] is at file offset `start`. `end` is the end of the parent. */
 export function headerAt(h: Uint8Array, start: number, end: number): Box {
-  if (h.length < 8) throw new VideoError(`The box at byte ${start} is cut off.`);
+  if (h.length < 8) throw new VideoError(t("error.boxCutOff", { offset: formatNumber(start) }));
   let size = u32(h, 0);
   const type = fourcc(h, 4);
   let headerSize = 8;
   const large = size === 1;
   if (large) {
-    if (h.length < 16) throw new VideoError(`The box at byte ${start} is cut off.`);
+    if (h.length < 16) throw new VideoError(t("error.boxCutOff", { offset: formatNumber(start) }));
     size = u64(h, 8);
     headerSize = 16;
   } else if (size === 0) {
     size = end - start;
   }
-  if (size < headerSize || start + size > end) throw new VideoError(`The box at byte ${start} has an invalid size.`);
+  if (size < headerSize || start + size > end) throw new VideoError(t("error.boxInvalidSize", { offset: formatNumber(start) }));
   let uuid: string | undefined;
   if (type === "uuid") {
-    if (h.length < headerSize + 16 || size < headerSize + 16) throw new VideoError(`The box at byte ${start} is cut off.`);
+    if (h.length < headerSize + 16 || size < headerSize + 16) throw new VideoError(t("error.boxCutOff", { offset: formatNumber(start) }));
     uuid = hex(h, headerSize, 16);
     headerSize += 16;
   }
@@ -133,22 +134,22 @@ function readDates(buf: Uint8Array, base: number, box: Box, ctx: Ctx, blanked: b
   if (ctx.options.clearDates && !blanked) ctx.patches.push({ offset: box.start + box.headerSize + 4, bytes: new Uint8Array(wide ? 16 : 8) });
 }
 
-const UDTA_TEXT: Record<string, [string, FindingKind]> = {
-  "\u00a9xyz": ["GPS position", "location"],
-  "\u00a9mak": ["Camera make", "camera"],
-  "\u00a9mod": ["Camera model", "camera"],
-  "\u00a9swr": ["Software", "other"],
-  "\u00a9too": ["Encoder", "other"],
-  "\u00a9enc": ["Encoded by", "other"],
-  "\u00a9day": ["Creation date", "camera"],
-  "\u00a9nam": ["Title", "text"],
-  "\u00a9cmt": ["Comment", "text"],
-  "\u00a9des": ["Description", "text"],
-  "\u00a9inf": ["Information", "text"],
-  "\u00a9ART": ["Artist", "provenance"],
-  "\u00a9aut": ["Author", "provenance"],
-  "\u00a9cpy": ["Copyright", "provenance"],
-  "\u00a9prd": ["Producer", "provenance"],
+const UDTA_TEXT: Record<string, [TKey, FindingKind]> = {
+  "\u00a9xyz": ["label.gpsPosition", "location"],
+  "\u00a9mak": ["label.cameraMake", "camera"],
+  "\u00a9mod": ["label.cameraModel", "camera"],
+  "\u00a9swr": ["label.software", "other"],
+  "\u00a9too": ["label.encoder", "other"],
+  "\u00a9enc": ["label.encodedBy", "other"],
+  "\u00a9day": ["label.creationDate", "camera"],
+  "\u00a9nam": ["label.title", "text"],
+  "\u00a9cmt": ["label.comment", "text"],
+  "\u00a9des": ["label.description", "text"],
+  "\u00a9inf": ["label.information", "text"],
+  "\u00a9ART": ["label.artist", "provenance"],
+  "\u00a9aut": ["label.author", "provenance"],
+  "\u00a9cpy": ["label.copyright", "provenance"],
+  "\u00a9prd": ["label.producer", "provenance"],
 };
 
 const kindForKey = (key: string): FindingKind =>
@@ -163,7 +164,8 @@ const kindForKey = (key: string): FindingKind =>
 const typeName = (type: string) => type.replace(/[^\x20-\x7e\u00a9]/g, "?");
 
 function addValue(ctx: Ctx, key: string, value: string, source: string) {
-  const [label, kind] = UDTA_TEXT[key] ?? namedKey(key) ?? [key, kindForKey(key)];
+  const known = UDTA_TEXT[key];
+  const [label, kind]: [string, FindingKind] = known ? [t(known[0]), known[1]] : (namedKey(key) ?? [key, kindForKey(key)]);
   ctx.out.addText(label, kind === "location" && /^[+-]\d/.test(value) ? iso6709(value) : value, source, kind);
 }
 
@@ -181,14 +183,14 @@ function readLoci(p: Uint8Array, ctx: Ctx) {
   // Version and flags (4), language (2), name (ends with 0), role (1), then longitude, latitude, and altitude as 16.16 fixed point.
   const nameEnd = p.indexOf(0, 6);
   if (nameEnd < 0 || nameEnd + 10 > p.length) {
-    ctx.out.add({ kind: "location", label: "Location", detail: printable(p) || `${p.length} bytes`, source: "3GPP location" });
+    ctx.out.add({ kind: "location", label: t("label.location"), detail: printable(p) || bytesText(p.length), source: t("source.locationBox") });
     return;
   }
   const name = utf8(p.subarray(6, nameEnd));
   const fixed = (o: number) => (u32(p, o) | 0) / 65536;
   const lon = fixed(nameEnd + 2);
   const lat = fixed(nameEnd + 6);
-  ctx.out.add({ kind: "location", label: "GPS position", detail: `${lat.toFixed(5)}, ${lon.toFixed(5)}${name ? ` (${name})` : ""}`, source: "3GPP location" });
+  ctx.out.add({ kind: "location", label: t("label.gpsPosition"), detail: `${lat.toFixed(5)}, ${lon.toFixed(5)}${name ? ` (${name})` : ""}`, source: t("source.locationBox") });
 }
 
 function readKeys(p: Uint8Array): string[] {
@@ -232,26 +234,26 @@ function readMeta(buf: Uint8Array, base: number, meta: Box, ctx: Ctx, source: st
     else if (child.type === "xml ") {
       const xml = utf8(p.subarray(4));
       if (/xmpmeta|xap\/1\.0/.test(xml)) readXmp(xml, ctx.out, source);
-      else ctx.out.addText("XML metadata", xml, source, "other");
+      else ctx.out.addText(t("label.xmlMetadata"), xml, source, "other");
     }
   }
 }
 
 function readUdta(buf: Uint8Array, base: number, udta: Box, ctx: Ctx) {
-  const source = "QuickTime user data";
+  const source = t("source.quicktimeUserData");
   for (const child of childrenOf(buf, base, udta)) {
     const p = payload(buf, base, child);
-    if (child.type === "meta") readMeta(buf, base, child, ctx, "MP4 metadata");
-    else if (child.type === "XMP_") readXmp(utf8(p), ctx.out, "QuickTime XMP");
+    if (child.type === "meta") readMeta(buf, base, child, ctx, t("source.mp4Metadata"));
+    else if (child.type === "XMP_") readXmp(utf8(p), ctx.out, t("source.quicktimeXmp"));
     else if (child.type === "loci") readLoci(p, ctx);
     else if (child.type.startsWith("\u00a9") || UDTA_TEXT[child.type]) {
       const text = atomText(p);
       if (text) addValue(ctx, child.type, text, source);
     } else {
       const text = printable(p);
-      const label = `User data box ${typeName(child.type)}`;
+      const label = t("label.userDataBox", { type: typeName(child.type) });
       if (text.length >= 4) ctx.out.addText(label, text, source, "other");
-      else ctx.out.add({ kind: "other", label, detail: `${p.length} bytes`, source });
+      else ctx.out.add({ kind: "other", label, detail: bytesText(p.length), source });
     }
   }
 }
@@ -268,12 +270,12 @@ const METADATA_UUIDS: Record<string, string> = {
 /** Adds findings for a uuid box. Returns true when cleaning removes the box. */
 function readUuid(box: Box, p: Uint8Array, ctx: Ctx): boolean {
   const vendor = METADATA_UUIDS[box.uuid ?? ""];
-  if (vendor === "XMP") readXmp(utf8(p), ctx.out, "XMP box");
-  else if (vendor === "C2PA") readC2pa(p, ctx.out, "C2PA box");
-  else if (vendor === "Garmin") ctx.out.add({ kind: "location", label: "Garmin GPS data", detail: `GPS track from a Garmin camera, ${p.length} bytes`, source: "Garmin box" });
-  else if (vendor) ctx.out.addText(`${vendor} camera metadata`, printable(p) || `${p.length} bytes`, `${vendor} box`, "camera");
+  if (vendor === "XMP") readXmp(utf8(p), ctx.out, t("source.xmpBox"));
+  else if (vendor === "C2PA") readC2pa(p, ctx.out, t("source.c2paBox"));
+  else if (vendor === "Garmin") ctx.out.add({ kind: "location", label: t("label.garminGps"), detail: t("detail.garminTrack", { size: bytesText(p.length) }), source: t("source.garminBox") });
+  else if (vendor) ctx.out.addText(t("label.vendorCamera", { vendor }), printable(p) || bytesText(p.length), t("source.vendorBox", { vendor }), "camera");
   else {
-    ctx.out.add({ kind: "other", label: "Unknown vendor box", detail: `uuid ${box.uuid}, ${p.length} bytes. Kept, because some players need it.`, source: "uuid box" }, false);
+    ctx.out.add({ kind: "other", label: t("label.unknownVendorBox"), detail: t("detail.unknownVendorBox", { uuid: box.uuid ?? "", size: bytesText(p.length) }), source: t("source.uuidBox") }, false);
     return false;
   }
   return true;
@@ -283,16 +285,16 @@ function readUuid(box: Box, p: Uint8Array, ctx: Ctx): boolean {
 function readFree(p: Uint8Array, box: Box, ctx: Ctx, blanked: boolean) {
   if (!p.some((b) => b !== 0)) return;
   const text = printable(p);
-  ctx.out.addText("Leftover data in free space", text.length >= 4 ? text : `${p.length} bytes`, "free box", "other");
+  ctx.out.addText(t("label.leftoverFreeSpace"), text.length >= 4 ? text : bytesText(p.length), t("source.freeBox"), "other");
   if (!blanked) ctx.patches.push({ offset: box.start + box.headerSize, bytes: new Uint8Array(box.size - box.headerSize) });
 }
 
 const SUBTITLE_HANDLERS = new Set(["text", "sbtl", "subt", "clcp"]);
 
-const META_TRACKS: Record<string, [string, FindingKind, string]> = {
-  gpmd: ["GoPro telemetry track", "location", "GPS position, speed, and motion data (GPMF)"],
-  camm: ["Camera motion track", "location", "Motion data, and the GPS position on some cameras (camm)"],
-  mebx: ["Timed metadata track", "camera", "Face detection, focus, or other capture data (mebx)"],
+const META_TRACKS: Record<string, [TKey, FindingKind, TKey]> = {
+  gpmd: ["label.goproTrack", "location", "detail.goproTrack"],
+  camm: ["label.cammTrack", "location", "detail.cammTrack"],
+  mebx: ["label.metadataTrack", "camera", "detail.mebxTrack"],
 };
 
 /** The byte ranges of the samples in a track, one range for each chunk. */
@@ -303,11 +305,11 @@ export function sampleRanges(buf: Uint8Array, base: number, stbl: Box): Array<{ 
   let constant = 0;
   let count = 0;
   const need = (p: Uint8Array, end: number) => {
-    if (end > p.length) throw new VideoError("The sample table of a metadata track is cut off.");
+    if (end > p.length) throw new VideoError(t("error.sampleTableCutOff"));
   };
   for (const child of childrenOf(buf, base, stbl)) {
     const p = payload(buf, base, child);
-    if (child.type === "stz2") throw new VideoError("A metadata track uses compact sample sizes (stz2), which this tool cannot read. Turn off Remove metadata tracks to clean the rest.");
+    if (child.type === "stz2") throw new VideoError(t("error.compactSamples"));
     if (child.type === "stsz") {
       need(p, 12);
       constant = u32(p, 4);
@@ -351,9 +353,12 @@ function scanTrack(buf: Uint8Array, base: number, trak: Box, ctx: Ctx, blanked: 
   const stsd = stbl && findChild(buf, base, stbl, "stsd");
   const format = stsd && stsd.size >= stsd.headerSize + 16 ? fourcc(buf, stsd.start - base + stsd.headerSize + 12) : "";
   if (handler === "meta" || handler === "camm" || format === "gpmd" || format === "camm") {
-    const [label, kind, detail] = META_TRACKS[format] ?? ["Timed metadata track", "other" as FindingKind, `Metadata samples (${format || "unknown format"})`];
+    const known = META_TRACKS[format];
+    const label = t(known ? known[0] : "label.metadataTrack");
+    const kind: FindingKind = known ? known[1] : "other";
+    const detail = known ? t(known[2]) : t("detail.metadataSamples", { format: format || t("detail.unknownFormat") });
     const remove = ctx.options.removeMetadataTracks;
-    ctx.out.add({ kind, label, detail, source: "Track" }, remove || blanked);
+    ctx.out.add({ kind, label, detail, source: t("source.track") }, remove || blanked);
     if (remove && !blanked) {
       ctx.removesMetadataTrack = true;
       ctx.patches.push(blankBox(trak));
@@ -363,7 +368,7 @@ function scanTrack(buf: Uint8Array, base: number, trak: Box, ctx: Ctx, blanked: 
     return;
   }
   if (SUBTITLE_HANDLERS.has(handler)) {
-    ctx.out.add({ kind: "other", label: "Subtitle track", detail: "Kept. Some drones and dash cameras store GPS data in a subtitle track.", source: "Track" }, false);
+    ctx.out.add({ kind: "other", label: t("label.subtitleTrack"), detail: t("detail.subtitleKept"), source: t("source.track") }, false);
   }
   scanContainer(buf, base, trak, ctx, blanked);
 }
@@ -419,29 +424,29 @@ export async function scanBmff(source: ByteSource, options: VideoCleanOptions): 
     if (box.type === "moof") ctx.fragmented = true;
     if (box.type === "ftyp") {
       const brand = fourcc(await source.read(offset + box.headerSize, 4), 0).trim();
-      if (HEIF_BRANDS.has(brand)) throw new VideoError("This file is a HEIF or AVIF image. Use Image Metadata Cleaner for images.");
+      if (HEIF_BRANDS.has(brand)) throw new VideoError(t("error.heif"));
       format = formatForBrand(brand);
     } else if (box.type === "moov") {
-      if (box.size > MAX_MOOV) throw new VideoError("The movie header is larger than 256 MB. This tool cannot read it.");
+      if (box.size > MAX_MOOV) throw new VideoError(t("error.movieHeaderTooLarge"));
       // A parent range with no header, so scanContainer reads this one box.
       scanContainer(await source.read(box.start, box.size), box.start, { ...box, headerSize: 0 }, ctx, false);
       sawMoov = true;
     } else if (["uuid", "meta", "udta", "free", "skip"].includes(box.type)) {
       if (box.size > MAX_SIDE_BOX) {
-        warnings.push(`A ${box.type} box of ${box.size} bytes at byte ${box.start} is too large to check, so it was kept.`);
+        warnings.push(t("warning.boxTooLarge", { type: box.type, size: formatNumber(box.size), offset: formatNumber(box.start) }));
       } else {
         scanContainer(await source.read(box.start, box.size), box.start, { ...box, headerSize: 0 }, ctx, false);
       }
     }
     offset += box.size;
   }
-  if (!sawMoov) throw new VideoError("The file has no movie header (moov box). It may be cut off, or the recording did not finish.");
+  if (!sawMoov) throw new VideoError(t("error.noMovieHeader"));
   if (ctx.fragmented && ctx.removesMetadataTrack) {
-    throw new VideoError("This fragmented video stores metadata samples in movie fragments, which this tool cannot remove. Turn off Remove metadata tracks to clean the rest.");
+    throw new VideoError(t("error.fragmented"));
   }
   if (ctx.dates) {
     const { value, count } = ctx.dates;
-    ctx.out.add({ kind: "camera", label: "Recording date", detail: count > 1 ? `${value}, in ${count} headers` : value, source: "Movie and track headers" }, options.clearDates);
+    ctx.out.add({ kind: "camera", label: t("label.recordingDate"), detail: count > 1 ? t("detail.dateHeaders", { value, number: formatNumber(count) }) : value, source: t("source.headers") }, options.clearDates);
   }
   return { format, findings: ctx.out.items, patches: ctx.patches, warnings };
 }

@@ -4,12 +4,13 @@ import { ClipboardProvider, CopyButton } from "./CopyButton";
 import { CronBuilder } from "./CronBuilder";
 import type { ShardSdk } from "./shard-sdk";
 import { ToolFaqSection, type ToolFaqItem } from "./ToolFaq";
+import { LOCALES, useLocale, useT } from "./lib/i18n";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, SELECT_CLASS } from "./ui";
 import { useDebouncedValue } from "./useDebouncedValue";
 import {
-  CRON_DIALECT_LABELS,
   CRON_EXAMPLES,
-  CRON_FIELD_LABELS,
+  cronDialectLabel,
+  cronFieldLabel,
   cronLayout,
   describeCron,
   describeCronField,
@@ -26,41 +27,35 @@ import {
 const RUN_COUNT = 5;
 const LOCAL_ZONE = "local";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "What cron format does this tool use?",
-    a: "It reads 5 fields as standard cron: minute, hour, day of month, month, and day of week. It reads 6 fields as seconds first, as in Spring and node-cron. An expression with `?` or 7 fields is read as Quartz. The line under the description shows which format the tool used.",
-  },
-  {
-    q: "Can I paste a whole crontab line or a YAML line?",
-    a: "Yes. The tool shows a command after the schedule but does not use it. It also removes `- cron:` and `schedule:` keys and quotes from GitHub Actions and Kubernetes files. A `CRON_TZ=` prefix sets the time zone, and `cron(...)` is read as AWS EventBridge.",
-  },
-  {
-    q: "Why does `0 0 13 * 5` run on more days than I expect?",
-    a: "In standard cron, a day runs when it matches the day of month or the day of week, if both fields are set. So this runs on every 13th and on every Friday. Seconds-first and Quartz formats need both fields to match.",
-  },
-  {
-    q: "Which time zone does cron use?",
-    a: "Cron uses the time zone of the machine or service that runs it. GitHub Actions always uses UTC. A Kubernetes CronJob uses the controller's zone unless you set `timeZone`. Pick that zone to see the correct next runs.",
-  },
-  {
-    q: "What happens on daylight saving time changes?",
-    a: "This preview skips a wall time that does not exist, such as 02:30 on the day clocks go forward. Cron daemons differ here. Some run the skipped job right after the change.",
-  },
-  {
-    q: "What do `L`, `W`, and `#` mean?",
-    a: "`L` in day of month is the last day. `15W` is the weekday nearest the 15th. `5L` in day of week is the last Friday, and `MON#2` is the second Monday. Standard cron daemons such as Vixie cron do not support these.",
-  },
-];
+const FAQ_KEYS = ["format", "paste", "dayOr", "timeZone", "dst", "special"] as const;
+
+/** Text with `code` spans: the odd pieces between backticks are code. Keeps markup out of the dictionaries. */
+function Rich({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("`").map((piece, index) =>
+        index % 2 === 1 ? (
+          <code key={index} dir="ltr">
+            {piece}
+          </code>
+        ) : (
+          piece
+        ),
+      )}
+    </>
+  );
+}
 
 /** A field editor that keeps a local draft, so a cleared field does not change the expression. */
 function FieldInput({ name, value, invalid, onCommit }: { name: CronFieldName; value: string; invalid: boolean; onCommit: (value: string) => void }) {
+  const t = useT();
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
     <Input
       type="text"
-      aria-label={`${CRON_FIELD_LABELS[name]} field`}
+      aria-label={t("cron.fieldAria", { field: cronFieldLabel(name) })}
+      dir="ltr"
       aria-invalid={invalid}
       spellCheck={false}
       autoComplete="off"
@@ -76,12 +71,14 @@ function FieldInput({ name, value, invalid, onCommit }: { name: CronFieldName; v
 }
 
 export default function App({ sdk }: { sdk: ShardSdk }) {
+  const t = useT();
+  const { locale } = useLocale();
   // A refused copy (no clipboard:write) is told to the user in the app; it is never a crash.
   const clipboard = useMemo(() => ({ writeText: (text: string) => sdk.clipboard.writeText(text), onError: (message: string) => void sdk.toast(message, "error").catch(() => {}) }), [sdk]);
   const [input, setInput] = useState("0 9 * * MON-FRI");
   const [zoneChoice, setZoneChoice] = useState(LOCAL_ZONE);
   const text = useDebouncedValue(input);
-  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "local time";
+  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone || t("cron.localTime");
   const zones = useMemo(() => {
     const supported = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
     return supported.filter((zone) => zone !== "UTC");
@@ -94,10 +91,11 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
     const tokens = (macroExpansion ?? read.expression).trim().split(/\s+/).filter(Boolean);
     const layout = "schedule" in result ? result.schedule.fields.map((field) => field.name) : (result.layout ?? cronLayout(read.expression, read.aws));
     return { read, result, tokens, layout };
-  }, [text]);
+    // The error texts and field names are built while parsing, so a language change parses again.
+  }, [text, t]);
 
   const { read, result, tokens, layout } = view;
-  const zoneError = read.timeZone && !isValidTimeZone(read.timeZone) ? `Unknown time zone "${read.timeZone}" in the prefix. Use an IANA name such as Europe/Berlin.` : "";
+  const zoneError = read.timeZone && !isValidTimeZone(read.timeZone) ? t("cron.error.unknownZone", { zone: read.timeZone }) : "";
   const timeZone = read.timeZone && !zoneError ? read.timeZone : zoneChoice === LOCAL_ZONE ? undefined : zoneChoice;
   const zoneLabel = timeZone ?? localZone;
 
@@ -109,7 +107,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
   const hasSeconds = result.ok && result.schedule.fields[0].name === "second";
   const runFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(undefined, {
+      new Intl.DateTimeFormat(`${LOCALES[locale].tag}-u-nu-latn`, {
         timeZone,
         weekday: "short",
         year: "numeric",
@@ -121,7 +119,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
         hourCycle: "h23",
         timeZoneName: "short",
       }),
-    [timeZone, hasSeconds],
+    [timeZone, hasSeconds, locale],
   );
 
   const errorIndex = "error" in result ? result.fieldIndex : undefined;
@@ -133,37 +131,38 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
     <div className="space-y-6 p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Cron Expression</CardTitle>
-          <CardDescription>Type or paste a schedule from a crontab, GitHub Actions, or Kubernetes.</CardDescription>
+          <CardTitle>{t("cron.title")}</CardTitle>
+          <CardDescription>{t("cron.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="cron-expression">Expression</Label>
+            <Label htmlFor="cron-expression">{t("cron.expression")}</Label>
             <div className="flex gap-2">
               <Input
                 id="cron-expression"
                 type="text"
-                aria-label="Cron expression"
+                aria-label={t("cron.expressionAria")}
+                dir="ltr"
                 aria-invalid={!result.ok}
                 aria-describedby="cron-description"
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="e.g., 0 */6 * * 1-5 or @daily"
+                placeholder={t("cron.placeholder")}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 className="font-mono"
               />
-              <CopyButton value={read.expression} label="Copy expression" iconOnly />
+              <CopyButton value={read.expression} label={t("cron.copyExpression")} iconOnly />
               <select
                 className={`${SELECT_CLASS} w-40 shrink-0`}
-                aria-label="Examples"
+                aria-label={t("cron.examples")}
                 value=""
                 onChange={(event) => event.target.value && setInput(event.target.value)}
               >
-                <option value="">Examples</option>
+                <option value="">{t("cron.examples")}</option>
                 {CRON_EXAMPLES.map((example) => (
                   <option key={example.expression} value={example.expression}>
-                    {example.label}
+                    {t(`cron.example.${example.id}`)}
                   </option>
                 ))}
               </select>
@@ -175,13 +174,14 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
               <>
                 <p className="text-base font-medium">{describeCron(result.schedule)}</p>
                 <p className="text-xs text-muted-foreground">
-                  Read as {CRON_DIALECT_LABELS[result.schedule.dialect]}
+                  {t("cron.readAs", { dialect: cronDialectLabel(result.schedule.dialect) })}
                   {result.schedule.expanded && (
                     <>
-                      . Same as <code>{result.schedule.expanded}</code>
+                      {" "}
+                      <Rich text={t("cron.sameAs", { expression: `\`${result.schedule.expanded}\`` })} />
                     </>
                   )}
-                  {result.schedule.dayOr && ". A day runs when it matches either day field"}.
+                  {result.schedule.dayOr && ` ${t("cron.dayOrNote")}`}
                 </p>
               </>
             ) : (
@@ -191,19 +191,19 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
             )}
             {read.command && (
               <p className="text-xs text-muted-foreground">
-                Command (not used): <code>{read.command}</code>
+                <Rich text={t("cron.command", { command: `\`${read.command}\`` })} />
               </p>
             )}
           </div>
 
           {fieldRows && (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs" aria-label="Field breakdown">
-                <thead className="text-left text-muted-foreground">
+              <table className="w-full text-xs" aria-label={t("cron.fields.aria")}>
+                <thead className="text-start text-muted-foreground">
                   <tr className="border-b border-border/50">
-                    <th scope="col" className="py-1.5 pr-2 font-medium">Field</th>
-                    <th scope="col" className="px-2 py-1.5 font-medium">Value</th>
-                    <th scope="col" className="px-2 py-1.5 font-medium">Meaning</th>
+                    <th scope="col" className="py-1.5 pe-2 font-medium">{t("cron.fields.field")}</th>
+                    <th scope="col" className="px-2 py-1.5 font-medium">{t("cron.fields.value")}</th>
+                    <th scope="col" className="px-2 py-1.5 font-medium">{t("cron.fields.meaning")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,7 +212,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
                     const invalid = errorIndex === index;
                     return (
                       <tr key={name} className="border-b border-border/50">
-                        <th scope="row" className="py-1.5 pr-2 text-left font-normal">{CRON_FIELD_LABELS[name]}</th>
+                        <th scope="row" className="py-1.5 pe-2 text-start font-normal">{cronFieldLabel(name)}</th>
                         <td className="px-2 py-1.5">
                           <FieldInput
                             name={name}
@@ -226,11 +226,11 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
                             <>
                               <span className="block">{describeCronField(field)}</span>
                               {!field.wildcard && field.values.length > 0 && (
-                                <span className="block font-mono text-muted-foreground">{formatCronValues(field)}</span>
+                                <span className="block font-mono text-muted-foreground" dir="ltr">{formatCronValues(field)}</span>
                               )}
                             </>
                           ) : invalid ? (
-                            "See the error above."
+                            t("cron.fields.seeError")
                           ) : null}
                         </td>
                       </tr>
@@ -249,20 +249,20 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Next Runs
+              {t("cron.nextRuns")}
             </CardTitle>
             <CardDescription>
-              {read.timeZone && !zoneError ? `Times in ${zoneLabel}, from the CRON_TZ prefix` : `Times in ${zoneLabel}`}
+              {read.timeZone && !zoneError ? t("cron.timesInPrefix", { zone: zoneLabel }) : t("cron.timesIn", { zone: zoneLabel })}
             </CardDescription>
           </div>
           <select
             className={`${SELECT_CLASS} w-48`}
-            aria-label="Time zone"
+            aria-label={t("cron.timeZone")}
             value={zoneChoice}
             onChange={(event) => setZoneChoice(event.target.value)}
             disabled={Boolean(read.timeZone && !zoneError)}
           >
-            <option value={LOCAL_ZONE}>Local ({localZone})</option>
+            <option value={LOCAL_ZONE}>{t("cron.zone.local", { zone: localZone })}</option>
             <option value="UTC">UTC</option>
             {zones.map((zone) => (
               <option key={zone} value={zone}>
@@ -279,7 +279,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
               {runs.map((date) => (
                 <div key={date.toISOString()} className="flex items-center gap-3 rounded-md bg-muted p-3">
                   <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <time dateTime={date.toISOString()} className="font-mono text-sm">
+                  <time dateTime={date.toISOString()} className="font-mono text-sm" dir="ltr">
                     {runFormatter.format(date)}
                   </time>
                   <span className="text-xs text-muted-foreground">{formatTimeUntil(date.getTime() - now)}</span>
@@ -289,8 +289,8 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
           ) : (
             <p className="text-sm text-muted-foreground">
               {result.ok
-                ? "This schedule never runs in the next 30 years. Check that the day and month can happen together. For example, February has no day 30."
-                : "Fix the expression to see the next runs."}
+                ? t("cron.neverRuns")
+                : t("cron.fixExpression")}
             </p>
           )}
         </CardContent>
@@ -300,27 +300,26 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4" />
-            Cron Syntax
+            {t("cron.syntax.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Format: <code>minute hour day-of-month month day-of-week</code>. Add a seconds field at the start for Spring or Quartz.
+              <Rich text={t("cron.syntax.format")} />
             </p>
-            <ul className="ml-2 list-inside list-disc space-y-1">
-              <li><code>*</code> matches every value. <code>?</code> means any day (Quartz).</li>
-              <li><code>1,15</code> is a list. <code>1-5</code> is an inclusive range.</li>
-              <li><code>*/15</code> is every 15 units. <code>5/15</code> starts at 5.</li>
-              <li><code>JAN</code> to <code>DEC</code> and <code>SUN</code> to <code>SAT</code> work as names.</li>
-              <li><code>L</code>, <code>15W</code>, <code>5L</code>, and <code>MON#2</code> set special days.</li>
-              <li><code>@yearly</code>, <code>@monthly</code>, <code>@weekly</code>, <code>@daily</code>, and <code>@hourly</code> are macros.</li>
+            <ul className="ms-2 list-inside list-disc space-y-1">
+              {(["wildcard", "list", "step", "names", "special", "macros"] as const).map((item) => (
+                <li key={item}>
+                  <Rich text={t(`cron.syntax.${item}`)} />
+                </li>
+              ))}
             </ul>
           </div>
         </CardContent>
       </Card>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />
     </div>
     </ClipboardProvider>
   );

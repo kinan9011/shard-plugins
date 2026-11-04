@@ -1,0 +1,27 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "option.component": "עטיפה בקומפוננטה",
+  "option.name": "שם",
+  "pane.html": "HTML",
+  "pane.jsx": "JSX",
+  "copy.jsx": "העתקת JSX",
+  "empty.title": "ה-JSX יופיע כאן",
+  "empty.hint": "הקלידו או הדביקו HTML בשדה הקלט.",
+  "status.invalidName": "שם לא תקין",
+  "status.ready": "מוכן",
+  "status.lines_one": "שורה אחת",
+  "status.lines_two": "{n} שורות",
+  "status.lines_other": "{n} שורות",
+  "status.handlers_one": "מטפל אירועים אחד דורש קוד",
+  "status.handlers_two": "{n} מטפלי אירועים דורשים קוד",
+  "status.handlers_other": "{n} מטפלי אירועים דורשים קוד",
+  "error.componentName": "שם הקומפוננטה חייב להתחיל באות גדולה ולהכיל רק אותיות, ספרות, $ או _.",
+  "faq.noRun.q": "האם ה-HTML מורץ או נטען בזמן ההמרה?",
+  "faq.noRun.a": "לא. ה-HTML מנותח למסמך נפרד שאינו מוצג לעולם. סקריפטים לא רצים, ותמונות וקבצים אחרים לא נטענים.",
+  "faq.events.q": "מה קורה ל-onclick ולמאפייני אירועים אחרים?",
+  "faq.events.a": "כל אחד הופך ל-prop של React כמו `onClick={() => {}}`. הקוד המקורי נשמר בהערה לידו. React צריך פונקציה, לכן יש לכתוב את המטפל בעצמכם.",
+  "faq.defaultValue.q": "למה בחלק משדות הקלט מופיע defaultValue?",
+  "faq.defaultValue.a": "ב-React, `value` ו-`checked` הופכים שדה לשדה מבוקר. הכלי משתמש ב-`defaultValue` וב-`defaultChecked` כדי שהשדה ימשיך לעבוד גם בלי state.",
+  "faq.whitespace.q": "איך מטופלים רווחים לבנים?",
+  "faq.whitespace.a": "הזחות במקור מוסרות, כמו ב-JSX. רווח בין אלמנטים בשורה נשמר כ-`{\" \"}`. טקסט בתוך `<pre>`, `<textarea>`, `<script>` ו-`<style>` נשמר במדויק בתוך template literal."
+};

@@ -5,10 +5,11 @@ import { toast } from "@/shims/sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { saveFile } from "@/lib/desktop";
+import { formatNumber, t as tNow, useT, type TKey } from "@/lib/i18n";
 import { formatBytes } from "@/utils/format-bytes";
 import {
   filterRows,
@@ -16,7 +17,7 @@ import {
   parseHar,
   queryParams,
   requestBody,
-  RESOURCE_TYPE_LABELS,
+  RESOURCE_TYPES,
   responseBody,
   responseBodyText,
   sanitizeHar,
@@ -46,7 +47,6 @@ const OVERSCAN = 12;
 /** Longer bodies show cut short. Copy response gets the full text. */
 const BODY_PREVIEW_CHARS = 200_000;
 const STATUS_CLASSES: StatusClass[] = ["2xx", "3xx", "4xx", "5xx", "failed"];
-const TYPES = Object.keys(RESOURCE_TYPE_LABELS) as ResourceType[];
 
 const STATUS_COLORS: Record<StatusClass, string> = {
   "1xx": "text-muted-foreground",
@@ -57,60 +57,43 @@ const STATUS_COLORS: Record<StatusClass, string> = {
   failed: "text-destructive",
 };
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "How do I get a HAR file?",
-    a: "Open the browser developer tools and select the Network tab. Load the page, then right-click a request and select Save all as HAR. Firefox and Safari have the same command in the Network panel.",
-  },
-  {
-    q: "Is my HAR file uploaded?",
-    a: "No. The tool reads and parses the file on this device. A HAR file can contain cookies, tokens, and passwords, so do not paste it into online viewers.",
-  },
-  {
-    q: "What does Save sanitized HAR remove?",
-    a: "It replaces the values of Authorization, Cookie, Set-Cookie, X-API-Key, and other credential headers. It also replaces all cookie values and query or form values with names such as token, key, or password. Keys and tokens in bodies are found with the Secret Redactor rules. Turn on Remove response bodies to remove all response content. Examine the file before you share it.",
-  },
-  {
-    q: "Why do some timings show n/a?",
-    a: "The HAR format uses -1 for a phase that does not apply. For example, a reused connection has no DNS, connect, or TLS time. TLS time is part of the connect time.",
-  },
-  {
-    q: "Why do the transferred and content sizes differ?",
-    a: "Transferred is the number of bytes on the network, with headers and compression. Content is the size of the decoded body. A response from the cache can show 0 B transferred.",
-  },
-];
+const FAQ_KEYS = ["getHar", "upload", "sanitize", "na", "sizes"] as const;
+
+/** The label of a resource type. JS, CSS and XHR are names, the rest is translated. */
+const typeLabel = (type: ResourceType, t: (key: TKey) => string) =>
+  type === "xhr" ? "XHR/fetch" : type === "js" ? "JS" : type === "css" ? "CSS" : t(`type.${type}`);
 
 const readFileText = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error ?? new Error("Unable to read the file."));
+    reader.onerror = () => reject(reader.error ?? new Error(tNow("error.readFile")));
     reader.readAsText(file);
   });
 
 const formatDuration = (ms: number) => {
   if (ms < 1) return ms > 0 ? "<1 ms" : "0 ms";
   if (ms < 1000) return `${Math.round(ms)} ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(2)} s`;
+  if (ms < 60_000) return `${formatNumber(ms / 1000, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })} s`;
   return `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1000)} s`;
 };
 
 const sizeLabel = (bytes: number) => (bytes < 0 ? "?" : formatBytes(bytes));
 
-const statusLabel = (row: HarRow) => (row.statusClass === "failed" ? "Failed" : String(row.status));
+const statusLabel = (row: HarRow, t: (key: TKey) => string) => (row.statusClass === "failed" ? t("status.failed") : String(row.status));
 
-const summaryText = (summary: HarSummary) => {
+const summaryText = (summary: HarSummary, t: (key: TKey, vars?: Record<string, string | number>) => string) => {
   const parts = [
-    `${summary.count} ${summary.count === 1 ? "request" : "requests"}`,
-    `${formatBytes(summary.transferred)} transferred`,
-    `${formatDuration(summary.span)} span`,
-    `${summary.errors} ${summary.errors === 1 ? "error" : "errors"}`,
+    t("summary.requests", { count: summary.count }),
+    t("summary.transferred", { size: formatBytes(summary.transferred) }),
+    t("summary.span", { duration: formatDuration(summary.span) }),
+    t("summary.errors", { count: summary.errors }),
   ];
   if (summary.pages.length === 1) {
     const [page] = summary.pages;
-    parts.push(`Page: ${page.title}${page.onLoad !== null ? ` (load ${formatDuration(page.onLoad)})` : ""}`);
+    parts.push(page.onLoad !== null ? t("summary.pageLoad", { title: page.title, duration: formatDuration(page.onLoad) }) : t("summary.page", { title: page.title }));
   } else if (summary.pages.length > 1) {
-    parts.push(`${summary.pages.length} pages`);
+    parts.push(t("summary.pages", { count: summary.pages.length }));
   }
   return parts.join(" · ");
 };
@@ -126,11 +109,11 @@ function NameValueTable({ title, items: raw, empty }: { title: string; items: un
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground">{empty}</p>
       ) : (
-        <table className="w-full table-fixed text-xs" aria-label={title}>
+        <table dir="ltr" className="w-full table-fixed text-xs" aria-label={title}>
           <tbody>
             {items.map((item, i) => (
               <tr key={`${item.name}-${i}`} className="border-b border-border/40 align-top">
-                <th scope="row" className="w-2/5 break-words py-1 pr-3 text-left font-mono font-medium">{String(item.name ?? "")}</th>
+                <th scope="row" className="w-2/5 break-words py-1 pe-3 text-start font-mono font-medium">{String(item.name ?? "")}</th>
                 <td className="break-all py-1 font-mono">{String(item.value ?? "")}</td>
               </tr>
             ))}
@@ -142,13 +125,14 @@ function NameValueTable({ title, items: raw, empty }: { title: string; items: un
 }
 
 function CodeBlock({ text, label }: { text: string; label: string }) {
+  const t = useT();
   const cut = text.length > BODY_PREVIEW_CHARS;
   return (
     <div className="space-y-1">
-      <pre aria-label={label} className="max-w-full overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-3 font-mono text-xs">
+      <pre dir="ltr" aria-label={label} className="max-w-full overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-3 font-mono text-xs">
         {cut ? text.slice(0, BODY_PREVIEW_CHARS) : text}
       </pre>
-      {cut && <p className="text-xs text-muted-foreground">The body is long. The first 200,000 characters show. Copy it to get all of it.</p>}
+      {cut && <p className="text-xs text-muted-foreground">{t("detail.bodyCut", { max: formatNumber(BODY_PREVIEW_CHARS) })}</p>}
     </div>
   );
 }
@@ -163,18 +147,19 @@ interface RequestTableProps {
   onSort: (key: SortKey) => void;
 }
 
-const COLUMNS: { key: SortKey; label: string; className: string }[] = [
-  { key: "method", label: "Method", className: "w-16" },
-  { key: "status", label: "Status", className: "w-16" },
-  { key: "url", label: "URL", className: "" },
-  { key: "type", label: "Type", className: "w-28" },
-  { key: "size", label: "Size", className: "w-32 text-right" },
-  { key: "time", label: "Time", className: "w-20 text-right" },
-  { key: "start", label: "Waterfall", className: "w-28" },
+const COLUMNS: { key: SortKey; label: TKey | null; className: string }[] = [
+  { key: "method", label: "col.method", className: "w-16" },
+  { key: "status", label: "col.status", className: "w-16" },
+  { key: "url", label: null, className: "" },
+  { key: "type", label: "col.type", className: "w-28" },
+  { key: "size", label: "col.size", className: "w-32 text-end" },
+  { key: "time", label: "col.time", className: "w-20 text-end" },
+  { key: "start", label: "col.waterfall", className: "w-28" },
 ];
 
 /** The request table. Only the rows in view render, so archives with thousands of entries stay fast. */
 function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirection, onSort }: RequestTableProps) {
+  const t = useT();
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(800);
@@ -208,7 +193,7 @@ function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirectio
     else if (top + ROW_HEIGHT > el.scrollTop + el.clientHeight - headerHeight) el.scrollTop = top + ROW_HEIGHT * 2 - el.clientHeight;
   };
 
-  if (rows.length === 0) return <PaneEmpty title="No requests match" hint="Change the filters to see more requests." />;
+  if (rows.length === 0) return <PaneEmpty title={t("empty.noMatch")} hint={t("empty.noMatchHint")} />;
 
   return (
     <div
@@ -217,10 +202,10 @@ function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirectio
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       onKeyDown={onKeyDown}
       tabIndex={0}
-      aria-label="Requests. Use the arrow keys to select a request."
+      aria-label={t("table.hint")}
     >
-      <table className="w-full table-fixed text-xs" aria-label="Requests" aria-rowcount={rows.length + 1}>
-        <thead className="sticky top-0 z-10 bg-card text-left text-muted-foreground shadow-[0_1px_0_hsl(var(--border))]">
+      <table className="w-full table-fixed text-xs" aria-label={t("pane.requests")} aria-rowcount={rows.length + 1}>
+        <thead className="sticky top-0 z-10 bg-card text-start text-muted-foreground shadow-[0_1px_0_hsl(var(--border))]">
           <tr style={{ height: ROW_HEIGHT }}>
             {COLUMNS.map((column) => {
               const active = sortKey === column.key;
@@ -232,7 +217,7 @@ function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirectio
                   aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                 >
                   <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => onSort(column.key)}>
-                    {column.label}
+                    {column.label ? t(column.label) : "URL"}
                     {active && (sortDirection === "asc" ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />)}
                   </button>
                 </th>
@@ -255,23 +240,23 @@ function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirectio
                 className={`cursor-pointer border-b border-border/30 ${isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/60"}`}
                 style={{ height: ROW_HEIGHT }}
               >
-                <td className="truncate px-2 font-mono">{row.method}</td>
-                <td className={`truncate px-2 font-mono ${STATUS_COLORS[row.statusClass]}`} title={row.statusText || String(row.entry.response?._error ?? "")}>
-                  {statusLabel(row)}
+                <td dir="ltr" className="truncate px-2 font-mono">{row.method}</td>
+                <td dir="ltr" className={`truncate px-2 font-mono ${STATUS_COLORS[row.statusClass]}`} title={row.statusText || String(row.entry.response?._error ?? "")}>
+                  {statusLabel(row, t)}
                 </td>
-                <td className="truncate px-2" title={row.url}>
+                <td dir="ltr" className="truncate px-2" title={row.url}>
                   <span className="text-muted-foreground">{row.host}</span>
                   <span>{row.path}</span>
                 </td>
-                <td className="truncate px-2 text-muted-foreground" title={row.mimeType || RESOURCE_TYPE_LABELS[row.type]}>
-                  {row.mimeType || RESOURCE_TYPE_LABELS[row.type]}
+                <td dir={row.mimeType ? "ltr" : undefined} className="truncate px-2 text-muted-foreground" title={row.mimeType || typeLabel(row.type, t)}>
+                  {row.mimeType || typeLabel(row.type, t)}
                 </td>
-                <td className="truncate px-2 text-right tabular-nums" title={`Transferred ${sizeLabel(row.transferSize)}. Content ${sizeLabel(row.contentSize)}.`}>
+                <td dir="ltr" className="truncate px-2 text-end tabular-nums" title={t("row.sizeTitle", { transferred: sizeLabel(row.transferSize), content: sizeLabel(row.contentSize) })}>
                   {sizeLabel(row.transferSize)}
                   <span className="text-muted-foreground"> / {sizeLabel(row.contentSize)}</span>
                 </td>
-                <td className="truncate px-2 text-right tabular-nums">{formatDuration(row.time)}</td>
-                <td className="px-2" aria-label={`Starts at ${formatDuration(Number.isNaN(row.start) ? 0 : row.start - summary.firstStart)}`}>
+                <td dir="ltr" className="truncate px-2 text-end tabular-nums">{formatDuration(row.time)}</td>
+                <td className="px-2" aria-label={t("row.startsAt", { time: formatDuration(Number.isNaN(row.start) ? 0 : row.start - summary.firstStart) })}>
                   <div className="relative h-2 rounded-sm bg-muted">
                     <div
                       className={`absolute inset-y-0 rounded-sm ${row.statusClass === "failed" || row.status >= 400 ? "bg-destructive/70" : "bg-primary/70"}`}
@@ -290,20 +275,21 @@ function RequestTable({ rows, summary, selected, onSelect, sortKey, sortDirectio
 }
 
 function TimingsView({ row }: { row: HarRow }) {
+  const t = useT();
   const phases = timingBreakdown(row.entry.timings);
   // HAR counts TLS inside connect, so the bar leaves it out of the total
   const total = phases.reduce((sum, p) => (p.key === "ssl" || p.ms === null ? sum : sum + p.ms), 0) || 1;
   let offset = 0;
   return (
-    <table className="w-full text-xs" aria-label="Timings">
+    <table className="w-full text-xs" aria-label={t("tab.timings")}>
       <tbody>
         {phases.map((phase) => {
           const left = offset;
           if (phase.ms !== null && phase.key !== "ssl") offset += phase.ms;
           return (
             <tr key={phase.key} className="border-b border-border/40">
-              <th scope="row" className="w-28 py-1 pr-3 text-left font-medium">{phase.label}</th>
-              <td className="w-20 py-1 pr-3 text-right tabular-nums">{phase.ms === null ? "n/a" : formatDuration(phase.ms)}</td>
+              <th scope="row" className="w-28 py-1 pe-3 text-start font-medium">{phase.key === "ssl" ? "TLS" : t(`timing.${phase.key}`)}</th>
+              <td className="w-20 py-1 pe-3 text-end tabular-nums">{phase.ms === null ? t("timing.na") : formatDuration(phase.ms)}</td>
               <td className="py-1">
                 {phase.ms !== null && phase.ms > 0 && (
                   <div className="relative h-2 rounded-sm bg-muted">
@@ -318,8 +304,8 @@ function TimingsView({ row }: { row: HarRow }) {
           );
         })}
         <tr>
-          <th scope="row" className="py-1 pr-3 text-left font-semibold">Total</th>
-          <td className="py-1 pr-3 text-right font-semibold tabular-nums">{formatDuration(row.time)}</td>
+          <th scope="row" className="py-1 pe-3 text-start font-semibold">{t("timing.total")}</th>
+          <td className="py-1 pe-3 text-end font-semibold tabular-nums">{formatDuration(row.time)}</td>
           <td />
         </tr>
       </tbody>
@@ -328,6 +314,7 @@ function TimingsView({ row }: { row: HarRow }) {
 }
 
 function EntryDetail({ row, tab }: { row: HarRow; tab: DetailTab }) {
+  const t = useT();
   // A HAR entry can leave out parts, so read each part with a fallback
   const request = row.entry.request ?? {};
   const response = row.entry.response ?? {};
@@ -337,66 +324,66 @@ function EntryDetail({ row, tab }: { row: HarRow; tab: DetailTab }) {
       <>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           <dt className="text-muted-foreground">URL</dt>
-          <dd className="break-all font-mono">{row.url}</dd>
-          <dt className="text-muted-foreground">Status</dt>
+          <dd dir="ltr" className="break-all font-mono">{row.url}</dd>
+          <dt className="text-muted-foreground">{t("col.status")}</dt>
           <dd className={`font-mono ${STATUS_COLORS[row.statusClass]}`}>
-            {row.statusClass === "failed" ? `Failed${response._error ? `: ${response._error}` : ""}` : `${row.status} ${row.statusText}`}
+            {row.statusClass === "failed" ? (response._error ? t("status.failedWith", { error: String(response._error) }) : t("status.failed")) : `${row.status} ${row.statusText}`}
           </dd>
           {request.httpVersion && (
             <>
-              <dt className="text-muted-foreground">Protocol</dt>
+              <dt className="text-muted-foreground">{t("detail.protocol")}</dt>
               <dd className="font-mono">{request.httpVersion}</dd>
             </>
           )}
           {typeof row.entry.serverIPAddress === "string" && row.entry.serverIPAddress && (
             <>
-              <dt className="text-muted-foreground">Remote address</dt>
+              <dt className="text-muted-foreground">{t("detail.remote")}</dt>
               <dd className="font-mono">{row.entry.serverIPAddress}</dd>
             </>
           )}
         </dl>
-        <NameValueTable title="Request headers" items={request.headers ?? []} empty="The request has no headers." />
-        <NameValueTable title="Response headers" items={response.headers ?? []} empty="The response has no headers." />
+        <NameValueTable title={t("detail.requestHeaders")} items={request.headers ?? []} empty={t("detail.noRequestHeaders")} />
+        <NameValueTable title={t("detail.responseHeaders")} items={response.headers ?? []} empty={t("detail.noResponseHeaders")} />
       </>
     );
   } else if (tab === "query") {
-    body = <NameValueTable title="Query parameters" items={queryParams(row.entry)} empty="The URL has no query parameters." />;
+    body = <NameValueTable title={t("detail.queryParams")} items={queryParams(row.entry)} empty={t("detail.noQuery")} />;
   } else if (tab === "cookies") {
     body = (
       <>
-        <NameValueTable title="Request cookies" items={request.cookies ?? []} empty="The request sent no cookies." />
-        <NameValueTable title="Response cookies" items={response.cookies ?? []} empty="The response set no cookies." />
+        <NameValueTable title={t("detail.requestCookies")} items={request.cookies ?? []} empty={t("detail.noRequestCookies")} />
+        <NameValueTable title={t("detail.responseCookies")} items={response.cookies ?? []} empty={t("detail.noResponseCookies")} />
       </>
     );
   } else if (tab === "request") {
     const post = requestBody(row.entry);
     body =
       post.kind === "none" ? (
-        <p className="text-xs text-muted-foreground">The request has no body.</p>
+        <p className="text-xs text-muted-foreground">{t("detail.noBody")}</p>
       ) : post.kind === "form" ? (
-        <NameValueTable title={`Form data${post.mimeType ? ` (${post.mimeType})` : ""}`} items={post.params} empty="The form has no fields." />
+        <NameValueTable title={post.mimeType ? t("detail.formDataType", { type: post.mimeType }) : t("detail.formData")} items={post.params} empty={t("detail.noFields")} />
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">{post.mimeType || "No MIME type"}{post.json ? " · JSON, formatted" : ""}</p>
-          <CodeBlock text={post.text} label="Request body" />
+          <p className="text-xs text-muted-foreground">{post.mimeType || t("detail.noMime")}{post.json ? ` · ${t("detail.jsonFormatted")}` : ""}</p>
+          <CodeBlock text={post.text} label={t("detail.requestBody")} />
         </>
       );
   } else if (tab === "response") {
     const content = responseBody(row.entry);
     body =
       content.kind === "none" ? (
-        <p className="text-xs text-muted-foreground">The HAR has no response body for this request. Some browsers leave out bodies when they export.</p>
+        <p className="text-xs text-muted-foreground">{t("detail.noResponseBody")}</p>
       ) : content.kind === "image" ? (
         <>
           <p className="text-xs text-muted-foreground">{content.mimeType} · {formatBytes(content.size)}</p>
-          <img src={content.dataUri} alt={`Response image from ${row.url}`} className="max-h-80 max-w-full rounded-md border bg-[repeating-conic-gradient(hsl(var(--muted))_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]" />
+          <img src={content.dataUri} alt={t("detail.imageAlt", { url: row.url })} className="max-h-80 max-w-full rounded-md border bg-[repeating-conic-gradient(hsl(var(--muted))_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]" />
         </>
       ) : content.kind === "binary" ? (
-        <p className="text-xs text-muted-foreground">The body is binary data ({content.mimeType || "unknown type"}, {formatBytes(content.size)}). Copy response gives the Base64 text.</p>
+        <p className="text-xs text-muted-foreground">{t("detail.binary", { type: content.mimeType || t("detail.unknownType"), size: formatBytes(content.size) })}</p>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">{content.mimeType || "No MIME type"}{content.json ? " · JSON, formatted" : ""}</p>
-          <CodeBlock text={content.text} label="Response body" />
+          <p className="text-xs text-muted-foreground">{content.mimeType || t("detail.noMime")}{content.json ? ` · ${t("detail.jsonFormatted")}` : ""}</p>
+          <CodeBlock text={content.text} label={t("detail.responseBody")} />
         </>
       );
   } else {
@@ -406,6 +393,7 @@ function EntryDetail({ row, tab }: { row: HarRow; tab: DetailTab }) {
 }
 
 export function HarViewer() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [file, setFile] = useState<OpenedFile | null>(null);
   const [filterText, setFilterText] = useState("");
@@ -432,7 +420,7 @@ export function HarViewer() {
     } catch (err) {
       return { error: (err as Error).message };
     }
-  }, [source]);
+  }, [source, t]);
   const parsed = result && "parsed" in result ? result.parsed : null;
   const error = result && "error" in result ? result.error : "";
 
@@ -453,7 +441,7 @@ export function HarViewer() {
       setFile({ name: picked.name, text: await readFileText(picked), size: picked.size });
       setInput("");
     } catch {
-      toast.error("Could not read the file. Choose it again.");
+      toast.error(t("toast.readFailed"));
     }
   };
 
@@ -491,50 +479,50 @@ export function HarViewer() {
     try {
       const { har, redacted } = sanitizeHar(parsed.har, { removeResponseBodies: removeBodies });
       if (await saveFile(new Blob([JSON.stringify(har, null, 2)], { type: "application/json" }), fileName)) {
-        toast.success(`Saved ${fileName}. Replaced ${redacted} sensitive ${redacted === 1 ? "value" : "values"}.`);
+        toast.success(t("toast.saved", { name: fileName, count: redacted }));
       }
     } catch (err) {
-      toast.error((err as Error).message || "Unable to save the file.");
+      toast.error((err as Error).message || t("toast.saveFailed"));
     }
   };
 
   const notice = error ? (
     <div className="workspace-notice" data-tone="error" role="alert">{error}</div>
   ) : parsed ? (
-    <div className="workspace-notice" role="status">{summaryText(parsed.summary)}</div>
+    <div className="workspace-notice" role="status">{summaryText(parsed.summary, t)}</div>
   ) : undefined;
 
   const filters = parsed ? (
     <>
-      <label htmlFor="har-filter" className="sr-only">Filter requests</label>
+      <label htmlFor="har-filter" className="sr-only">{t("filter.label")}</label>
       <Input
         id="har-filter"
         className="h-7 w-64 text-xs"
         value={filterText}
         onChange={(e) => setFilterText(e.target.value)}
-        placeholder="Filter by URL, status, or MIME type"
+        placeholder={t("filter.placeholder")}
         autoComplete="off"
         spellCheck={false}
       />
       <label className="indent-control">
-        Method
-        <select aria-label="Method" value={method} onChange={(e) => setMethod(e.target.value)}>
-          <option value="">All</option>
+        {t("col.method")}
+        <select aria-label={t("col.method")} value={method} onChange={(e) => setMethod(e.target.value)}>
+          <option value="">{t("filter.all")}</option>
           {methods.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </label>
       <label className="indent-control">
-        Status
-        <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as StatusClass | "")}>
-          <option value="">All</option>
-          {STATUS_CLASSES.map((s) => <option key={s} value={s}>{s === "failed" ? "Failed" : s}</option>)}
+        {t("col.status")}
+        <select aria-label={t("col.status")} value={status} onChange={(e) => setStatus(e.target.value as StatusClass | "")}>
+          <option value="">{t("filter.all")}</option>
+          {STATUS_CLASSES.map((s) => <option key={s} value={s}>{s === "failed" ? t("status.failed") : s}</option>)}
         </select>
       </label>
       <label className="indent-control">
-        Type
-        <select aria-label="Type" value={type} onChange={(e) => setType(e.target.value as ResourceType | "")}>
-          <option value="">All</option>
-          {TYPES.map((t) => <option key={t} value={t}>{RESOURCE_TYPE_LABELS[t]}</option>)}
+        {t("col.type")}
+        <select aria-label={t("col.type")} value={type} onChange={(e) => setType(e.target.value as ResourceType | "")}>
+          <option value="">{t("filter.all")}</option>
+          {RESOURCE_TYPES.map((rt) => <option key={rt} value={rt}>{typeLabel(rt, t)}</option>)}
         </select>
       </label>
     </>
@@ -559,15 +547,15 @@ export function HarViewer() {
           />
           <button type="button" className="toolbar-text-button" onClick={() => fileInputRef.current?.click()}>
             <FileUp size={14} aria-hidden="true" />
-            Open file
+            {t("action.openFile")}
           </button>
           <label className="option-switch indent-control" htmlFor="har-remove-bodies">
-            Remove response bodies
+            {t("option.removeBodies")}
             <Switch id="har-remove-bodies" checked={removeBodies} onCheckedChange={setRemoveBodies} />
           </label>
           <button type="button" className="toolbar-text-button" onClick={() => void saveSanitized()} disabled={!parsed}>
             <Download size={14} aria-hidden="true" />
-            Save sanitized HAR
+            {t("action.saveSanitized")}
           </button>
         </>
       }
@@ -575,13 +563,13 @@ export function HarViewer() {
       notice={notice}
       first={
         <EditorPane
-          title={parsed ? "Requests" : "HAR"}
+          title={parsed ? t("pane.requests") : "HAR"}
           htmlFor={parsed || file ? undefined : "har-input"}
           scroll={false}
           actions={
             (file || input) && (
               <button type="button" className="toolbar-text-button" onClick={clear}>
-                Clear
+                {t("common.clear")}
               </button>
             )
           }
@@ -613,13 +601,13 @@ export function HarViewer() {
                 />
               </div>
             ) : file ? (
-              <PaneEmpty title="The file is not a valid HAR file" hint="Open another file, or select Clear." />
+              <PaneEmpty title={t("empty.invalidFile")} hint={t("empty.invalidFileHint")} />
             ) : (
               <CodeTextarea
                 id="har-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Paste HAR JSON, or drop a .har file exported from the browser Network panel"
+                placeholder={t("input.placeholder")}
               />
             )}
           </div>
@@ -627,12 +615,12 @@ export function HarViewer() {
       }
       second={
         <EditorPane
-          title="Details"
+          title={t("pane.details")}
           actions={
             <>
-              <CopyButton value={curl} label="Copy as cURL" />
-              <CopyButton value={selectedRow?.url ?? ""} label="Copy URL" />
-              <CopyButton value={bodyText} label="Copy response" ariaLabel="Copy response body" />
+              <CopyButton value={curl} label={t("copy.curl")} />
+              <CopyButton value={selectedRow?.url ?? ""} label={t("copy.url")} />
+              <CopyButton value={bodyText} label={t("copy.response")} ariaLabel={t("copy.responseBody")} />
             </>
           }
         >
@@ -640,13 +628,13 @@ export function HarViewer() {
             <div className="flex flex-col">
               <div className="border-b px-4 py-2">
                 <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)}>
-                  <TabsList aria-label="Request details">
-                    <TabsTrigger value="headers">Headers</TabsTrigger>
-                    <TabsTrigger value="query">Query</TabsTrigger>
-                    <TabsTrigger value="cookies">Cookies</TabsTrigger>
-                    <TabsTrigger value="request">Request</TabsTrigger>
-                    <TabsTrigger value="response">Response</TabsTrigger>
-                    <TabsTrigger value="timings">Timings</TabsTrigger>
+                  <TabsList aria-label={t("tabs.aria")}>
+                    <TabsTrigger value="headers">{t("tab.headers")}</TabsTrigger>
+                    <TabsTrigger value="query">{t("tab.query")}</TabsTrigger>
+                    <TabsTrigger value="cookies">{t("tab.cookies")}</TabsTrigger>
+                    <TabsTrigger value="request">{t("tab.request")}</TabsTrigger>
+                    <TabsTrigger value="response">{t("tab.response")}</TabsTrigger>
+                    <TabsTrigger value="timings">{t("tab.timings")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -654,14 +642,14 @@ export function HarViewer() {
             </div>
           ) : (
             <PaneEmpty
-              title={parsed ? "Select a request" : "Request details appear here"}
-              hint={parsed ? "Select a row to see its headers, body, and timings." : "Open a .har file or paste HAR JSON."}
+              title={parsed ? t("empty.select") : t("empty.details")}
+              hint={parsed ? t("empty.selectHint") : t("empty.detailsHint")}
             />
           )}
         </EditorPane>
       }
-      status={parsed ? <span>Showing {visible.length} of {parsed.rows.length} requests</span> : error ? <span className="text-destructive">Invalid input</span> : <span>Ready</span>}
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      status={parsed ? <span>{t("status.showing", { shown: visible.length, count: parsed.rows.length })}</span> : error ? <span className="text-destructive">{t("status.invalid")}</span> : <span>{t("status.ready")}</span>}
+      help={<ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />}
     />
   );
 }

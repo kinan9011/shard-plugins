@@ -11,6 +11,9 @@ vi.mock("@/sdk", () => ({
     storage: { get: vi.fn(async () => null), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) },
     toast: vi.fn(async () => {}),
     onVisibilityChange: () => () => {},
+    ready: vi.fn(async () => ({ pluginId: "test", theme: { isDark: false, scheme: "default", vars: {} }, locale: { lang: "en", dir: "ltr" }, visible: true })),
+    theme: { get: vi.fn(), onChange: () => () => {} },
+    locale: { get: vi.fn(async () => ({ lang: "en", dir: "ltr" })), onChange: () => () => {} },
   },
 }));
 

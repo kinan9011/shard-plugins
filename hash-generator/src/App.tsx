@@ -1,42 +1,19 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "./CopyButton";
+import { autoDir, useT } from "./lib/i18n";
 import type { ShardSdk } from "./shard-sdk";
 import { formatBytes, HASH_TYPES, HMAC_TYPES, type Hasher, type Results } from "./hasher";
 
 type Source = "text" | "file";
 
-const FAQ_ITEMS = [
-  {
-    q: "What is the difference between MD5, SHA-1, SHA-2, SHA-3, and Keccak?",
-    a: "They are different hash algorithms with different output sizes and security properties. Keccak-256 is the variant that Ethereum uses. It differs from the final SHA-3-256 standard. For new integrity checks, prefer SHA-256, SHA-512, or SHA-3 and avoid MD5 or SHA-1 for security-sensitive uses.",
-  },
-  {
-    q: "Can I use these hashes for password storage?",
-    a: "No. Fast hashes like MD5 and SHA are easy for attackers to brute-force, so passwords should be stored with a slow password hash such as bcrypt, scrypt, or Argon2.",
-  },
-  {
-    q: "Is hashing the same as encryption?",
-    a: "No. Hashing is one-way, so you cannot recover the original input from the hash, while encryption is reversible with the right key.",
-  },
-  {
-    q: "Why do two similar inputs produce completely different hashes?",
-    a: "Good hash functions have an avalanche effect, meaning a tiny input change causes a very different output. That makes hashes useful for change detection and integrity checks.",
-  },
-  {
-    q: "What is HMAC?",
-    a: "HMAC mixes a secret key into the hash. Only a party that has the key can create or check the result. Use it to sign messages and webhooks.",
-  },
-  {
-    q: "Is my file uploaded?",
-    a: "No. The file is read and hashed on your device. Nothing leaves the app.",
-  },
-];
+const FAQ_KEYS = ["algorithms", "passwords", "encryption", "avalanche", "hmac", "upload"] as const;
 
 const encoder = new TextEncoder();
 const field = "w-full rounded border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const button = "h-7 rounded px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
 
 export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) {
+  const t = useT();
   const [source, setSource] = useState<Source>("text");
   const [input, setInput] = useState("");
   const deferredInput = useDeferredValue(input);
@@ -78,7 +55,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
       if (opened) setFile(opened);
     } catch (error) {
       // A PermissionError says what to grant; the message of any other failure is shown as it is.
-      setNotice(error instanceof Error ? error.message : "Could not read the file. Choose it again.");
+      setNotice(error instanceof Error ? error.message : t("error.readFile"));
     }
   };
 
@@ -100,7 +77,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
   const renderResult = (key: string, label: string, value: string, placeholder: string) => (
     <div key={key} className="flex items-start gap-2">
       <label className="w-28 shrink-0 pt-2 text-xs font-medium text-muted-foreground" htmlFor={`hash-out-${key}`}>{label}</label>
-      <textarea id={`hash-out-${key}`} className={`${field} resize-none break-all`} value={value} readOnly rows={1} ref={fitHeight} placeholder={placeholder} />
+      <textarea id={`hash-out-${key}`} className={`${field} resize-none break-all`} dir="ltr" value={value} readOnly rows={1} ref={fitHeight} placeholder={placeholder} />
       <CopyButton value={value} label={label} writeText={sdk.clipboard.writeText} onError={setNotice} />
     </div>
   );
@@ -109,7 +86,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-6 py-6">
       <header className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="Input source" className="inline-flex rounded-md bg-muted p-0.5">
+        <div role="tablist" aria-label={t("source.label")} className="inline-flex rounded-md bg-muted p-0.5">
           {(["text", "file"] as const).map((value) => (
             <button
               key={value}
@@ -119,7 +96,7 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
               onClick={() => setSource(value)}
               className={`h-7 rounded px-3 text-sm ${source === value ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {value === "text" ? "Text" : "File"}
+              {value === "text" ? t("source.text") : t("source.file")}
             </button>
           ))}
         </div>
@@ -129,8 +106,8 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
         </label>
         {hmacEnabled && (
           <>
-            <label htmlFor="hash-secret" className="text-xs text-foreground">Secret key</label>
-            <input id="hash-secret" className={`${field} h-8 w-64 py-0 text-xs`} value={secretKey} onChange={(event) => setSecretKey(event.target.value)} placeholder="Enter secret key..." autoComplete="off" spellCheck={false} />
+            <label htmlFor="hash-secret" className="text-xs text-foreground">{t("hmac.secret")}</label>
+            <input id="hash-secret" className={`${field} h-8 w-64 py-0 text-xs`} value={secretKey} dir={autoDir(secretKey)} onChange={(event) => setSecretKey(event.target.value)} placeholder={t("hmac.placeholder")} autoComplete="off" spellCheck={false} />
           </>
         )}
       </header>
@@ -138,49 +115,49 @@ export default function App({ sdk, hasher }: { sdk: ShardSdk; hasher: Hasher }) 
       {source === "text" ? (
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label htmlFor="hash-input" className="text-sm font-medium text-foreground">Input</label>
-            {input && <button type="button" className={button} onClick={() => setInput("")}>Clear</button>}
+            <label htmlFor="hash-input" className="text-sm font-medium text-foreground">{t("input.label")}</label>
+            {input && <button type="button" className={button} onClick={() => setInput("")}>{t("common.clear")}</button>}
           </div>
-          <textarea id="hash-input" className={`${field} h-32 resize-y`} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Enter text to generate hashes..." spellCheck={false} />
+          <textarea id="hash-input" className={`${field} h-32 resize-y`} value={input} dir={autoDir(input)} onChange={(event) => setInput(event.target.value)} placeholder={t("input.placeholder")} spellCheck={false} />
         </section>
       ) : (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-foreground">File</h2>
+          <h2 className="text-sm font-medium text-foreground">{t("source.file")}</h2>
           <div>
-            <button type="button" className="h-7 rounded bg-primary-solid px-3 text-sm text-primary-solid-foreground hover:bg-primary-solid/90" onClick={() => void chooseFile()}>Choose file…</button>
+            <button type="button" className="h-7 rounded bg-primary-solid px-3 text-sm text-primary-solid-foreground hover:bg-primary-solid/90" onClick={() => void chooseFile()}>{t("file.choose")}</button>
           </div>
           {file && (
             <div className="flex items-center justify-between rounded-md border border-border bg-muted px-3 py-2 text-sm">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate" data-testid="hash-file-name">{file.name}</span>
-                <span className="shrink-0 text-muted-foreground">{formatBytes(file.size)}</span>
+                <span className="truncate" dir="auto" data-testid="hash-file-name">{file.name}</span>
+                <span className="shrink-0 text-muted-foreground" dir="ltr">{formatBytes(file.size)}</span>
               </span>
-              <button type="button" className={button} onClick={() => setFile(null)}>Clear</button>
+              <button type="button" className={button} onClick={() => setFile(null)}>{t("common.clear")}</button>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">The file is read on this device. It is not uploaded.</p>
+          <p className="text-xs text-muted-foreground">{t("file.local")}</p>
         </section>
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">Hashes</h2>
+        <h2 className="text-sm font-medium text-foreground">{t("hashes.title")}</h2>
         <div className="flex flex-col gap-2" ref={listRef}>
-          {HASH_TYPES.map(({ type, label }) => renderResult(type, label, hashes[type] ?? "", `${label} hash will appear here...`))}
-          {hmacEnabled && HMAC_TYPES.map(({ type, label }) => renderResult(`hmac-${type}`, label, hmacs[type] ?? "", `${label} will appear here...`))}
+          {HASH_TYPES.map(({ type, label }) => renderResult(type, label, hashes[type] ?? "", t("hashes.placeholder", { label })))}
+          {hmacEnabled && HMAC_TYPES.map(({ type, label }) => renderResult(`hmac-${type}`, label, hmacs[type] ?? "", t("hashes.hmacPlaceholder", { label })))}
         </div>
       </section>
 
       <footer className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{message === null ? "Ready" : `${formatBytes(message.length)} hashed`}</span>
-        {(notice || computed.failed) && <span role="alert" className="text-destructive">{notice || "Could not compute the hashes."}</span>}
+        <span>{message === null ? t("status.ready") : t("status.hashed", { size: formatBytes(message.length) })}</span>
+        {(notice || computed.failed) && <span role="alert" className="text-destructive">{notice || t("error.compute")}</span>}
       </footer>
 
-      <section aria-label="Frequently asked questions" className="flex flex-col gap-2 border-t border-border pt-4">
-        <h2 className="text-sm font-medium text-foreground">FAQ</h2>
-        {FAQ_ITEMS.map((item) => (
-          <details key={item.q} className="rounded-md border border-border px-3 py-2 text-sm">
-            <summary className="cursor-pointer font-medium text-foreground">{item.q}</summary>
-            <p className="mt-1.5 text-muted-foreground">{item.a}</p>
+      <section aria-label={t("faq.label")} className="flex flex-col gap-2 border-t border-border pt-4">
+        <h2 className="text-sm font-medium text-foreground">{t("toolFaq.title")}</h2>
+        {FAQ_KEYS.map((slug) => (
+          <details key={slug} className="rounded-md border border-border px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-medium text-foreground">{t(`faq.${slug}.q`)}</summary>
+            <p className="mt-1.5 text-muted-foreground">{t(`faq.${slug}.a`)}</p>
           </details>
         ))}
       </section>

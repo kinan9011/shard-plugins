@@ -1,3 +1,4 @@
+import { useT } from "./lib/i18n";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 /** How the tool copies: through the host (`sdk.clipboard.writeText`, needs `clipboard:write`). */
@@ -23,21 +24,23 @@ interface CopyButtonProps {
 }
 
 /** Copies a value and confirms in place: the icon turns into a check and a polite live region says "Copied". A refusal goes to `onError`. */
-export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false, className = "" }: CopyButtonProps) {
+export function CopyButton({ value, label, ariaLabel, iconOnly = false, className = "" }: CopyButtonProps) {
+  const t = useT();
   const clipboard = useContext(ClipboardContext);
+  label ??= t("common.copy");
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const copy = async () => {
     try {
-      if (!clipboard) throw new Error("Not connected to Shard.");
+      if (!clipboard) throw new Error(t("copy.notConnected"));
       await clipboard.writeText(typeof value === "function" ? value() : value);
       setCopied(true);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setCopied(false), 1500);
     } catch (error) {
-      clipboard?.onError(error instanceof Error ? error.message : "Could not copy.");
+      clipboard?.onError(error instanceof Error ? error.message : t("common.copyFailed"));
     }
   };
 
@@ -52,8 +55,8 @@ export function CopyButton({ value, label = "Copy", ariaLabel, iconOnly = false,
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         {copied ? <path d="M20 6 9 17l-5-5" /> : <><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>}
       </svg>
-      {!iconOnly && (copied ? "Copied" : label)}
-      <span className="sr-only" aria-live="polite">{copied ? "Copied" : ""}</span>
+      {!iconOnly && (copied ? t("common.copied") : label)}
+      <span className="sr-only" aria-live="polite">{copied ? t("common.copied") : ""}</span>
     </button>
   );
 }

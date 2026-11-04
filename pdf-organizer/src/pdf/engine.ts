@@ -1,6 +1,7 @@
 import { PDFArray, PDFDict, PDFDocument, PDFName, type PDFPage, degrees } from "pdf-lib";
 import { zipSync } from "fflate";
 import { MAX_FILE_BYTES, MAX_PAGES, MAX_SESSION_BYTES, imageSize, inputKind } from "./limits";
+import { CodedError } from "./errors";
 import { SCALE_MAX, SCALE_MIN, turnCrop, validCrop, type Crop } from "./geometry";
 
 /** `crop` and `scale` are per page-instance: duplicates of one source page can differ. */
@@ -20,14 +21,14 @@ async function load(bytes: Uint8Array) {
   try {
     return await PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: true });
   } catch (error) {
-    if (error instanceof Error && /encrypt/i.test(error.message)) throw new Error("Encrypted PDFs are not supported. Use an authorized unencrypted copy.");
-    throw new Error("This PDF could not be read. It may be damaged or unsupported.");
+    if (error instanceof Error && /encrypt/i.test(error.message)) throw new CodedError("engine.encrypted");
+    throw new CodedError("engine.unreadable");
   }
 }
 
 function inspect(document: PDFDocument): Report {
   const form = document.catalog.lookupMaybe(PDFName.of("AcroForm"), PDFDict);
-  if (form?.has(PDFName.of("XFA"))) throw new Error("XFA forms are not supported. Export a standard PDF copy first.");
+  if (form?.has(PDFName.of("XFA"))) throw new CodedError("engine.xfa");
   const signatures = document.context.enumerateIndirectObjects().some(([, value]) => value instanceof PDFDict &&
     (value.get(PDFName.of("Type"))?.toString() === "/Sig" || value.get(PDFName.of("FT"))?.toString() === "/Sig"));
   return {
@@ -67,7 +68,7 @@ export async function importDocument(bytes: Uint8Array): Promise<ImportResult> {
     bytes = await document.save();
   }
   const count = document.getPageCount();
-  if (!count || count > MAX_PAGES) throw new Error("Import a document with 1–500 pages.");
+  if (!count || count > MAX_PAGES) throw new CodedError("engine.pageCount");
   return { bytes, count, report: inspect(document) };
 }
 
@@ -76,7 +77,7 @@ async function prepared(documents: Map<string, PDFDocument>, sources: Source[], 
   let document = documents.get(sourceId);
   if (document) return document;
   const source = sources.find(source => source.id === sourceId);
-  if (!source || source.bytes.length > MAX_FILE_BYTES) throw new Error("Source document is unavailable or too large.");
+  if (!source || source.bytes.length > MAX_FILE_BYTES) throw new CodedError("engine.sourceUnavailable");
   document = await load(source.bytes);
   // XFA was rejected at import; no need to re-scan every object here (finding #7).
   stripInternalLinks(document);
@@ -98,10 +99,10 @@ async function prepared(documents: Map<string, PDFDocument>, sources: Source[], 
 }
 
 function checkPage(page: Page, count: number) {
-  if (!Number.isInteger(page.rotation) || page.rotation % 90 !== 0) throw new Error("Invalid page rotation.");
-  if (page.crop !== undefined && !validCrop(page.crop)) throw new Error("Invalid page crop.");
-  if (page.scale !== undefined && !(page.scale >= SCALE_MIN && page.scale <= SCALE_MAX)) throw new Error("Invalid page scale.");
-  if (!Number.isInteger(page.index) || page.index < 0 || page.index >= count) throw new Error("Source page is unavailable.");
+  if (!Number.isInteger(page.rotation) || page.rotation % 90 !== 0) throw new CodedError("engine.badRotation");
+  if (page.crop !== undefined && !validCrop(page.crop)) throw new CodedError("engine.badCrop");
+  if (page.scale !== undefined && !(page.scale >= SCALE_MIN && page.scale <= SCALE_MAX)) throw new CodedError("engine.badScale");
+  if (!Number.isInteger(page.index) || page.index < 0 || page.index >= count) throw new CodedError("engine.pageUnavailable");
 }
 
 /** Applies the page's crop (hides everything outside a smaller box) and scale to a copied page. Rotation is applied by the caller. */
@@ -121,17 +122,17 @@ function shape(copy: PDFPage, page: Page) {
 const clean = (value: string | undefined) => (value ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 500);
 
 export async function exportDocument(sources: Source[], pages: Page[], groups: number[][], metadata: Metadata = {}) {
-  if (!pages.length || pages.length > MAX_PAGES || !groups.length || groups.length > MAX_PAGES) throw new Error("Export 1–500 pages.");
-  if (sources.reduce((size, source) => size + source.bytes.length, 0) > MAX_SESSION_BYTES) throw new Error("Session exceeds 100 MiB.");
-  if (groups.reduce((count, group) => count + group.length, 0) > MAX_PAGES) throw new Error("Export at most 500 pages at a time.");
+  if (!pages.length || pages.length > MAX_PAGES || !groups.length || groups.length > MAX_PAGES) throw new CodedError("engine.exportRange");
+  if (sources.reduce((size, source) => size + source.bytes.length, 0) > MAX_SESSION_BYTES) throw new CodedError("engine.sessionSize");
+  if (groups.reduce((count, group) => count + group.length, 0) > MAX_PAGES) throw new CodedError("limit.exportMax");
   const documents = new Map<string, PDFDocument>();
   const files: Record<string, Uint8Array> = {};
   let outputBytes = 0;
   for (const [groupIndex, group] of groups.entries()) {
-    if (!group.length) throw new Error("Each output must contain a page.");
+    if (!group.length) throw new CodedError("engine.emptyOutput");
     const output = await PDFDocument.create();
     for (const position of group) {
-      if (!Number.isInteger(position) || position < 0 || position >= pages.length) throw new Error("Invalid output page.");
+      if (!Number.isInteger(position) || position < 0 || position >= pages.length) throw new CodedError("engine.badOutputPage");
       const page = pages[position];
       const document = await prepared(documents, sources, page.sourceId);
       checkPage(page, document.getPageCount());
@@ -146,16 +147,16 @@ export async function exportDocument(sources: Source[], pages: Page[], groups: n
     if (metadata.keywords !== undefined) output.setKeywords(clean(metadata.keywords).split(",").map(word => word.trim()).filter(Boolean));
     const bytes = await output.save();
     outputBytes += bytes.length;
-    if (outputBytes > MAX_FILE_BYTES) throw new Error("Output exceeds the host's 50 MiB file limit. Export fewer pages.");
+    if (outputBytes > MAX_FILE_BYTES) throw new CodedError("engine.outputSize");
     files[`part-${String(groupIndex + 1).padStart(3, "0")}.pdf`] = bytes;
   }
   const bytes = groups.length === 1 ? Object.values(files)[0] : zipSync(files, { level: 0 });
-  if (bytes.length > MAX_FILE_BYTES) throw new Error("ZIP exceeds 50 MiB. Export fewer pages.");
+  if (bytes.length > MAX_FILE_BYTES) throw new CodedError("engine.zipSize");
   return { bytes, extension: groups.length === 1 ? "pdf" : "zip" };
 }
 
 export async function blankDocument(width: number, height: number): Promise<ImportResult> {
-  if (!(width >= 1 && width <= 14400 && height >= 1 && height <= 14400)) throw new Error("Blank page size is out of range.");
+  if (!(width >= 1 && width <= 14400 && height >= 1 && height <= 14400)) throw new CodedError("engine.blankSize");
   const document = await PDFDocument.create();
   document.addPage([width, height]);
   return { bytes: await document.save(), count: 1, report: inspect(document) };
@@ -164,8 +165,8 @@ export async function blankDocument(width: number, height: number): Promise<Impo
 /** N-up: places the pages on sheets of cols×rows cells, each cell as large as the largest displayed page. */
 export async function mergePages(sources: Source[], pages: Page[], { cols, rows, order }: MergeOptions): Promise<ImportResult> {
   const grid = (value: number) => Number.isInteger(value) && value >= 1 && value <= 10;
-  if (!grid(cols) || !grid(rows) || cols * rows < 2 || (order !== "rows" && order !== "columns")) throw new Error("Choose a layout of 2 to 100 pages per sheet.");
-  if (pages.length < 2 || pages.length > MAX_PAGES) throw new Error("Select 2–500 pages to merge.");
+  if (!grid(cols) || !grid(rows) || cols * rows < 2 || (order !== "rows" && order !== "columns")) throw new CodedError("engine.layout");
+  if (pages.length < 2 || pages.length > MAX_PAGES) throw new CodedError("engine.mergeSelect");
   const documents = new Map<string, PDFDocument>();
   const output = await PDFDocument.create();
   const items = [];
@@ -195,6 +196,6 @@ export async function mergePages(sources: Source[], pages: Page[], { cols, rows,
     });
   }
   const bytes = await output.save();
-  if (bytes.length > MAX_FILE_BYTES) throw new Error("Merged pages exceed the 50 MiB file limit. Merge fewer pages.");
+  if (bytes.length > MAX_FILE_BYTES) throw new CodedError("engine.mergedSize");
   return { bytes, count: output.getPageCount(), report: inspect(output) };
 }

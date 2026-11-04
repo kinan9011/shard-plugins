@@ -1,7 +1,7 @@
 {
   "name": "csv-json",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "CSV to JSON plugin. Keep `version` in step with public/plugin.json.",
   "license": "MIT",
   "type": "module",

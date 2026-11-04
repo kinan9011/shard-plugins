@@ -1,0 +1,25 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "option.component": "Envolver en un componente",
+  "option.name": "Nombre",
+  "pane.html": "HTML",
+  "pane.jsx": "JSX",
+  "copy.jsx": "Copiar JSX",
+  "empty.title": "El JSX aparece aquí",
+  "empty.hint": "Escribe o pega HTML en la entrada.",
+  "status.invalidName": "Nombre no válido",
+  "status.ready": "Listo",
+  "status.lines_one": "{n} línea",
+  "status.lines_other": "{n} líneas",
+  "status.handlers_one": "{n} controlador de eventos necesita código",
+  "status.handlers_other": "{n} controladores de eventos necesitan código",
+  "error.componentName": "El nombre del componente debe empezar por una letra mayúscula y usar solo letras, dígitos, $ o _.",
+  "faq.noRun.q": "¿Se ejecuta o carga el HTML durante la conversión?",
+  "faq.noRun.a": "No. El HTML se analiza en un documento aparte que nunca se muestra. Los scripts no se ejecutan, y las imágenes y otros archivos no se cargan.",
+  "faq.events.q": "¿Qué pasa con onclick y otros atributos de eventos?",
+  "faq.events.a": "Cada uno se convierte en una prop de React como `onClick={() => {}}`. El código original se conserva en un comentario al lado. React necesita una función, así que escribe tú el controlador.",
+  "faq.defaultValue.q": "¿Por qué algunos inputs reciben defaultValue?",
+  "faq.defaultValue.a": "En React, `value` y `checked` convierten un campo en controlado. La herramienta usa `defaultValue` y `defaultChecked` para que el campo siga funcionando sin estado.",
+  "faq.whitespace.q": "¿Cómo se tratan los espacios en blanco?",
+  "faq.whitespace.a": "La sangría del código fuente se elimina, como hace JSX. Un espacio entre elementos en línea se conserva como `{\" \"}`. El texto dentro de `<pre>`, `<textarea>`, `<script>` y `<style>` se conserva exactamente en un template literal."
+};

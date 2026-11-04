@@ -1,6 +1,7 @@
 /**
  * GZIP, zlib, and raw deflate with the built-in CompressionStream and DecompressionStream.
  */
+import { t, formatNumber } from "@/lib/i18n";
 import { base64ToBytes } from "@/utils/base64";
 import { formatBytes } from "@/utils/format-bytes";
 
@@ -23,7 +24,7 @@ export const MAX_OUTPUT_BYTES = 50 * 1024 * 1024;
 
 export class OutputTooLargeError extends Error {
   constructor(limit: number) {
-    super(`The decompressed data is larger than ${formatBytes(limit)}. The tool stopped there to protect memory.`);
+    super(t("error.tooLarge", { limit: formatBytes(limit) }));
     this.name = "OutputTooLargeError";
   }
 }
@@ -67,7 +68,7 @@ export function parseEncodedInput(text: string): EncodedInput {
   try {
     bytes = base64ToBytes(text);
   } catch {
-    throw new Error("Enter compressed data as Base64 or hex.");
+    throw new Error(t("error.notEncoded"));
   }
   // Base64 of gzip starts with "H4sI". A second layer of Base64 hides it one level down.
   if (!isGzip(bytes) && bytes.length > 4 && String.fromCharCode(...bytes.subarray(0, 4)) === "H4sI") {
@@ -131,9 +132,9 @@ export async function decompress(
   } catch (err) {
     if (err instanceof OutputTooLargeError) throw err;
     if (format === "auto" && used === "deflate-raw") {
-      throw new Error("The data is not GZIP, zlib, or raw deflate. Check that you copied all of it.");
+      throw new Error(t("error.unknownFormat"));
     }
-    throw new Error(`The data is not valid ${FORMAT_LABELS[used]}. It is corrupt, cut short, or in a different format.`);
+    throw new Error(t("error.invalidFormat", { format: FORMAT_LABELS[used] }));
   }
 }
 
@@ -180,5 +181,5 @@ export function hexPreview(bytes: Uint8Array, limit = 4096): string {
 export function ratioLabel(compressed: number, original: number): string {
   if (original <= 0) return "";
   const percent = (compressed / original) * 100;
-  return `${percent < 10 ? percent.toFixed(1).replace(/\.0$/, "") : Math.round(percent)}% of original`;
+  return t("ratio.ofOriginal", { percent: formatNumber(percent, { maximumFractionDigits: percent < 10 ? 1 : 0 }) });
 }

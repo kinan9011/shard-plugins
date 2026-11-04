@@ -1,0 +1,17 @@
+export default {
+  "title": "ストップウォッチ",
+  "time.label": "経過時間",
+  "action.start": "開始",
+  "action.pause": "一時停止",
+  "action.resume": "再開",
+  "action.lap": "ラップ",
+  "action.reset": "リセット",
+  "note": "ツールのタブを切り替えても計測は続き、スリープ中の時間も含まれます。このツールを閉じるとストップウォッチはクリアされます。",
+  "action.copyLaps": "ラップをコピー",
+  "action.exportLaps": "ラップをエクスポート",
+  "table.lap": "ラップ",
+  "table.split": "スプリット",
+  "table.total": "合計",
+  "empty.laps": "ストップウォッチを開始してラップを記録すると、スプリットタイムを比較できます。",
+  "error.save": "ラップを保存できませんでした。代わりにコピーしてください。",
+};

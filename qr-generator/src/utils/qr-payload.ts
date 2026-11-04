@@ -4,6 +4,8 @@
  * the required fields are present.
  */
 
+import { t } from "@/lib/i18n";
+
 export type WifiSecurity = "WPA" | "WEP" | "nopass";
 
 export interface WifiFields {
@@ -132,9 +134,9 @@ const parseCoordinate = (text: string, limit: number) => {
 export function buildGeoPayload({ latitude, longitude }: GeoFields): PayloadResult {
   if (!latitude.trim() || !longitude.trim()) return { payload: "" };
   const lat = parseCoordinate(latitude, 90);
-  if (lat === null) return { payload: "", error: "Enter a latitude from -90 to 90." };
+  if (lat === null) return { payload: "", error: t("error.latitude") };
   const lng = parseCoordinate(longitude, 180);
-  if (lng === null) return { payload: "", error: "Enter a longitude from -180 to 180." };
+  if (lng === null) return { payload: "", error: t("error.longitude") };
   return { payload: `geo:${lat},${lng}` };
 }
 
@@ -172,7 +174,7 @@ export function buildEventPayload(fields: EventFields): PayloadResult {
 
   const sortKey = (value: string) => (fields.allDay ? value.split("T")[0] : value);
   if (fields.end && sortKey(fields.end) < sortKey(fields.start)) {
-    return { payload: "", error: "The end must be after the start." };
+    return { payload: "", error: t("error.endBeforeStart") };
   }
 
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT", `SUMMARY:${escapeVCardText(title)}`];

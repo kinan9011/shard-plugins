@@ -1,3 +1,4 @@
+import { CodedError } from "./errors";
 import { blankDocument, exportDocument, importDocument, mergePages, type Request } from "./engine";
 
 self.onmessage = async ({ data }: MessageEvent<Request>) => {
@@ -8,6 +9,7 @@ self.onmessage = async ({ data }: MessageEvent<Request>) => {
       : await exportDocument(data.sources, data.pages, data.groups, data.metadata);
     self.postMessage({ result });
   } catch (error) {
-    self.postMessage({ error: error instanceof Error ? error.message : "PDF processing failed." });
+    const coded = error instanceof CodedError ? error : error instanceof Error ? undefined : new CodedError("engine.failed");
+    self.postMessage({ error: coded?.message ?? (error as Error).message, key: coded?.key, vars: coded?.vars });
   }
 };

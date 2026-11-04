@@ -1,5 +1,6 @@
 import { getDocument, GlobalWorkerOptions, type PDFDocumentLoadingTask } from "pdfjs-dist";
 import { spawnWorker } from "../shard-sdk";
+import { t } from "@/lib/i18n";
 import type { Page, Source } from "./engine";
 import type { Crop } from "./geometry";
 
@@ -13,7 +14,7 @@ export async function previewDocument(source: Source) {
   }).catch(error => { if (port === pendingPort) port = undefined; throw error; });
   const pendingPort = port;
   const worker = await pendingPort;
-  if (port !== pendingPort) throw new Error("Preview cancelled.");
+  if (port !== pendingPort) throw new Error(t("preview.cancelled"));
   GlobalWorkerOptions.workerPort = worker;
   let task = documents.get(source.id);
   if (!task) {

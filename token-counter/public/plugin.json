@@ -1,7 +1,7 @@
 {
   "id": "token-counter",
   "name": "Token Counter",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Count GPT tokens exactly, estimate Claude, Gemini, and Llama tokens, check the context window, and estimate cost from your own price table.",
   "category": "AI Tools",
   "keywords": [

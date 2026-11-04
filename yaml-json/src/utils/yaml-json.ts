@@ -1,4 +1,5 @@
 import { parseAllDocuments, stringify, YAMLError } from "yaml";
+import { t } from "@/lib/i18n";
 import { ConversionError, errorAt, setOwn } from "./conversion-error";
 import { envKey, formatEnv, parseEnv, type EnvNesting } from "./env-file";
 import { expandKeys, formatProperties, parseProperties, propertiesKey } from "./properties-file";
@@ -77,20 +78,20 @@ const parseJson = (input: string): unknown => {
   try {
     return JSON.parse(input);
   } catch (error) {
-    const raw = error instanceof Error ? error.message : "Check the syntax.";
+    const raw = error instanceof Error ? error.message : t("error.checkSyntax");
     const { line, column } = jsonErrorPosition(input, raw);
-    const message = `Invalid JSON. ${raw.replace(/\s*\(line \d+ column \d+\)/, "").replace(/ in JSON at position \d+.*$/, "")}`;
+    const message = t("error.invalidJson", { message: raw.replace(/\s*\(line \d+ column \d+\)/, "").replace(/ in JSON at position \d+.*$/, "") });
     throw errorAt(message, line, column);
   }
 };
 
 const requireToml = (toml: TomlModule | undefined) => {
-  if (!toml) throw new ConversionError("The TOML parser is still loading. Try again in a moment.");
+  if (!toml) throw new ConversionError(t("error.tomlLoading"));
   return toml;
 };
 
 const requireToon = (toon: ToonModule | undefined) => {
-  if (!toon) throw new ConversionError("The TOON encoder is still loading. Try again in a moment.");
+  if (!toon) throw new ConversionError(t("error.toonLoading"));
   return toon;
 };
 
@@ -183,11 +184,11 @@ const findNull = (value: unknown, path: Path = []): Path | null => {
 /** TOML, .env, and .properties hold one table of keys, so they need one object. */
 const singleObject = (values: unknown[], to: ConfigFormat) => {
   const name = FORMAT_NAMES[to];
-  if (values.length > 1) throw new ConversionError(`${name} needs one YAML document. This input has ${values.length}.`);
+  if (values.length > 1) throw new ConversionError(t("error.oneDocument", { name, total: values.length }));
   const value = values[0];
   if (!isPlainObject(value)) {
-    const kind = Array.isArray(value) ? "an array" : value === null || value === undefined ? "empty" : "a single value";
-    throw new ConversionError(`${name} needs an object at the top level. The input is ${kind}.`);
+    const kind = Array.isArray(value) ? "array" : value === null || value === undefined ? "empty" : "value";
+    throw new ConversionError(t(kind === "array" ? "error.objectArray" : kind === "empty" ? "error.objectEmpty" : "error.objectValue", { name }));
   }
   return value;
 };
@@ -198,7 +199,7 @@ const writeEnv = (value: Record<string, unknown>, nesting: EnvNesting) => {
     const key = envKey(path, nesting);
     const source = propertiesKey(path);
     const earlier = sources.get(key);
-    if (earlier !== undefined) throw new ConversionError(`"${earlier}" and "${source}" both become ${key}. Rename one of them.`);
+    if (earlier !== undefined) throw new ConversionError(t("error.envCollision", { first: earlier, second: source, key }));
     sources.set(key, source);
     return [key, text] as const;
   });
@@ -207,12 +208,12 @@ const writeEnv = (value: Record<string, unknown>, nesting: EnvNesting) => {
 
 const writeToml = (value: Record<string, unknown>, toml: TomlModule) => {
   const nullPath = findNull(value);
-  if (nullPath) throw new ConversionError(`TOML has no null value. Remove or replace "${propertiesKey(nullPath)}".`);
+  if (nullPath) throw new ConversionError(t("error.tomlNull", { key: propertiesKey(nullPath) }));
   try {
     const text = toml.stringify(value).trim();
     return text ? `${text}\n` : "";
   } catch (error) {
-    throw new ConversionError(error instanceof Error ? error.message : "Could not write TOML.");
+    throw new ConversionError(error instanceof Error ? error.message : t("error.tomlWrite"));
   }
 };
 

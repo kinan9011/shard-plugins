@@ -2,8 +2,9 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useMemo, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
+import { formatNumber, useT } from "@/lib/i18n";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import {
   convertIdn,
@@ -21,49 +22,12 @@ import {
 type Mode = "html" | "backslash" | "unicode" | "hex" | "punycode";
 type Direction = "encode" | "decode";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Is decoding HTML safe for untrusted input?",
-    a: "Yes. The decoder replaces character references such as `&lt;` and `&#x1F600;` with plain text. It never parses markup or runs scripts. Unknown entity names are left as written.",
-  },
-  {
-    q: "What is the difference between Backslash and Unicode?",
-    a: "Backslash escapes quotes, backslashes, and control characters so text fits in a JavaScript or JSON string. Unicode writes non-ASCII characters as `\\uXXXX` so the text is pure ASCII.",
-  },
-  {
-    q: "Which hex formats can I decode?",
-    a: "Plain digits such as `48656c6c6f`, bytes split by spaces, colons, commas, or dashes, and bytes with `0x` or `\\x` prefixes. The bytes must be valid UTF-8.",
-  },
-  {
-    q: "What does Punycode do?",
-    a: "It converts internationalized domain names to the ASCII form that DNS uses. Each label converts on its own, so `münchen.de` becomes `xn--mnchen-3ya.de`. Encode lowercases and NFC normalizes each label first. Decode shows an error for an invalid `xn--` label.",
-  },
-  {
-    q: "Can I convert a full URL or an email address?",
-    a: "Yes. The tool converts only the domain part. The scheme, user name, port, path, and query stay as you wrote them. Put one domain, URL, or email address on each line.",
-  },
-];
+const FAQ_KEYS = ["htmlSafe", "backslashUnicode", "hexFormats", "punycode", "urls"] as const;
 
-const MODE_LABELS: Record<Mode, string> = {
-  html: "HTML entities",
-  backslash: "Backslash",
-  unicode: "Unicode",
-  hex: "Hex",
-  punycode: "Punycode",
-};
-
-const PLACEHOLDERS: Record<Mode, Record<Direction, string>> = {
-  html: { encode: 'Enter text to escape (e.g., <a href="x">Tom & Jerry</a>)', decode: "Enter HTML entities (e.g., &lt;p&gt;caf&eacute; &#x1F600;&lt;/p&gt;)" },
-  backslash: { encode: 'Enter text to escape (e.g., He said "hi"\\n)', decode: "Enter an escaped string (e.g., line 1\\nline 2\\t\\u00e9)" },
-  unicode: { encode: "Enter text to escape (e.g., café 😀)", decode: "Enter Unicode escapes (e.g., caf\\u00e9 \\u{1F600})" },
-  hex: { encode: "Enter text to convert to hex (e.g., Hello)", decode: "Enter hex bytes (e.g., 48 65 6c 6c 6f)" },
-  punycode: {
-    encode: "Enter a domain, URL, or email address, one per line (e.g., münchen.de)",
-    decode: "Enter a Punycode domain, URL, or email address, one per line (e.g., xn--mnchen-3ya.de)",
-  },
-};
+const MODES: Mode[] = ["html", "backslash", "unicode", "hex", "punycode"];
 
 export function EscapeTools() {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("html");
   const [direction, setDirection] = useState<Direction>("encode");
   const [input, setInput] = useState("");
@@ -89,14 +53,17 @@ export function EscapeTools() {
       case "punycode":
         return convertIdn(text, encode ? "toAscii" : "toUnicode");
     }
-  }, [text, mode, direction, htmlNonAscii, unicodeBraces, unicodeAll, hexSpaced, hexUpper]);
+  }, [text, mode, direction, htmlNonAscii, unicodeBraces, unicodeAll, hexSpaced, hexUpper, t]);
 
   const output = "value" in result ? result.value : "";
   const error = "error" in result ? result.error : "";
   const encoding = direction === "encode";
   const punycode = mode === "punycode";
-  const outputTitle = punycode ? (encoding ? "ASCII" : "Unicode") : encoding ? "Escaped" : "Unescaped";
-  const inputTitle = punycode ? (encoding ? "Domain" : "Punycode domain") : encoding ? "Text" : mode === "hex" ? "Hex" : "Escaped text";
+  const outputKind = punycode ? (encoding ? "ascii" : "unicode") : encoding ? "escaped" : "unescaped";
+  const outputTitle = outputKind === "ascii" ? "ASCII" : outputKind === "unicode" ? "Unicode" : t(`output.${outputKind}`);
+  const inputTitle = punycode ? (encoding ? t("input.domain") : t("input.punycodeDomain")) : encoding ? t("input.text") : mode === "hex" ? "Hex" : t("input.escaped");
+  const modeLabel = (m: Mode) => (m === "html" ? t("mode.html") : m === "backslash" ? t("mode.backslash") : m === "unicode" ? "Unicode" : m === "hex" ? "Hex" : "Punycode");
+  const faqItems = FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }));
 
   // Move the result into the input and reverse the direction
   const swap = () => {
@@ -117,33 +84,33 @@ export function EscapeTools() {
       toolbar={
         <>
           <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-            <TabsList aria-label="Format">
-              {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
-                <TabsTrigger key={m} value={m}>{MODE_LABELS[m]}</TabsTrigger>
+            <TabsList aria-label={t("format.aria")}>
+              {MODES.map((m) => (
+                <TabsTrigger key={m} value={m}>{modeLabel(m)}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <Tabs value={direction} onValueChange={(v) => setDirection(v as Direction)} className="indent-control">
-            <TabsList aria-label="Direction">
-              <TabsTrigger value="encode">Encode</TabsTrigger>
-              <TabsTrigger value="decode">Decode</TabsTrigger>
+            <TabsList aria-label={t("direction.aria")}>
+              <TabsTrigger value="encode">{t("mode.encode")}</TabsTrigger>
+              <TabsTrigger value="decode">{t("mode.decode")}</TabsTrigger>
             </TabsList>
           </Tabs>
-          {encoding && mode === "html" && option("escape-html-non-ascii", "Non-ASCII as entities", htmlNonAscii, setHtmlNonAscii)}
+          {encoding && mode === "html" && option("escape-html-non-ascii", t("option.htmlNonAscii"), htmlNonAscii, setHtmlNonAscii)}
           {encoding && mode === "unicode" && (
             <>
-              {option("escape-unicode-braces", "Use \\u{…}", unicodeBraces, setUnicodeBraces)}
-              {option("escape-unicode-all", "Escape ASCII too", unicodeAll, setUnicodeAll)}
+              {option("escape-unicode-braces", t("option.unicodeBraces"), unicodeBraces, setUnicodeBraces)}
+              {option("escape-unicode-all", t("option.unicodeAll"), unicodeAll, setUnicodeAll)}
             </>
           )}
           {encoding && mode === "hex" && (
             <>
-              {option("escape-hex-spaced", "Space between bytes", hexSpaced, setHexSpaced)}
-              {option("escape-hex-upper", "Uppercase", hexUpper, setHexUpper)}
+              {option("escape-hex-spaced", t("option.hexSpaced"), hexSpaced, setHexSpaced)}
+              {option("escape-hex-upper", t("option.hexUpper"), hexUpper, setHexUpper)}
             </>
           )}
           <button type="button" className="toolbar-text-button" onClick={swap} disabled={!output}>
-            Swap
+            {t("action.swap")}
           </button>
         </>
       }
@@ -153,9 +120,9 @@ export function EscapeTools() {
           title={inputTitle}
           htmlFor="escape-input"
           scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}
         >
-          <CodeTextarea id="escape-input" placeholder={PLACEHOLDERS[mode][direction]} value={input} onChange={(e) => setInput(e.target.value)} />
+          <CodeTextarea id="escape-input" placeholder={t(`placeholder.${mode}.${direction}`)} value={input} onChange={(e) => setInput(e.target.value)} />
         </EditorPane>
       }
       second={
@@ -163,21 +130,21 @@ export function EscapeTools() {
           title={outputTitle}
           htmlFor={output ? "escape-output" : undefined}
           scroll={false}
-          actions={<CopyButton value={output} label="Copy" ariaLabel={`Copy ${outputTitle.toLowerCase()} text`} />}
+          actions={<CopyButton value={output} label={t("common.copy")} ariaLabel={t(`copy.${outputKind}`)} />}
         >
-          {output ? <CodeTextarea id="escape-output" value={output} readOnly /> : <PaneEmpty title={`${outputTitle} text appears here`} />}
+          {output ? <CodeTextarea id="escape-output" value={output} readOnly /> : <PaneEmpty title={t(`empty.${outputKind}`)} />}
         </EditorPane>
       }
       status={
         error ? (
-          <span className="text-destructive">Invalid input</span>
+          <span className="text-destructive">{t("status.invalid")}</span>
         ) : output ? (
-          <span>{text.length.toLocaleString()} → {output.length.toLocaleString()} characters</span>
+          <span>{t("status.chars", { input: formatNumber(text.length), count: output.length })}</span>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={faqItems} />}
     />
   );
 }

@@ -1,4 +1,5 @@
 import jsQR from "jsqr";
+import { t } from "@/lib/i18n";
 
 /** Images are scaled down so that the longest side is at most this many pixels before decoding. */
 export const MAX_DECODE_SIDE = 2000;
@@ -55,7 +56,7 @@ const loadImage = (url: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not read this image. Use a PNG, JPEG, GIF, WebP, or BMP file."));
+    image.onerror = () => reject(new Error(t("error.readImage")));
     image.src = url;
   });
 
@@ -65,12 +66,12 @@ export async function readImagePixels(blob: Blob, maxSide = MAX_DECODE_SIDE): Pr
   try {
     const image = await loadImage(url);
     const { width, height } = fitWithin(image.naturalWidth, image.naturalHeight, maxSide);
-    if (!width || !height) throw new Error("This image has no pixels.");
+    if (!width || !height) throw new Error(t("error.noPixels"));
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) throw new Error("Could not prepare the image for decoding.");
+    if (!context) throw new Error(t("error.prepare"));
     // A white background makes transparent PNG codes readable.
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
@@ -115,14 +116,8 @@ export interface QrPayload {
   href?: string;
 }
 
-const KIND_LABELS: Record<QrPayloadKind, string> = {
-  url: "URL",
-  wifi: "Wi-Fi network",
-  email: "Email",
-  phone: "Phone number",
-  sms: "SMS",
-  text: "Plain text",
-};
+/** The name of a payload type in the app language. */
+const kindLabel = (kind: QrPayloadKind) => t(`kind.${kind}`);
 
 /**
  * Splits the body of a Wi-Fi payload into fields. Backslash escapes the next character,
@@ -156,14 +151,11 @@ function splitWifiFields(body: string): Map<string, string> {
   return fields;
 }
 
-const SECURITY_LABELS: Record<string, string> = {
-  WPA: "WPA/WPA2",
-  WPA2: "WPA2",
-  WPA3: "WPA3",
-  SAE: "WPA3",
-  WEP: "WEP",
-  NOPASS: "None",
-  "": "None",
+/** Security names are protocol names and stay as they are; only "None" is translated. */
+const securityLabel = (code: string, raw: string) => {
+  if (code === "NOPASS" || code === "") return t("payload.securityNone");
+  const names: Record<string, string> = { WPA: "WPA/WPA2", WPA2: "WPA2", WPA3: "WPA3", SAE: "WPA3", WEP: "WEP" };
+  return names[code] ?? raw;
 };
 
 export function parseWifiPayload(text: string): QrPayloadField[] | null {
@@ -172,12 +164,12 @@ export function parseWifiPayload(text: string): QrPayloadField[] | null {
   if (!fields.has("S")) return null;
   const security = (fields.get("T") ?? "").toUpperCase();
   const rows: QrPayloadField[] = [
-    { label: "Network name", value: fields.get("S") ?? "" },
-    { label: "Security", value: SECURITY_LABELS[security] ?? (fields.get("T") ?? "") },
+    { label: t("payload.networkName"), value: fields.get("S") ?? "" },
+    { label: t("payload.security"), value: securityLabel(security, fields.get("T") ?? "") },
   ];
   const password = fields.get("P");
-  if (password !== undefined && security !== "NOPASS") rows.push({ label: "Password", value: password });
-  if (/^true$/i.test(fields.get("H") ?? "")) rows.push({ label: "Hidden network", value: "Yes" });
+  if (password !== undefined && security !== "NOPASS") rows.push({ label: t("payload.password"), value: password });
+  if (/^true$/i.test(fields.get("H") ?? "")) rows.push({ label: t("payload.hiddenNetwork"), value: t("payload.yes") });
   return rows;
 }
 
@@ -192,9 +184,9 @@ const safeDecode = (value: string) => {
 export function parseMailtoPayload(text: string): QrPayloadField[] | null {
   const match = /^mailto:([^?]*)(?:\?(.*))?$/is.exec(text);
   if (!match) return null;
-  const rows: QrPayloadField[] = [{ label: "To", value: safeDecode(match[1]) }];
+  const rows: QrPayloadField[] = [{ label: t("payload.to"), value: safeDecode(match[1]) }];
   const params = new URLSearchParams(match[2] ?? "");
-  const named: Array<[string, string]> = [["cc", "Cc"], ["bcc", "Bcc"], ["subject", "Subject"], ["body", "Body"]];
+  const named: Array<[string, string]> = [["cc", t("payload.cc")], ["bcc", t("payload.bcc")], ["subject", t("payload.subject")], ["body", t("payload.body")]];
   for (const [key, label] of named) {
     const value = params.get(key);
     if (value) rows.push({ label, value });
@@ -207,29 +199,29 @@ export function parseQrPayload(raw: string): QrPayload {
   const text = raw.trim();
 
   const wifi = parseWifiPayload(text);
-  if (wifi) return { kind: "wifi", label: KIND_LABELS.wifi, fields: wifi };
+  if (wifi) return { kind: "wifi", label: kindLabel("wifi"), fields: wifi };
 
   const email = parseMailtoPayload(text);
-  if (email) return { kind: "email", label: KIND_LABELS.email, fields: email, href: text };
+  if (email) return { kind: "email", label: kindLabel("email"), fields: email, href: text };
 
   const tel = /^tel:(.+)$/i.exec(text);
-  if (tel) return { kind: "phone", label: KIND_LABELS.phone, fields: [{ label: "Number", value: safeDecode(tel[1]) }] };
+  if (tel) return { kind: "phone", label: kindLabel("phone"), fields: [{ label: t("payload.number"), value: safeDecode(tel[1]) }] };
 
   const sms = /^(?:smsto|sms):([^:?]+)(?:[:?](?:body=)?(.*))?$/is.exec(text);
   if (sms) {
-    const fields = [{ label: "Number", value: sms[1] }];
-    if (sms[2]) fields.push({ label: "Message", value: safeDecode(sms[2]) });
-    return { kind: "sms", label: KIND_LABELS.sms, fields };
+    const fields = [{ label: t("payload.number"), value: sms[1] }];
+    if (sms[2]) fields.push({ label: t("payload.message"), value: safeDecode(sms[2]) });
+    return { kind: "sms", label: kindLabel("sms"), fields };
   }
 
   if (/^https?:\/\/\S+$/i.test(text)) {
     try {
       const url = new URL(text);
-      return { kind: "url", label: KIND_LABELS.url, fields: [{ label: "Host", value: url.host }], href: url.href };
+      return { kind: "url", label: kindLabel("url"), fields: [{ label: t("payload.host"), value: url.host }], href: url.href };
     } catch {
       /* Not a valid URL. Show it as text. */
     }
   }
 
-  return { kind: "text", label: KIND_LABELS.text, fields: [] };
+  return { kind: "text", label: kindLabel("text"), fields: [] };
 }

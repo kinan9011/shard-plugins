@@ -1,7 +1,8 @@
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useMemo, useState } from "react";
 import { ScanText, TriangleAlert } from "lucide-react";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
+import { formatList, formatNumber, useT, type TKey } from "@/lib/i18n";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import {
@@ -17,46 +18,42 @@ import {
 
 const CHAR_LIMIT = 500;
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Why do Characters and UTF-16 code units differ?",
-    a: "Characters counts what a reader sees (grapheme clusters). A family emoji built with zero-width joiners is one character but many code units. JavaScript `length` reports UTF-16 code units, and databases often limit UTF-8 bytes.",
-  },
-  {
-    q: "Which characters are flagged?",
-    a: "Zero-width characters, the byte order mark, no-break and other unusual spaces, bidirectional controls such as RLO, and control characters. These can break comparisons, identifiers, and parsers without being visible.",
-  },
-  {
-    q: "Why are there no Unicode character names?",
-    a: "The full Unicode name list is large and the tool runs offline, so only hard-to-see characters get a name. Every character shows its code point, category, and UTF-8 bytes.",
-  },
-  {
-    q: "What does the Normalization section show?",
-    a: "Unicode can write one character in more than one way. For example, `é` can be U+00E9 or `e` followed by U+0301. The section shows if the text is already in NFC, NFD, NFKC, and NFKD, and the length of each form. Copy a form to make comparisons and lookups match.",
-  },
-  {
-    q: "Why do two strings that look the same not compare equal?",
-    a: "One string can use a composed character and the other a base letter plus a combining mark. The tool warns when your text writes the same character in two ways. Copy the NFC form to use one spelling.",
-  },
-];
+const FAQ_SLUGS = ["graphemes", "flagged", "names", "normalization", "lookalike"] as const;
 
-const FLAG_TEXT: Record<CharFlag, string> = {
-  invisible: "Invisible",
-  control: "Control",
-  bidi: "Bidi control",
+const FLAG_KEY: Record<CharFlag, TKey> = {
+  invisible: "flag.invisible",
+  control: "flag.control",
+  bidi: "flag.bidi",
 };
 
-const LINE_ENDING_TEXT: Record<LineEnding, string> = {
-  none: "None",
-  LF: "LF (Unix)",
-  CRLF: "CRLF (Windows)",
-  CR: "CR (classic Mac)",
-  mixed: "Mixed",
+const CATEGORY_KEY: Record<CharInfo["category"], TKey> = {
+  letter: "category.letter",
+  mark: "category.mark",
+  digit: "category.digit",
+  number: "category.number",
+  punctuation: "category.punctuation",
+  symbol: "category.symbol",
+  emoji: "category.emoji",
+  whitespace: "category.whitespace",
+  control: "category.control",
+  format: "category.format",
+  surrogate: "category.surrogate",
+  "private use": "category.privateUse",
+  unassigned: "category.unassigned",
 };
 
-const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
+const LINE_ENDING_KEY: Record<LineEnding, TKey | null> = {
+  none: "lineEnding.none",
+  LF: null,
+  CRLF: null,
+  CR: null,
+  mixed: "lineEnding.mixed",
+};
+// The system names stay as they are.
+const LINE_ENDING_NAME: Partial<Record<LineEnding, string>> = { LF: "LF (Unix)", CRLF: "CRLF (Windows)", CR: "CR (classic Mac)" };
 
 function CharRow({ info }: { info: CharInfo }) {
+  const t = useT();
   return (
     <div
       role="row"
@@ -65,30 +62,32 @@ function CharRow({ info }: { info: CharInfo }) {
       <span role="cell" className={`truncate font-mono ${info.display !== info.char ? "text-2xs text-muted-foreground" : "text-sm"}`}>
         {info.display}
       </span>
-      <span role="cell" className="font-mono">{info.hex}</span>
+      <span role="cell" dir="ltr" className="font-mono text-start">{info.hex}</span>
       <span role="cell" className="min-w-0">
         <span className="block truncate">
-          {info.flag && <span className="mr-1 font-medium text-warning">{FLAG_TEXT[info.flag]}</span>}
-          {info.label ?? info.category}
+          {info.flag && <span className="me-1 font-medium text-warning">{t(FLAG_KEY[info.flag])}</span>}
+          {info.label ?? t(CATEGORY_KEY[info.category])}
         </span>
-        <span className="block font-mono text-2xs text-muted-foreground">
-          {info.utf8}
-          {info.flag && ` · first at line ${info.firstLine}, column ${info.firstColumn}`}
+        <span className="block text-2xs text-muted-foreground">
+          <span dir="ltr" className="font-mono">{info.utf8}</span>
+          {info.flag && ` · ${t("char.firstAt", { line: formatNumber(info.firstLine), column: formatNumber(info.firstColumn) })}`}
         </span>
       </span>
-      <span role="cell" className="text-right font-mono text-muted-foreground">×{info.count.toLocaleString()}</span>
+      <span role="cell" dir="ltr" className="text-end font-mono text-muted-foreground">×{formatNumber(info.count)}</span>
     </div>
   );
 }
 
 export function StringInspector() {
+  const t = useT();
   const [input, setInput] = useState("");
   const text = useDebouncedValue(input);
 
   const result = useMemo(() => {
     if (!text) return null;
     return { stats: getStringStats(text), chars: inspectCharacters(text, CHAR_LIMIT) };
-  }, [text]);
+    // `t` is a dependency because the character names are translated while they are described.
+  }, [text, t]);
 
   const normalization = useMemo(
     () => (text ? { forms: getNormalizedForms(text), check: findNormalizationVariants(text) } : null),
@@ -98,20 +97,30 @@ export function StringInspector() {
 
   const cleaned = useMemo(() => (result?.chars.flaggedCount ? stripFlaggedCharacters(text) : ""), [result, text]);
 
+  const count = (key: "count.character" | "count.codePoint" | "count.utf16Unit" | "count.byte", n: number) => t(key, { count: n, n: formatNumber(n) });
+
   const statRows: [string, string][] = result
     ? [
-        ["Characters", result.stats.graphemes.toLocaleString()],
-        ["UTF-16 units", result.stats.codeUnits.toLocaleString()],
-        ["Code points", result.stats.codePoints.toLocaleString()],
-        ["UTF-8 bytes", result.stats.bytes.toLocaleString()],
-        ["Words", result.stats.words.toLocaleString()],
-        ["Lines", result.stats.lines.toLocaleString()],
-        ["Sentences", result.stats.sentences.toLocaleString()],
-        ["Whitespace", result.stats.whitespace.toLocaleString()],
-        ["Longest line", `${plural(result.stats.longestLine, "character")} (line ${result.stats.longestLineNumber.toLocaleString()})`],
-        ["Line endings", LINE_ENDING_TEXT[result.stats.lineEnding]],
+        [t("stat.characters"), formatNumber(result.stats.graphemes)],
+        [t("stat.utf16"), formatNumber(result.stats.codeUnits)],
+        [t("stat.codePoints"), formatNumber(result.stats.codePoints)],
+        [t("stat.bytes"), formatNumber(result.stats.bytes)],
+        [t("stat.words"), formatNumber(result.stats.words)],
+        [t("stat.lines"), formatNumber(result.stats.lines)],
+        [t("stat.sentences"), formatNumber(result.stats.sentences)],
+        [t("stat.whitespace"), formatNumber(result.stats.whitespace)],
+        [
+          t("stat.longestLine"),
+          t("stat.longestLineValue", { length: count("count.character", result.stats.longestLine), line: formatNumber(result.stats.longestLineNumber) }),
+        ],
+        [t("stat.lineEndings"), LINE_ENDING_KEY[result.stats.lineEnding] ? t(LINE_ENDING_KEY[result.stats.lineEnding]!) : LINE_ENDING_NAME[result.stats.lineEnding]!],
       ]
     : [];
+
+  const andMore = (items: string[], more: number) => {
+    const list = formatList(items, "unit");
+    return more > 0 ? t("list.andMore", { list, n: formatNumber(more) }) : list;
+  };
 
   const statsJson = result ? JSON.stringify(result.stats, null, 2) : "";
   const flagged = result?.chars.flagged ?? [];
@@ -121,36 +130,41 @@ export function StringInspector() {
       id="string-inspector"
       toolbar={
         <>
-          <CopyButton value={statsJson} label="Copy stats" />
-          {cleaned && <CopyButton value={cleaned} label="Copy without flagged characters" />}
+          <CopyButton value={statsJson} label={t("copy.stats")} />
+          {cleaned && <CopyButton value={cleaned} label={t("copy.cleaned")} />}
         </>
       }
       first={
         <EditorPane
-          title="Text"
+          title={t("pane.text")}
           htmlFor="string-inspector-input"
           scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}
         >
           <CodeTextarea
             id="string-inspector-input"
-            placeholder="Paste text to count characters and find hidden ones"
+            placeholder={t("input.placeholder")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
         </EditorPane>
       }
       second={
-        <EditorPane title="Inspection">
+        <EditorPane title={t("pane.inspection")}>
           {result ? (
             <div className="result-list">
               {flagged.length > 0 && (
                 <div className="pane-options text-warning" role="status">
                   <TriangleAlert size={14} aria-hidden="true" />
                   <span>
-                    {plural(result.chars.flaggedCount, "hidden or control character")} found:{" "}
-                    {flagged.slice(0, 6).map((c) => `${c.abbr ?? c.hex} ×${c.count}`).join(", ")}
-                    {flagged.length > 6 && ` and ${flagged.length - 6} more`}
+                    {t("flagged.found", {
+                      count: result.chars.flaggedCount,
+                      n: formatNumber(result.chars.flaggedCount),
+                      list: andMore(
+                        flagged.slice(0, 6).map((c) => `${c.abbr ?? c.hex} ×${formatNumber(c.count)}`),
+                        flagged.length - 6,
+                      ),
+                    })}
                   </span>
                 </div>
               )}
@@ -158,9 +172,15 @@ export function StringInspector() {
                 <div className="pane-options text-warning" role="status">
                   <TriangleAlert size={14} aria-hidden="true" />
                   <span>
-                    {plural(variants.length, "character")} written in more than one way:{" "}
-                    {variants.slice(0, 3).map((v) => `${v.nfc} (${v.spellings.map((cps) => cps.join(" ")).join(" or ")})`).join(", ")}
-                    {variants.length > 3 && ` and ${variants.length - 3} more`}. They look the same but do not compare equal. Copy the NFC form to use one spelling.
+                    {t("variants.found", {
+                      count: variants.length,
+                      n: formatNumber(variants.length),
+                      list: andMore(
+                        variants.slice(0, 3).map((v) => `${v.nfc} (${formatList(v.spellings.map((cps) => cps.join(" ")), "disjunction")})`),
+                        variants.length - 3,
+                      ),
+                    })}{" "}
+                    {t("variants.hint")}
                   </span>
                 </div>
               )}
@@ -172,32 +192,35 @@ export function StringInspector() {
                 </div>
               ))}
               <div className="pane-options">
-                <span className="font-medium">Normalization</span>
+                <span className="font-medium">{t("norm.title")}</span>
               </div>
               {normalization?.check.truncated && (
                 <div className="pane-options text-muted-foreground">
-                  The check for characters written in more than one way covered only the first{" "}
-                  {normalization.check.checked.toLocaleString()} characters.
+                  {t("norm.truncated", { count: normalization.check.checked, n: formatNumber(normalization.check.checked) })}
                 </div>
               )}
               {normalization?.forms.map((f) => (
                 <div key={f.form} className="result-row">
                   <span className="result-row-label">{f.form}</span>
                   <span className="result-row-value">
-                    {f.same ? "Same as input" : "Differs from input"} · {plural(f.codePoints, "code point")}, {plural(f.codeUnits, "UTF-16 unit")},{" "}
-                    {plural(f.bytes, "byte")}
+                    {t("norm.detail", {
+                      state: f.same ? t("norm.same") : t("norm.differs"),
+                      codePoints: count("count.codePoint", f.codePoints),
+                      units: count("count.utf16Unit", f.codeUnits),
+                      bytes: count("count.byte", f.bytes),
+                    })}
                   </span>
-                  <CopyButton value={f.value} iconOnly label={`Copy ${f.form}`} />
+                  <CopyButton value={f.value} iconOnly label={t("norm.copy", { form: f.form })} />
                 </div>
               ))}
               <div className="pane-options">
                 <span className="font-medium" id="string-inspector-chars">
-                  Characters ({result.chars.distinct.toLocaleString()} distinct)
+                  {t("chars.title", { n: formatNumber(result.chars.distinct) })}
                 </span>
               </div>
               {result.chars.truncated && (
                 <div className="pane-options text-muted-foreground">
-                  Showing the first {CHAR_LIMIT} distinct characters. Flagged characters past this point are still counted above.
+                  {t("chars.truncated", { limit: formatNumber(CHAR_LIMIT) })}
                 </div>
               )}
               <div role="table" aria-labelledby="string-inspector-chars">
@@ -209,8 +232,8 @@ export function StringInspector() {
           ) : (
             <PaneEmpty
               icon={<ScanText size={20} aria-hidden="true" />}
-              title="Statistics appear here"
-              hint="Hidden characters such as zero-width spaces are flagged."
+              title={t("empty.title")}
+              hint={t("empty.hint")}
             />
           )}
         </EditorPane>
@@ -218,19 +241,19 @@ export function StringInspector() {
       status={
         result ? (
           <>
-            <span>{plural(result.stats.graphemes, "character")}</span>
-            <span>{plural(result.stats.bytes, "byte")}</span>
+            <span>{count("count.character", result.stats.graphemes)}</span>
+            <span>{count("count.byte", result.stats.bytes)}</span>
             {result.chars.flaggedCount > 0 ? (
-              <span className="text-warning">{result.chars.flaggedCount.toLocaleString()} flagged</span>
+              <span className="text-warning">{t("status.flagged", { n: formatNumber(result.chars.flaggedCount) })}</span>
             ) : (
-              <span className="text-success">No hidden characters</span>
+              <span className="text-success">{t("status.clean")}</span>
             )}
           </>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_SLUGS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />}
     />
   );
 }

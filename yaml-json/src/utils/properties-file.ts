@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { errorAt, setOwn } from "./conversion-error";
 
 const LEADING_SPACE = /^[ \t\f]+/;
@@ -22,7 +23,7 @@ const unescape = (text: string, line: number) => {
     if (next === undefined) break;
     if (next === "u") {
       const hex = text.slice(i + 1, i + 5);
-      if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw errorAt("Invalid \\u escape. Use four hex digits, for example \\u00e9.", line);
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw errorAt(t("error.propUnicode"), line);
       out += String.fromCharCode(parseInt(hex, 16));
       i += 4;
     } else {
@@ -113,7 +114,7 @@ export function expandKeys(entries: readonly (readonly [string, string])[]): Rec
       const existing = own(node, part);
       if (index === path.length - 1) {
         if (existing !== undefined && typeof existing === "object") {
-          throw errorAt(`Key "${key}" conflicts with the keys under "${key}.". A key cannot hold both a value and nested keys.`);
+          throw errorAt(t("error.propChild", { key }));
         }
         setOwn(node, part, value);
         return;
@@ -124,7 +125,7 @@ export function expandKeys(entries: readonly (readonly [string, string])[]): Rec
         setOwn(node, part, child);
         node = child;
       } else if (typeof existing !== "object" || existing === null || Array.isArray(existing) !== wantArray) {
-        throw errorAt(`Key "${key}" conflicts with "${propertiesKey(path.slice(0, index + 1))}". A key cannot hold both a value and nested keys.`);
+        throw errorAt(t("error.propParent", { key, parent: propertiesKey(path.slice(0, index + 1)) }));
       } else {
         node = existing;
       }

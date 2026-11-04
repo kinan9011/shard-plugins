@@ -6,55 +6,21 @@ import { GitCompare, ListOrdered, Shuffle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { compareLists, processLines, type LineFilter, type LineSort, type LineToolResult } from "@/utils/line-tools";
+import { formatNumber, useT } from "@/lib/i18n";
 import { DEFAULT_TRANSFORM_OPTIONS } from "@/utils/text-transform";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "In which order are the options applied?",
-    a: "Trim lines, then remove empty lines, then filter, then remove duplicates, then sort, then reverse. Dedupe keeps the first copy of each line.",
-  },
-  {
-    q: "How does the filter work?",
-    a: "Keep lines keeps the lines that contain the text. Remove lines drops them. Turn on Regex to match a JavaScript regular expression instead. Ignore case applies to the filter too.",
-  },
-  {
-    q: "What does Natural sort do?",
-    a: "It compares numbers inside lines by value, so `file2` comes before `file10`. A to Z sorts by the system locale with numbers compared digit by digit.",
-  },
-  {
-    q: "How does Compare work?",
-    a: "Compare treats each list as a set of lines. It shows the lines only in A, only in B, in both lists, and the union. Duplicates count once. Each result keeps the order and spelling of the first copy.",
-  },
-  {
-    q: "What happens to Windows line endings?",
-    a: "Lines are split on LF, CRLF, and CR. The result uses CRLF if the input has any CRLF, otherwise LF. A final line break in the input is kept.",
-  },
-];
+const FAQ_KEYS = ["order", "filter", "natural", "compare", "lineEndings"] as const;
 
-const SORTS: { value: LineSort; label: string }[] = [
-  { value: "none", label: "Original" },
-  { value: "asc", label: "A→Z" },
-  { value: "desc", label: "Z→A" },
-  { value: "natural", label: "Natural" },
-  { value: "length", label: "Length" },
-  { value: "shuffle", label: "Shuffle" },
-];
+const SORTS: LineSort[] = ["none", "asc", "desc", "natural", "length", "shuffle"];
 
 type Mode = "process" | "compare" | "transform";
 type CompareSet = "onlyA" | "onlyB" | "both" | "union";
 
-const COMPARE_SETS: { value: CompareSet; label: string }[] = [
-  { value: "onlyA", label: "Only in A" },
-  { value: "onlyB", label: "Only in B" },
-  { value: "both", label: "In both" },
-  { value: "union", label: "Union" },
-];
-
-const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
+const COMPARE_SETS: CompareSet[] = ["onlyA", "onlyB", "both", "union"];
 
 const option = (id: string, label: string, checked: boolean, onChange: (next: boolean) => void, disabled = false) => (
   <label className="option-switch" htmlFor={id}>
@@ -63,18 +29,19 @@ const option = (id: string, label: string, checked: boolean, onChange: (next: bo
   </label>
 );
 
-const inputPane = (id: string, title: string, value: string, onChange: (next: string) => void, placeholder: string) => (
+const inputPane = (t: ReturnType<typeof useT>, id: string, title: string, value: string, onChange: (next: string) => void, placeholder: string) => (
   <EditorPane
     title={title}
     htmlFor={id}
     scroll={false}
-    actions={value ? <button type="button" className="toolbar-text-button" onClick={() => onChange("")}>Clear</button> : undefined}
+    actions={value ? <button type="button" className="toolbar-text-button" onClick={() => onChange("")}>{t("common.clear")}</button> : undefined}
   >
     <CodeTextarea id={id} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
   </EditorPane>
 );
 
 export function LineTools() {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("process");
   const [input, setInput] = useState("");
   const [sort, setSort] = useState<LineSort>("none");
@@ -111,7 +78,7 @@ export function LineTools() {
     }
     // shuffleNonce is a deliberate trigger for a new shuffle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, pattern, filterMode, filterRegex, sort, reverse, dedupe, ignoreCase, trim, removeEmpty, shuffleNonce]);
+  }, [text, pattern, filterMode, filterRegex, sort, reverse, dedupe, ignoreCase, trim, removeEmpty, shuffleNonce, t]);
   const result = processed.result;
 
   const compared = useMemo(() => {
@@ -119,14 +86,15 @@ export function LineTools() {
     return compareLists(textA, textB, { ignoreCase: compareIgnoreCase, trim: compareTrim, ignoreBlank });
   }, [textA, textB, compareIgnoreCase, compareTrim, ignoreBlank]);
   const compareOutput = compared ? compared[compareSet].join(compared.eol) : "";
-  const compareLabel = COMPARE_SETS.find((s) => s.value === compareSet)?.label ?? "";
+  const compareLabel = t(`compareSet.${compareSet}`);
+  const count = (key: "status.lines" | "status.uniqueItems" | "status.duplicatesRemoved" | "status.emptyRemoved", n: number) => t(key, { count: n, n: formatNumber(n) });
 
   const modeTabs = (
     <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-      <TabsList aria-label="Mode">
-        <TabsTrigger value="process">Process</TabsTrigger>
-        <TabsTrigger value="compare">Compare</TabsTrigger>
-        <TabsTrigger value="transform">Transform</TabsTrigger>
+      <TabsList aria-label={t("mode.label")}>
+        <TabsTrigger value="process">{t("mode.process")}</TabsTrigger>
+        <TabsTrigger value="compare">{t("mode.compare")}</TabsTrigger>
+        <TabsTrigger value="transform">{t("mode.transform")}</TabsTrigger>
       </TabsList>
     </Tabs>
   );
@@ -153,10 +121,10 @@ export function LineTools() {
           <>
             {modeTabs}
             <Tabs value={compareSet} onValueChange={(v) => setCompareSet(v as CompareSet)}>
-              <TabsList aria-label="Result set">
+              <TabsList aria-label={t("compareSet.label")}>
                 {COMPARE_SETS.map((s) => (
-                  <TabsTrigger key={s.value} value={s.value}>
-                    {s.label}{compared ? ` (${compared[s.value].length.toLocaleString()})` : ""}
+                  <TabsTrigger key={s} value={s}>
+                    {t(`compareSet.${s}`)}{compared ? ` (${formatNumber(compared[s].length)})` : ""}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -165,46 +133,50 @@ export function LineTools() {
         }
         secondaryToolbar={
           <>
-            {option("line-tools-compare-ignore-case", "Ignore case", compareIgnoreCase, setCompareIgnoreCase)}
-            {option("line-tools-compare-trim", "Trim lines", compareTrim, setCompareTrim)}
-            {option("line-tools-compare-ignore-blank", "Ignore blank lines", ignoreBlank, setIgnoreBlank)}
+            {option("line-tools-compare-ignore-case", t("option.ignoreCase"), compareIgnoreCase, setCompareIgnoreCase)}
+            {option("line-tools-compare-trim", t("option.trim"), compareTrim, setCompareTrim)}
+            {option("line-tools-compare-ignore-blank", t("option.ignoreBlank"), ignoreBlank, setIgnoreBlank)}
           </>
         }
         first={
           <PanelGroup direction="vertical">
             <Panel minSize={20} defaultSize={50}>
-              {inputPane("line-tools-list-a", "List A", listA, setListA, "Paste the first list, one item per line")}
+              {inputPane(t, "line-tools-list-a", t("pane.listA"), listA, setListA, t("placeholder.listA"))}
             </Panel>
-            <PanelResizeHandle className="editor-resize" aria-label="Resize list A and list B" />
+            <PanelResizeHandle className="editor-resize" aria-label={t("compare.resize")} />
             <Panel minSize={20} defaultSize={50}>
-              {inputPane("line-tools-list-b", "List B", listB, setListB, "Paste the second list, one item per line")}
+              {inputPane(t, "line-tools-list-b", t("pane.listB"), listB, setListB, t("placeholder.listB"))}
             </Panel>
           </PanelGroup>
         }
         second={
           <EditorPane
-            title="Result"
+            title={t("pane.result")}
             htmlFor={compared ? "line-tools-compare-output" : undefined}
             scroll={false}
-            actions={<CopyButton value={compareOutput} label="Copy" ariaLabel={`Copy ${compareLabel}`} />}
+            actions={<CopyButton value={compareOutput} ariaLabel={t("copy.set", { set: compareLabel })} />}
           >
             {compared ? (
               <CodeTextarea id="line-tools-compare-output" value={compareOutput} readOnly />
             ) : (
-              <PaneEmpty icon={<GitCompare size={20} aria-hidden="true" />} title="Compared lines appear here" hint="Paste a list in A and in B." />
+              <PaneEmpty icon={<GitCompare size={20} aria-hidden="true" />} title={t("empty.compared")} hint={t("empty.comparedHint")} />
             )}
           </EditorPane>
         }
         status={
           compared ? (
             <span>
-              A: {plural(compared.uniqueA, "unique item")} · B: {plural(compared.uniqueB, "unique item")} · {compared.both.length.toLocaleString()} in both
+              {t("status.compare", {
+                a: count("status.uniqueItems", compared.uniqueA),
+                b: count("status.uniqueItems", compared.uniqueB),
+                both: formatNumber(compared.both.length),
+              })}
             </span>
           ) : (
-            <span>Ready</span>
+            <span>{t("status.ready")}</span>
           )
         }
-        help={<ToolFaqSection items={FAQ_ITEMS} />}
+        help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
       />
     );
   }
@@ -217,16 +189,16 @@ export function LineTools() {
         <>
           {modeTabs}
           <Tabs value={sort} onValueChange={(v) => setSort(v as LineSort)}>
-            <TabsList aria-label="Sort">
+            <TabsList aria-label={t("sort.label")}>
               {SORTS.map((s) => (
-                <TabsTrigger key={s.value} value={s.value}>{s.label}</TabsTrigger>
+                <TabsTrigger key={s} value={s}>{t(`sort.${s}`)}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           {sort === "shuffle" && (
             <button type="button" className="toolbar-text-button" onClick={() => setShuffleNonce((n) => n + 1)} disabled={!result}>
               <Shuffle size={14} aria-hidden="true" />
-              Shuffle again
+              {t("action.shuffleAgain")}
             </button>
           )}
         </>
@@ -235,31 +207,31 @@ export function LineTools() {
         <div className="regex-fields">
           <div className="regex-field">
             <select
-              aria-label="Filter mode"
-              className="h-7 rounded-md border border-input bg-background px-1.5 pr-6 text-xs text-foreground"
+              aria-label={t("filter.mode")}
+              className="h-7 rounded-md border border-input bg-background ps-1.5 pe-6 text-xs text-foreground"
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value as NonNullable<LineFilter["mode"]>)}
             >
-              <option value="keep">Keep lines</option>
-              <option value="remove">Remove lines</option>
+              <option value="keep">{t("filter.keep")}</option>
+              <option value="remove">{t("filter.remove")}</option>
             </select>
             <Input
-              aria-label="Filter lines"
+              aria-label={t("filter.lines")}
               className="h-7 text-xs font-mono"
               value={filterPattern}
               onChange={(e) => setFilterPattern(e.target.value)}
-              placeholder={filterRegex ? "matching a regex, e.g. ^api-" : "containing text"}
+              placeholder={t(filterRegex ? "filter.placeholderRegex" : "filter.placeholderText")}
               aria-invalid={Boolean(processed.error)}
               autoComplete="off"
               spellCheck={false}
             />
           </div>
-          {option("line-tools-filter-regex", "Regex", filterRegex, setFilterRegex)}
-          {option("line-tools-reverse", "Reverse", reverse, setReverse)}
-          {option("line-tools-dedupe", "Remove duplicates", dedupe, setDedupe)}
-          {option("line-tools-ignore-case", "Ignore case", ignoreCase, setIgnoreCase)}
-          {option("line-tools-trim", "Trim lines", trim, setTrim)}
-          {option("line-tools-remove-empty", "Remove empty lines", removeEmpty, setRemoveEmpty)}
+          {option("line-tools-filter-regex", t("option.regex"), filterRegex, setFilterRegex)}
+          {option("line-tools-reverse", t("option.reverse"), reverse, setReverse)}
+          {option("line-tools-dedupe", t("option.dedupe"), dedupe, setDedupe)}
+          {option("line-tools-ignore-case", t("option.ignoreCase"), ignoreCase, setIgnoreCase)}
+          {option("line-tools-trim", t("option.trim"), trim, setTrim)}
+          {option("line-tools-remove-empty", t("option.removeEmpty"), removeEmpty, setRemoveEmpty)}
         </div>
       }
       notice={
@@ -267,34 +239,36 @@ export function LineTools() {
           <div className="workspace-notice" data-tone="error" role="alert">{processed.error}</div>
         ) : undefined
       }
-      first={inputPane("line-tools-input", "Lines", input, setInput, "Paste one item per line")}
+      first={inputPane(t, "line-tools-input", t("pane.lines"), input, setInput, t("placeholder.lines"))}
       second={
         <EditorPane
-          title="Result"
+          title={t("pane.result")}
           htmlFor={result ? "line-tools-output" : undefined}
           scroll={false}
-          actions={<CopyButton value={result?.output ?? ""} label="Copy" ariaLabel="Copy result lines" />}
+          actions={<CopyButton value={result?.output ?? ""} ariaLabel={t("copy.result")} />}
         >
           {result ? (
             <CodeTextarea id="line-tools-output" value={result.output} readOnly />
           ) : (
-            <PaneEmpty icon={<ListOrdered size={20} aria-hidden="true" />} title="Processed lines appear here" />
+            <PaneEmpty icon={<ListOrdered size={20} aria-hidden="true" />} title={t("empty.processed")} />
           )}
         </EditorPane>
       }
       status={
         result ? (
           <span>
-            {plural(result.inputLines, "line")} → {plural(result.outputLines, "line")}
-            {result.filterMatched !== undefined && ` · ${result.filterMatched.toLocaleString()} matched`}
-            {dedupe && ` · ${plural(result.duplicatesRemoved, "duplicate")} removed`}
-            {removeEmpty && result.emptyRemoved > 0 && ` · ${plural(result.emptyRemoved, "empty line")} removed`}
+            {[
+              t("status.flow", { input: count("status.lines", result.inputLines), output: count("status.lines", result.outputLines) }),
+              ...(result.filterMatched !== undefined ? [t("status.matched", { count: result.filterMatched, n: formatNumber(result.filterMatched) })] : []),
+              ...(dedupe ? [count("status.duplicatesRemoved", result.duplicatesRemoved)] : []),
+              ...(removeEmpty && result.emptyRemoved > 0 ? [count("status.emptyRemoved", result.emptyRemoved)] : []),
+            ].join(" · ")}
           </span>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

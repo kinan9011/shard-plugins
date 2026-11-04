@@ -1,7 +1,7 @@
 {
   "id": "yaml-json",
   "name": "Config Converter",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Convert between JSON, YAML, TOML, .env, Java .properties, and TOON files, including multi-document YAML, and see how many LLM tokens TOON saves against JSON.",
   "category": "Converters",
   "keywords": [

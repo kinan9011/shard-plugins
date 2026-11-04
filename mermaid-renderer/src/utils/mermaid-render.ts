@@ -5,6 +5,7 @@
  */
 
 import type { Mermaid } from "mermaid";
+import { t } from "@/lib/i18n";
 
 export interface MermaidDiagram {
   svg: string;
@@ -64,7 +65,7 @@ export async function svgToPng(diagram: Pick<MermaidDiagram, "svg" | "width" | "
   canvas.width = Math.max(1, Math.round(diagram.width * factor));
   canvas.height = Math.max(1, Math.round(diagram.height * factor));
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("This window cannot draw a PNG.");
+  if (!context) throw new Error(t("error.noCanvas"));
 
   const image = new Image();
   image.src = svgDataUrl(diagram.svg);
@@ -74,7 +75,7 @@ export async function svgToPng(diagram: Pick<MermaidDiagram, "svg" | "width" | "
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("The PNG could not be created."))), "image/png"),
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(t("error.pngFailed")))), "image/png"),
   );
 }
 
@@ -85,5 +86,5 @@ export function errorSummary(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const lines = message.split("\n").filter((line) => line.trim());
   const expecting = lines.findIndex((line) => line.startsWith("Expecting "));
-  return (expecting > 0 ? lines.slice(0, expecting) : lines.slice(0, 3)).join("\n") || "The diagram could not be rendered.";
+  return (expecting > 0 ? lines.slice(0, expecting) : lines.slice(0, 3)).join("\n") || t("error.renderFailed");
 }

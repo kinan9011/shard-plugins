@@ -9,6 +9,8 @@
  * - aws: EventBridge `cron(...)`: minute hour day-of-month month day-of-week year. 1 is Sunday.
  */
 
+import { LOCALES, getLocale, t } from "./lib/i18n";
+
 export type CronDialect = "standard" | "seconds" | "quartz" | "aws";
 export type CronFieldName = "second" | "minute" | "hour" | "dayOfMonth" | "month" | "dayOfWeek" | "year";
 
@@ -26,7 +28,6 @@ export type CronItem =
 
 export interface CronField {
   name: CronFieldName;
-  label: string;
   text: string;
   items: CronItem[];
   /** Plain matching values, sorted. Day of week is normalized to 0-6 with 0 as Sunday. */
@@ -50,21 +51,28 @@ export type CronParseResult =
   | { ok: true; schedule: CronSchedule }
   | { ok: false; error: string; fieldIndex?: number; layout?: CronFieldName[] };
 
-export const CRON_FIELD_LABELS: Record<CronFieldName, string> = {
-  second: "Second",
-  minute: "Minute",
-  hour: "Hour",
-  dayOfMonth: "Day of month",
-  month: "Month",
-  dayOfWeek: "Day of week",
-  year: "Year",
-};
+/** The field's name in the current language, e.g. "Day of month". */
+export const cronFieldLabel = (name: CronFieldName): string => t(`cron.field.${name}`);
 
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTH_CODES = MONTH_NAMES.map((name) => name.slice(0, 3).toUpperCase());
-const DAY_CODES = DAY_NAMES.map((name) => name.slice(0, 3).toUpperCase());
-const ORDINALS = ["first", "second", "third", "fourth", "fifth"];
+// The names in the expression are code (JAN, MON) and never change. The names in descriptions follow the app language.
+const MONTH_CODES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const DAY_CODES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const ORDINAL_KEYS = ["cron.ordinal.1", "cron.ordinal.2", "cron.ordinal.3", "cron.ordinal.4", "cron.ordinal.5"] as const;
+
+const nameFormatters = new Map<string, Intl.DateTimeFormat>();
+/** A month or weekday name in the app language. `index` is 0-11 for a month and 0-6 (0 is Sunday) for a weekday. */
+function calendarName(kind: "month" | "weekday", index: number): string {
+  const key = `${getLocale()}:${kind}`;
+  let formatter = nameFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(LOCALES[getLocale()].tag, { timeZone: "UTC", ...(kind === "month" ? { month: "long" } : { weekday: "long" }) });
+    nameFormatters.set(key, formatter);
+  }
+  // 2023-01-01 was a Sunday.
+  return formatter.format(kind === "month" ? Date.UTC(2023, index, 1) : Date.UTC(2023, 0, 1 + index));
+}
+const monthName = (index: number) => calendarName("month", index);
+const dayName = (index: number) => calendarName("weekday", index);
 
 const LAYOUTS: Record<CronDialect, CronFieldName[]> = {
   standard: ["minute", "hour", "dayOfMonth", "month", "dayOfWeek"],
@@ -73,12 +81,7 @@ const LAYOUTS: Record<CronDialect, CronFieldName[]> = {
   aws: ["minute", "hour", "dayOfMonth", "month", "dayOfWeek", "year"],
 };
 
-export const CRON_DIALECT_LABELS: Record<CronDialect, string> = {
-  standard: "Standard cron (5 fields)",
-  seconds: "Seconds first (6 fields, as in Spring and node-cron)",
-  quartz: "Quartz (seconds first, 1 is Sunday)",
-  aws: "AWS EventBridge (with year, 1 is Sunday)",
-};
+export const cronDialectLabel = (dialect: CronDialect): string => t(`cron.dialect.${dialect}`);
 
 const MACROS: Record<string, string> = {
   "@yearly": "0 0 1 1 *",
@@ -98,12 +101,17 @@ interface FieldSpec {
   starMin: number;
   starMax: number;
   hint: string;
+  /** The hint for a number that is out of range: numbers only, no names. */
+  numbers: string;
 }
 
 const sundayIsOne = (dialect: CronDialect) => dialect === "quartz" || dialect === "aws";
 
 function fieldSpec(name: CronFieldName, dialect: CronDialect): FieldSpec {
-  const plain = (min: number, max: number): FieldSpec => ({ min, max, starMin: min, starMax: max, hint: `${min} to ${max}` });
+  const plain = (min: number, max: number): FieldSpec => {
+    const hint = t("cron.hint.range", { min, max });
+    return { min, max, starMin: min, starMax: max, hint, numbers: hint };
+  };
   switch (name) {
     case "second":
     case "minute":
@@ -113,13 +121,13 @@ function fieldSpec(name: CronFieldName, dialect: CronDialect): FieldSpec {
     case "dayOfMonth":
       return plain(1, 31);
     case "month":
-      return { ...plain(1, 12), hint: "JAN to DEC, or 1 to 12" };
+      return { ...plain(1, 12), hint: t("cron.hint.month") };
     case "year":
       return plain(1970, 2099);
     case "dayOfWeek":
       return sundayIsOne(dialect)
-        ? { min: 1, max: 7, starMin: 1, starMax: 7, hint: "SUN to SAT, or 1 to 7 (1 is Sunday)" }
-        : { min: 0, max: 7, starMin: 0, starMax: 6, hint: "SUN to SAT, or 0 to 7 (0 and 7 are Sunday)" };
+        ? { min: 1, max: 7, starMin: 1, starMax: 7, hint: t("cron.hint.dayOfWeekOne"), numbers: t("cron.hint.dayOfWeekOneNumbers") }
+        : { min: 0, max: 7, starMin: 0, starMax: 6, hint: t("cron.hint.dayOfWeekZero"), numbers: t("cron.hint.dayOfWeekZeroNumbers") };
   }
 }
 
@@ -129,42 +137,39 @@ const normalizeDay = (value: number, dialect: CronDialect) => (sundayIsOne(diale
 class FieldError extends Error {}
 
 function parseNumber(text: string, name: CronFieldName, dialect: CronDialect): number {
-  const label = CRON_FIELD_LABELS[name];
+  const field = cronFieldLabel(name);
   const spec = fieldSpec(name, dialect);
   if (/^\d+$/.test(text)) {
     const value = Number(text);
-    if (value < spec.min || value > spec.max) {
-      const range = name === "month" ? "1 to 12" : name === "dayOfWeek" ? spec.hint.replace("SUN to SAT, or ", "") : spec.hint;
-      throw new FieldError(`${label}: ${value} is out of range. Use ${range}.`);
-    }
+    if (value < spec.min || value > spec.max) throw new FieldError(t("cron.error.outOfRange", { field, value, range: spec.numbers }));
     return value;
   }
   const upper = text.toUpperCase();
   if (name === "month") {
     const index = MONTH_CODES.indexOf(upper);
-    if (index === -1) throw new FieldError(`${label}: "${text}" is not a month name. Use ${spec.hint}.`);
+    if (index === -1) throw new FieldError(t("cron.error.notMonth", { field, text, hint: spec.hint }));
     return index + 1;
   }
   if (name === "dayOfWeek") {
     const index = DAY_CODES.indexOf(upper);
-    if (index === -1) throw new FieldError(`${label}: "${text}" is not a day name. Use ${spec.hint}.`);
+    if (index === -1) throw new FieldError(t("cron.error.notDay", { field, text, hint: spec.hint }));
     return sundayIsOne(dialect) ? index + 1 : index;
   }
-  throw new FieldError(`${label}: "${text}" is not a number. Use ${spec.hint}.`);
+  throw new FieldError(t("cron.error.notNumber", { field, text, hint: spec.hint }));
 }
 
 function parseItem(text: string, name: CronFieldName, dialect: CronDialect): CronItem {
-  const label = CRON_FIELD_LABELS[name];
+  const field = cronFieldLabel(name);
   const isDayField = name === "dayOfMonth" || name === "dayOfWeek";
   const spec = fieldSpec(name, dialect);
   const upper = text.toUpperCase();
 
   if (text === "*") return { kind: "all", any: false };
   if (text === "?") {
-    if (!isDayField) throw new FieldError(`${label}: "?" only works in the day-of-month and day-of-week fields.`);
+    if (!isDayField) throw new FieldError(t("cron.error.questionOnlyDay", { field }));
     return { kind: "all", any: true };
   }
-  if (text === "") throw new FieldError(`${label}: a list has an empty item. Remove the extra comma.`);
+  if (text === "") throw new FieldError(t("cron.error.emptyItem", { field }));
 
   if (name === "dayOfMonth") {
     if (upper === "L") return { kind: "last" };
@@ -172,7 +177,7 @@ function parseItem(text: string, name: CronFieldName, dialect: CronDialect): Cro
     const offset = /^L-(\d+)$/i.exec(text);
     if (offset) {
       const value = Number(offset[1]);
-      if (value < 1 || value > 30) throw new FieldError(`${label}: the offset in "${text}" must be 1 to 30.`);
+      if (value < 1 || value > 30) throw new FieldError(t("cron.error.offsetRange", { field, text }));
       return { kind: "lastOffset", offset: value };
     }
     const weekday = /^(\d+)W$/i.exec(text);
@@ -186,20 +191,20 @@ function parseItem(text: string, name: CronFieldName, dialect: CronDialect): Cro
     const nth = /^(\w+)#(\d+)$/.exec(text);
     if (nth) {
       const count = Number(nth[2]);
-      if (count < 1 || count > 5) throw new FieldError(`${label}: the number after "#" in "${text}" must be 1 to 5.`);
+      if (count < 1 || count > 5) throw new FieldError(t("cron.error.nthRange", { field, text }));
       return { kind: "nthDayOfWeek", day: normalizeDay(parseNumber(nth[1], name, dialect), dialect), nth: count };
     }
   }
   if (!isDayField && name !== "month" && /[LW#]/i.test(text)) {
-    throw new FieldError(`${label}: "${text}" uses L, W, or #. These only work in the day-of-month and day-of-week fields.`);
+    throw new FieldError(t("cron.error.lwOnlyDay", { field, text }));
   }
 
   const slash = text.split("/");
-  if (slash.length > 2) throw new FieldError(`${label}: "${text}" has more than one "/".`);
+  if (slash.length > 2) throw new FieldError(t("cron.error.multiSlash", { field, text }));
   if (slash.length === 2) {
     const [base, stepText] = slash;
     const step = /^\d+$/.test(stepText) ? Number(stepText) : 0;
-    if (step < 1) throw new FieldError(`${label}: the step in "${text}" must be a whole number of 1 or more.`);
+    if (step < 1) throw new FieldError(t("cron.error.stepInvalid", { field, text }));
     if (base === "*" || base === "?") return { kind: "step", from: spec.starMin, to: spec.starMax, step, star: true };
     if (base.includes("-")) {
       const range = parseRange(base, name, dialect);
@@ -212,13 +217,13 @@ function parseItem(text: string, name: CronFieldName, dialect: CronDialect): Cro
 }
 
 function parseRange(text: string, name: CronFieldName, dialect: CronDialect): { kind: "range"; from: number; to: number } {
-  const label = CRON_FIELD_LABELS[name];
+  const field = cronFieldLabel(name);
   const parts = text.split("-");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new FieldError(`${label}: "${text}" is not a valid range. Write it as start-end, as in 1-5.`);
+  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new FieldError(t("cron.error.rangeInvalid", { field, text }));
   const from = parseNumber(parts[0], name, dialect);
   const to = parseNumber(parts[1], name, dialect);
   if (from > to) {
-    throw new FieldError(`${label}: the range ${parts[0]}-${parts[1]} goes backward. Write the smaller value first, or split it into two ranges.`);
+    throw new FieldError(t("cron.error.rangeBackward", { field, from: parts[0], to: parts[1] }));
   }
   return { kind: "range", from, to };
 }
@@ -238,7 +243,6 @@ function parseField(text: string, name: CronFieldName, dialect: CronDialect): Cr
   const normalized = name === "dayOfWeek" ? items.map((item) => normalizeDayItem(item, dialect)) : items;
   return {
     name,
-    label: CRON_FIELD_LABELS[name],
     text,
     items: normalized,
     values: [...set].sort((a, b) => a - b),
@@ -273,16 +277,16 @@ function detectDialect(tokens: string[], aws: boolean): CronDialect | null {
 /** Parse a cron expression. Pass `aws` for the inside of an EventBridge `cron(...)` wrapper. */
 export function parseCron(expression: string, options: { aws?: boolean } = {}): CronParseResult {
   const trimmed = expression.trim();
-  if (!trimmed) return { ok: false, error: "Enter a cron expression, such as 0 9 * * 1-5 or @daily." };
+  if (!trimmed) return { ok: false, error: t("cron.error.empty") };
 
   if (trimmed.startsWith("@")) {
     const macro = trimmed.toLowerCase();
     if (macro === "@reboot") {
-      return { ok: false, error: "@reboot runs once when cron starts. It has no time schedule, so there are no next runs to show." };
+      return { ok: false, error: t("cron.error.reboot") };
     }
     const expanded = MACROS[macro];
     if (!expanded) {
-      return { ok: false, error: `Unknown macro "${trimmed}". Use @yearly, @annually, @monthly, @weekly, @daily, @midnight, or @hourly.` };
+      return { ok: false, error: t("cron.error.unknownMacro", { macro: trimmed }) };
     }
     const result = parseCron(expanded);
     if (result.ok) result.schedule = { ...result.schedule, macro: trimmed, expanded };
@@ -293,8 +297,8 @@ export function parseCron(expression: string, options: { aws?: boolean } = {}): 
   const dialect = detectDialect(tokens, options.aws ?? false);
   if (!dialect) {
     const error = options.aws
-      ? `AWS cron expressions have 6 fields (minute hour day-of-month month day-of-week year). Found ${tokens.length}.`
-      : `Expected 5 fields (minute hour day-of-month month day-of-week), or 6 to 7 with seconds first. Found ${tokens.length}.`;
+      ? t("cron.error.awsFields", { found: tokens.length })
+      : t("cron.error.fieldCount", { found: tokens.length });
     return { ok: false, error };
   }
   const layout = LAYOUTS[dialect].slice(0, tokens.length);
@@ -419,56 +423,50 @@ export function replaceCronField(text: string, index: number, value: string): st
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
+/** "A, B and C" in the app language. */
 function joinList(items: string[]): string {
   if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  return t(/^\d/.test(items[items.length - 1]) ? "cron.list.andNumber" : "cron.list.and", { items: items.slice(0, -1).join(t("cron.list.separator")), last: items[items.length - 1] });
 }
 
-const UNITS: Record<CronFieldName, [string, string]> = {
-  second: ["second", "seconds"],
-  minute: ["minute", "minutes"],
-  hour: ["hour", "hours"],
-  dayOfMonth: ["day", "days"],
-  month: ["month", "months"],
-  dayOfWeek: ["day of the week", "days of the week"],
-  year: ["year", "years"],
-};
+type NumberedUnit = "second" | "minute" | "hour" | "dayOfMonth";
 
 function valueName(name: CronFieldName, value: number): string {
-  if (name === "month") return MONTH_NAMES[value - 1];
-  if (name === "dayOfWeek") return DAY_NAMES[value];
+  if (name === "month") return monthName(value - 1);
+  if (name === "dayOfWeek") return dayName(value);
   return String(value);
 }
 
 const named = (name: CronFieldName) => name === "month" || name === "dayOfWeek" || name === "year";
 
 function describeItem(name: CronFieldName, item: CronItem): string {
-  const [unit, units] = UNITS[name];
-  const show = (value: number) => (named(name) ? valueName(name, value) : `${unit} ${value}`);
+  const show = (value: number) => (named(name) ? valueName(name, value) : t(`cron.value.${name as NumberedUnit}`, { value }));
   switch (item.kind) {
     case "all":
-      return item.any ? "any day" : `every ${unit}`;
+      return item.any ? t("cron.any") : t(`cron.every.${name}`);
     case "value":
       return show(item.value);
     case "range":
-      return named(name) ? `${valueName(name, item.from)} through ${valueName(name, item.to)}` : `${units} ${item.from} through ${item.to}`;
+      return named(name)
+        ? t("cron.rangeNamed", { from: valueName(name, item.from), to: valueName(name, item.to) })
+        : t(`cron.range.${name as NumberedUnit}`, { from: item.from, to: item.to });
     case "step": {
-      const every = `every ${item.step} ${item.step === 1 ? unit : units}`;
+      const every = t(`cron.step.${name}`, { count: item.step });
       if (item.star) return every;
-      return `${every} from ${named(name) ? valueName(name, item.from) : item.from} through ${named(name) ? valueName(name, item.to) : item.to}`;
+      return t("cron.stepFrom", { every, from: named(name) ? valueName(name, item.from) : item.from, to: named(name) ? valueName(name, item.to) : item.to });
     }
     case "last":
-      return "the last day of the month";
+      return t("cron.last");
     case "lastOffset":
-      return `${item.offset} ${item.offset === 1 ? "day" : "days"} before the last day of the month`;
+      return t("cron.lastOffset", { count: item.offset });
     case "nearestWeekday":
-      return `the weekday nearest day ${item.day} of the month`;
+      return t("cron.nearestWeekday", { day: item.day });
     case "lastWeekday":
-      return "the last weekday of the month";
+      return t("cron.lastWeekday");
     case "lastDayOfWeek":
-      return `the last ${DAY_NAMES[item.day]} of the month`;
+      return t("cron.lastDayOfWeek", { day: dayName(item.day) });
     case "nthDayOfWeek":
-      return `the ${ORDINALS[item.nth - 1]} ${DAY_NAMES[item.day]} of the month`;
+      return t("cron.nthDayOfWeek", { nth: t(ORDINAL_KEYS[item.nth - 1]), day: dayName(item.day) });
   }
 }
 
@@ -478,19 +476,18 @@ export function describeCronField(field: CronField): string {
   if (items.every((item) => item.kind === "value")) {
     const values = items.map((item) => (item as { value: number }).value);
     if (named(name)) return joinList(values.map((value) => valueName(name, value)));
-    const [unit, units] = UNITS[name];
-    return `${values.length === 1 ? unit : units} ${joinList(values.map(String))}`;
+    return t(`cron.values.${name as NumberedUnit}`, { count: values.length, list: joinList(values.map(String)) });
   }
   return joinList(items.map((item) => describeItem(name, item)));
 }
 
 function dayOfMonthPhrase(field: CronField): string {
   const items = field.items;
-  if (items.every((item) => item.kind === "value" || item.kind === "range")) return `on ${describeCronField(field)} of the month`;
-  return `on ${describeCronField(field)}`;
+  if (items.every((item) => item.kind === "value" || item.kind === "range")) return t("cron.on.dayOfMonth", { text: describeCronField(field) });
+  return t("cron.on", { text: describeCronField(field) });
 }
 
-/** Describe the whole schedule in one plain-English sentence. */
+/** Describe the whole schedule in one plain sentence in the app language. */
 export function describeCron(schedule: CronSchedule): string {
   const get = (name: CronFieldName) => schedule.fields.find((field) => field.name === name);
   const second = get("second");
@@ -515,52 +512,50 @@ export function describeCron(schedule: CronSchedule): string {
         for (const s of seconds) times.push(trivialSeconds ? `${pad(h)}:${pad(m)}` : `${pad(h)}:${pad(m)}:${pad(s)}`);
       }
     }
-    parts.push(`at ${joinList(times)}`);
+    parts.push(t("cron.atTime", { text: joinList(times) }));
     exactTimes = true;
   } else {
     let timeText = "";
     if (second && !trivialSeconds) {
-      if (second.wildcard) timeText = "every second";
+      if (second.wildcard) timeText = t("cron.every.second");
       else if (second.items.every((item) => item.kind === "step" && item.star)) timeText = describeCronField(second);
-      else timeText = `at ${describeCronField(second)}${minute.wildcard ? " of every minute" : ""}`;
+      else timeText = t(minute.wildcard ? "cron.atOfEveryMinute" : "cron.at", { text: describeCronField(second) });
     }
     if (!minute.wildcard || !timeText) {
       const minuteText = minute.wildcard
-        ? "every minute"
+        ? t("cron.every.minute")
         : onlyValues(minute)
-          ? `at ${describeCronField(minute)}${hour.wildcard ? " of every hour" : ""}`
+          ? t(hour.wildcard ? "cron.atOfEveryHour" : "cron.at", { text: describeCronField(minute) })
           : describeCronField(minute);
-      timeText = timeText ? `${timeText}, ${minuteText}` : minuteText;
+      timeText = timeText ? [timeText, minuteText].join(t("cron.part.separator")) : minuteText;
     }
     parts.push(timeText);
     if (!hour.wildcard) {
       const single = hour.items.length === 1 ? hour.items[0] : undefined;
-      if (single?.kind === "range") parts.push(`between ${pad(single.from)}:00 and ${pad(single.to)}:59`);
+      if (single?.kind === "range") parts.push(t("cron.between", { from: `${pad(single.from)}:00`, to: `${pad(single.to)}:59` }));
       else if (hour.items.every((item) => item.kind === "step")) parts.push(describeCronField(hour));
-      else parts.push(`during ${describeCronField(hour)}`);
+      else parts.push(t("cron.during", { text: describeCronField(hour) }));
     }
   }
 
   const domRestricted = !dayOfMonth.wildcard;
   const dowRestricted = !dayOfWeek.wildcard;
   if (domRestricted && dowRestricted) {
-    const joiner = schedule.dayOr ? " or " : " if it is ";
-    const dow = describeCronField(dayOfWeek);
-    parts.push(`${dayOfMonthPhrase(dayOfMonth)}${joiner}${schedule.dayOr ? `on ${dow}` : `a ${dow}`}`);
+    parts.push(t(schedule.dayOr ? "cron.dayOrWeekday" : "cron.dayAndWeekday", { day: dayOfMonthPhrase(dayOfMonth), weekday: describeCronField(dayOfWeek) }));
   } else if (domRestricted) {
     parts.push(dayOfMonthPhrase(dayOfMonth));
   } else if (dowRestricted) {
-    parts.push(`on ${describeCronField(dayOfWeek)}`);
+    parts.push(t("cron.onWeekday", { text: describeCronField(dayOfWeek) }));
   }
 
   if (!month.wildcard) {
-    parts.push(month.items.every((item) => item.kind === "step") ? describeCronField(month) : `in ${describeCronField(month)}`);
+    parts.push(month.items.every((item) => item.kind === "step") ? describeCronField(month) : t("cron.in", { text: describeCronField(month) }));
   }
-  if (year && !year.wildcard) parts.push(`in ${describeCronField(year)}`);
-  if (exactTimes && !domRestricted && !dowRestricted && month.wildcard) parts.push("every day");
+  if (year && !year.wildcard) parts.push(t("cron.inYear", { text: describeCronField(year) }));
+  if (exactTimes && !domRestricted && !dowRestricted && month.wildcard) parts.push(t("cron.every.dayOfMonth"));
 
-  const sentence = parts.join(", ");
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  const sentence = parts.join(t("cron.part.separator"));
+  return sentence.charAt(0).toLocaleUpperCase(LOCALES[getLocale()].tag) + sentence.slice(1);
 }
 
 /** Compact list of matching values for a field, such as `0, 6, 12, 18` or `MON-FRI`. */
@@ -749,34 +744,29 @@ export function nextCronRuns(schedule: CronSchedule, from: Date, count: number, 
 /** Short time until a run, such as `in 5 min` or `in 3 h 20 min`. */
 export function formatTimeUntil(ms: number): string {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  if (totalSeconds < 60) return `in ${totalSeconds} s`;
+  if (totalSeconds < 60) return t("cron.until.seconds", { value: totalSeconds });
   const totalMinutes = Math.floor(totalSeconds / 60);
-  if (totalMinutes < 60) return `in ${totalMinutes} min`;
+  if (totalMinutes < 60) return t("cron.until.minutes", { value: totalMinutes });
   const hours = Math.floor(totalMinutes / 60);
   if (hours < 24) {
     const minutes = totalMinutes % 60;
-    return minutes ? `in ${hours} h ${minutes} min` : `in ${hours} h`;
+    return minutes ? t("cron.until.hoursMinutes", { hours, minutes }) : t("cron.until.hours", { hours });
   }
-  const days = Math.floor(hours / 24);
-  return `in ${days} ${days === 1 ? "day" : "days"}`;
+  return t("cron.until.days", { count: Math.floor(hours / 24) });
 }
 
-export interface CronExample {
-  label: string;
-  expression: string;
-}
-
-export const CRON_EXAMPLES: CronExample[] = [
-  { label: "Every minute", expression: "* * * * *" },
-  { label: "Every 5 minutes", expression: "*/5 * * * *" },
-  { label: "Every 15 minutes during work hours", expression: "*/15 9-17 * * 1-5" },
-  { label: "Every hour", expression: "0 * * * *" },
-  { label: "Every 6 hours on weekdays", expression: "0 */6 * * 1-5" },
-  { label: "Every day at midnight", expression: "@daily" },
-  { label: "Weekdays at 09:00", expression: "0 9 * * MON-FRI" },
-  { label: "Every Sunday at 03:30", expression: "30 3 * * SUN" },
-  { label: "First day of every month", expression: "0 0 1 * *" },
-  { label: "Last day of every month", expression: "0 0 L * *" },
-  { label: "Every 30 seconds (Spring)", expression: "*/30 * * * * *" },
-  { label: "Second Monday of the month (Quartz)", expression: "0 0 9 ? * MON#2" },
-];
+/** The label of an example comes from the dictionary: `cron.example.<id>`. */
+export const CRON_EXAMPLES = [
+  { id: "everyMinute", expression: "* * * * *" },
+  { id: "every5Minutes", expression: "*/5 * * * *" },
+  { id: "workHours", expression: "*/15 9-17 * * 1-5" },
+  { id: "everyHour", expression: "0 * * * *" },
+  { id: "every6Hours", expression: "0 */6 * * 1-5" },
+  { id: "midnight", expression: "@daily" },
+  { id: "weekdays", expression: "0 9 * * MON-FRI" },
+  { id: "sunday", expression: "30 3 * * SUN" },
+  { id: "firstOfMonth", expression: "0 0 1 * *" },
+  { id: "lastOfMonth", expression: "0 0 L * *" },
+  { id: "every30Seconds", expression: "*/30 * * * * *" },
+  { id: "secondMonday", expression: "0 0 9 ? * MON#2" },
+] as const;

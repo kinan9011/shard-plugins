@@ -1,7 +1,7 @@
 {
   "id": "ip-cidr",
   "name": "IP / CIDR Calculator",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Get the network, broadcast, host range, masks, and address type for IPv4 and IPv6 blocks, and split, merge, or check ranges.",
   "category": "Network",
   "keywords": [

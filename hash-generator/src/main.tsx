@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { followHostLocale, t } from "./lib/i18n";
 import { connect, loadWasm, type Theme } from "./shard-sdk";
 import { createHasher } from "./hasher";
 import "./index.css";
@@ -27,11 +28,13 @@ async function start() {
     .catch(() => {
       // Opened outside the app (npm run dev): the hashing still works, files and copying do not.
     });
+  // Wait for the app language first (it answers within 300 ms, or never outside the app), so the first paint is in it.
+  await followHostLocale(sdk);
   try {
     const { instance } = await loadWasm("hash.wasm");
     root.render(<App sdk={sdk} hasher={createHasher(instance)} />);
   } catch (error) {
-    root.render(<p role="alert" className="p-6 text-sm text-destructive">Could not start the hashing module: {(error as Error).message}</p>);
+    root.render(<p role="alert" className="p-6 text-sm text-destructive">{t("error.startModule", { message: (error as Error).message })}</p>);
   }
 }
 

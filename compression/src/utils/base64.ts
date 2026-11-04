@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 /**
  * Base64 utility functions for text, bytes, and data URIs
  */
@@ -43,11 +44,11 @@ export function toUrlSafe(base64: string): string {
 export function normalizeBase64(input: string): string {
   const cleaned = input.replace(/\s+/g, '');
   if (!/^[A-Za-z0-9+/_-]*={0,2}$/.test(cleaned)) {
-    throw new Error('Invalid Base64 format');
+    throw new Error(t("error.base64Invalid"));
   }
   const unpadded = cleaned.replace(/=+$/, '').replace(/-/g, '+').replace(/_/g, '/');
   if (unpadded.length % 4 === 1) {
-    throw new Error('Invalid Base64 format');
+    throw new Error(t("error.base64Invalid"));
   }
   return unpadded + '='.repeat((4 - (unpadded.length % 4)) % 4);
 }
@@ -71,7 +72,7 @@ export function bytesToBase64(bytes: Uint8Array, options: EncodeOptions = {}): s
  */
 export function base64ToBytes(base64: string): Uint8Array {
   if (!base64 || base64.trim() === '') {
-    throw new Error('Please enter Base64 to decode.');
+    throw new Error(t("error.base64Enter"));
   }
   const normalized = normalizeBase64(base64.trim());
   try {
@@ -82,7 +83,7 @@ export function base64ToBytes(base64: string): Uint8Array {
     }
     return bytes;
   } catch {
-    throw new Error('Invalid Base64 format');
+    throw new Error(t("error.base64Invalid"));
   }
 }
 
@@ -92,7 +93,7 @@ export function base64ToBytes(base64: string): Uint8Array {
  */
 export function encodeText(text: string, options: EncodeOptions = {}): string {
   if (!text || text.trim() === '') {
-    throw new Error('Please enter text to encode.');
+    throw new Error(t("error.textEnter"));
   }
   return bytesToBase64(new TextEncoder().encode(text), options);
 }
@@ -106,7 +107,7 @@ export function decodeText(base64: string): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    throw new Error('Decoded data is not valid UTF-8 text. Use the file option to save it.');
+    throw new Error(t("error.notUtf8"));
   }
 }
 

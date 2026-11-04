@@ -1,3 +1,5 @@
+import { formatNumber } from "./lib/i18n";
+
 /** The algorithm numbers of wasm/src/lib.rs. */
 export const HASH_TYPES = [
   { type: "md5", label: "MD5", algo: 0 },
@@ -72,5 +74,6 @@ export function formatBytes(size: number): string {
     value /= 1024;
     i++;
   }
-  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[i]}`;
+  const digits = value >= 10 ? 1 : 2;
+  return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[i]}`;
 }

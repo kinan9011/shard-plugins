@@ -1,7 +1,7 @@
 {
   "id": "xml-inspector",
   "name": "XML Inspector",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Format or minify XML, and query nodes or values with XPath 1.0 and namespace prefixes.",
   "category": "Development Tools",
   "keywords": [

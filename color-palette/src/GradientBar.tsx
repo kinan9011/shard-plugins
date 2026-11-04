@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from "react";
+import { useT } from "./lib/i18n";
 import type { GradientStop } from "./gradient";
 
 const clamp = (value: number) => (Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0);
@@ -23,6 +24,7 @@ type GradientBarProps = {
  * to reposition it. A focused handle moves with the arrow keys and is removed with Delete.
  */
 export function GradientBar({ stops, css, selectedId, onSelect, onAdd, onMove, onRemove }: GradientBarProps) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingId = useRef<number | null>(null);
 
@@ -90,7 +92,7 @@ export function GradientBar({ stops, css, selectedId, onSelect, onAdd, onMove, o
       <div
         ref={trackRef}
         role="group"
-        aria-label="Gradient preview. Click to add a color stop, or drag a handle to move it."
+        aria-label={t("gradient.barAria")}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
@@ -104,7 +106,7 @@ export function GradientBar({ stops, css, selectedId, onSelect, onAdd, onMove, o
             role="slider"
             tabIndex={0}
             data-stop-handle={stop.id}
-            aria-label={`Stop ${index + 1} handle`}
+            aria-label={t("gradient.stopHandle", { n: index + 1 })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(clamp(stop.position))}

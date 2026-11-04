@@ -3,6 +3,7 @@
  * The shell tokenizer and the flag parser are written for this tool, so the
  * result is predictable and runs offline.
  */
+import { formatList, t } from "@/lib/i18n";
 
 export class CurlParseError extends Error {
   constructor(
@@ -11,7 +12,7 @@ export class CurlParseError extends Error {
     public line: number,
     public column: number,
   ) {
-    super(`${message} (line ${line}, column ${column})`);
+    super(t("error.withPosition", { message, line, column }));
     this.name = "CurlParseError";
   }
 }
@@ -87,7 +88,7 @@ function readAnsiC(input: string, start: number): [string, number] {
       i += 2;
     }
   }
-  return fail(input, start, "Unterminated $'…' string");
+  return fail(input, start, t("error.unterminatedAnsi"));
 }
 
 /** Splits a POSIX shell command into words: quotes, $'…', backslash escapes, and line continuations. */
@@ -119,7 +120,7 @@ export function tokenizePosix(input: string): TokenizeResult {
       }
     } else if (ch === "'") {
       const close = input.indexOf("'", i + 1);
-      if (close < 0) fail(input, i, "Unterminated single quote");
+      if (close < 0) fail(input, i, t("error.unterminatedSingle"));
       current += input.slice(i + 1, close);
       inWord = true;
       i = close + 1;
@@ -155,7 +156,7 @@ export function tokenizePosix(input: string): TokenizeResult {
         current += c;
         i += 1;
       }
-      if (!closed) fail(input, start, "Unterminated double quote");
+      if (!closed) fail(input, start, t("error.unterminatedDouble"));
     } else if (ch === "#" && !inWord) {
       const newline = input.indexOf("\n", i);
       i = newline < 0 ? input.length : newline;
@@ -220,7 +221,7 @@ export function tokenizeCmd(input: string): TokenizeResult {
       inWord = true;
     }
   }
-  if (quoted) fail(unescaped, quoteStart, "Unterminated double quote");
+  if (quoted) fail(unescaped, quoteStart, t("error.unterminatedDouble"));
   if (inWord) tokens.push(current);
   return { tokens, rest: "" };
 }
@@ -435,8 +436,8 @@ const hasHeader = (headers: [string, string][], name: string) => headers.some(([
 export function parseCurl(input: string): CurlRequest {
   const trimmed = input.trim().replace(/^\$\s+/, "");
   const { tokens, rest } = tokenize(trimmed);
-  if (tokens.length === 0) fail(input, 0, "Paste a curl command");
-  if (!/^curl(\.exe)?$/i.test(tokens[0])) fail(input, 0, "The command must start with curl");
+  if (tokens.length === 0) fail(input, 0, t("error.empty"));
+  if (!/^curl(\.exe)?$/i.test(tokens[0])) fail(input, 0, t("error.startWithCurl"));
 
   const notes: string[] = [];
   const ignoredFlags: string[] = [];
@@ -468,7 +469,7 @@ export function parseCurl(input: string): CurlRequest {
     if (flag === "json") {
       usedJson = true;
       if (value.startsWith("@")) {
-        notes.push(`--json ${value}: reading data from a file is not supported. The body has a placeholder.`);
+        notes.push(t("note.jsonFile", { flag: "--json", value }));
         data.push({ text: filePlaceholder(value.slice(1)), kind: "json" });
       } else data.push({ text: value, kind: "json" });
       return;
@@ -478,7 +479,7 @@ export function parseCurl(input: string): CurlRequest {
       const eq = value.indexOf("=");
       if (at >= 0 && (eq < 0 || at < eq)) {
         const name = value.slice(0, at);
-        notes.push(`--data-urlencode ${value}: reading data from a file is not supported. The body has a placeholder.`);
+        notes.push(t("note.dataFile", { flag: "--data-urlencode", value }));
         data.push({ text: `${name ? `${name}=` : ""}${filePlaceholder(value.slice(at + 1))}`, kind: "data" });
       } else if (eq < 0) data.push({ text: curlEncode(value), kind: "data" });
       else {
@@ -489,7 +490,7 @@ export function parseCurl(input: string): CurlRequest {
       return;
     }
     if (value.startsWith("@")) {
-      notes.push(`--${flag} ${value}: reading data from a file is not supported. The body has a placeholder.`);
+      notes.push(t("note.dataFile", { flag: `--${flag}`, value }));
       data.push({ text: filePlaceholder(value.slice(1)), kind: "data" });
       return;
     }
@@ -499,7 +500,7 @@ export function parseCurl(input: string): CurlRequest {
   const addForm = (flag: string, value: string) => {
     const eq = value.indexOf("=");
     if (eq < 0) {
-      notes.push(`--${flag} ${value}: expected name=value. The field is skipped.`);
+      notes.push(t("note.fieldFormat", { flag: `--${flag}`, value }));
       return;
     }
     const name = value.slice(0, eq);
@@ -510,7 +511,7 @@ export function parseCurl(input: string): CurlRequest {
       const contentType = params.find((p) => p.startsWith("type="))?.slice(5);
       const filename = params.find((p) => p.startsWith("filename="))?.slice(9);
       if (content.startsWith("<")) {
-        notes.push(`-F ${value}: field contents from a file are not supported. The field has a placeholder.`);
+        notes.push(t("note.formFile", { value }));
         form.push({ name, value: filePlaceholder(file) });
       } else form.push({ name, file, contentType, filename });
       return;
@@ -530,19 +531,19 @@ export function parseCurl(input: string): CurlRequest {
         break;
       case "header": {
         if (value.startsWith("@")) {
-          notes.push(`-H ${value}: reading headers from a file is not supported.`);
+          notes.push(t("note.headerFile", { value }));
           break;
         }
         const colon = value.indexOf(":");
         if (colon < 0) {
           if (value.endsWith(";")) headers.push([value.slice(0, -1).trim(), ""]);
-          else notes.push(`-H ${value}: not a "Name: value" header. It is skipped.`);
+          else notes.push(t("note.headerFormat", { value }));
           break;
         }
         const headerName = value.slice(0, colon).trim();
         const headerValue = value.slice(colon + 1).trim();
         if (!headerValue) {
-          notes.push(`-H "${headerName}:" removes a default curl header. It is skipped.`);
+          notes.push(t("note.headerRemoves", { name: headerName }));
           break;
         }
         headers.push([headerName, headerValue]);
@@ -562,13 +563,13 @@ export function parseCurl(input: string): CurlRequest {
         break;
       case "user": {
         const colon = value.indexOf(":");
-        if (colon < 0) notes.push("-u has no password. curl would ask for one. The code uses an empty password.");
+        if (colon < 0) notes.push(t("note.noPassword"));
         auth = colon < 0 ? { user: value, password: "" } : { user: value.slice(0, colon), password: value.slice(colon + 1) };
         break;
       }
       case "cookie":
         if (value.includes("=")) cookies.push(value);
-        else notes.push(`-b ${value}: reading cookies from a file is not supported.`);
+        else notes.push(t("note.cookieFile", { value }));
         break;
       case "user-agent":
         userAgent = value;
@@ -582,7 +583,7 @@ export function parseCurl(input: string): CurlRequest {
       case "max-time": {
         const seconds = Number(value);
         if (Number.isFinite(seconds) && seconds > 0) timeout = seconds;
-        else notes.push(`-m ${value}: not a number of seconds. It is skipped.`);
+        else notes.push(t("note.timeout", { value }));
         break;
       }
       case "get":
@@ -623,7 +624,7 @@ export function parseCurl(input: string): CurlRequest {
     }
     const takeValue = (flag: string, inline?: string) => {
       if (inline !== undefined && inline !== "") return inline;
-      if (i >= tokens.length) fail(input, input.length, `${flag} needs a value`);
+      if (i >= tokens.length) fail(input, input.length, t("error.needsValue", { flag }));
       i += 1;
       return tokens[i - 1];
     };
@@ -666,12 +667,12 @@ export function parseCurl(input: string): CurlRequest {
     }
   }
 
-  if (urls.length === 0) fail(input, input.length, "The command has no URL");
+  if (urls.length === 0) fail(input, input.length, t("error.noUrl"));
   let url = urls[0];
-  if (urls.length > 1) notes.push(`Only the first URL is converted. Ignored: ${urls.slice(1).join(", ")}`);
+  if (urls.length > 1) notes.push(t("note.firstUrl", { urls: formatList(urls.slice(1), "unit") }));
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
     url = `http://${url}`;
-    notes.push("The URL has no scheme. curl uses http://, so the code does too.");
+    notes.push(t("note.noScheme"));
   }
 
   if (userAgent !== null && !hasHeader(headers, "User-Agent")) headers.push(["User-Agent", userAgent]);
@@ -679,7 +680,7 @@ export function parseCurl(input: string): CurlRequest {
   if (cookies.length && !hasHeader(headers, "Cookie")) headers.push(["Cookie", cookies.join("; ")]);
 
   let body: CurlBody | null = null;
-  if (data.length && form.length) notes.push("-d and -F cannot be used together. The form fields are used.");
+  if (data.length && form.length) notes.push(t("note.dataAndForm"));
 
   if (form.length) {
     body = { kind: "multipart", fields: form };
@@ -710,8 +711,8 @@ export function parseCurl(input: string): CurlRequest {
     else method = "GET";
   }
 
-  if (unsupportedFlags.length) notes.push(`Not converted: ${unsupportedFlags.join(", ")}`);
-  if (rest) notes.push(`Ignored the shell text after the command: ${rest}`);
+  if (unsupportedFlags.length) notes.push(t("note.notConverted", { flags: formatList(unsupportedFlags, "unit") }));
+  if (rest) notes.push(t("note.shellText", { text: rest }));
 
   return {
     method,
@@ -748,16 +749,16 @@ function classifyBody(text: string, contentType: string): CurlBody {
 
 /** A short description of the body for the status bar. */
 export function describeBody(body: CurlBody | null): string {
-  if (!body) return "No body";
+  if (!body) return t("body.none");
   switch (body.kind) {
     case "json":
-      return "JSON body";
+      return t("body.json");
     case "urlencoded":
-      return "Form body (urlencoded)";
+      return t("body.urlencoded");
     case "multipart":
-      return `Multipart form (${body.fields.length} ${body.fields.length === 1 ? "field" : "fields"})`;
+      return t("body.multipart", { count: body.fields.length });
     default:
-      return "Raw body";
+      return t("body.raw");
   }
 }
 

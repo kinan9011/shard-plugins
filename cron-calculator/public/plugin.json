@@ -1,7 +1,7 @@
 {
   "id": "cron-calculator",
   "name": "Cron Calculator",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Explain any cron expression in plain English, with a field breakdown and the next runs.",
   "longDescription": "Explains a cron expression in plain English, with a field breakdown and the next runs in the time zone you pick. Reads standard 5-field cron, seconds-first (Spring, node-cron), Quartz, AWS EventBridge, whole crontab lines, and the schedules in GitHub Actions and Kubernetes files. A visual builder edits one field at a time. Everything happens in the plugin; nothing is uploaded.",
   "category": "Time & Date",

@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 /**
  * Base32 encoding and decoding (RFC 4648), in the standard and the
  * "base32hex" (extended hex) alphabets.
@@ -45,19 +46,19 @@ export function bytesToBase32(bytes: Uint8Array, options: Base32Options = {}): s
 export function base32ToBytes(input: string, options: Pick<Base32Options, "variant"> = {}): Uint8Array {
   const alphabet = ALPHABETS[options.variant ?? "base32"];
   const compact = input.replace(/\s+/g, "");
-  if (!compact) throw new Error("Please enter Base32 to decode.");
+  if (!compact) throw new Error(t("error.enterBase32"));
   const body = compact.replace(/=+$/, "").toUpperCase();
 
   // Report positions in the input without whitespace, which is what the user counts in a secret.
   const values: number[] = [];
   for (let i = 0; i < body.length; i++) {
     const value = alphabet.indexOf(body[i]);
-    if (value < 0) throw new Error(`Invalid Base32 character "${compact[i]}" at position ${i + 1}.`);
+    if (value < 0) throw new Error(t("error.base32Char", { char: compact[i], position: i + 1 }));
     values.push(value);
   }
   // 1, 3, and 6 characters of a final group cannot hold whole bytes.
   if ([1, 3, 6].includes(body.length % 8)) {
-    throw new Error("Invalid Base32 length. Check for missing or extra characters.");
+    throw new Error(t("error.base32Length"));
   }
 
   const bytes = new Uint8Array(Math.floor((body.length * 5) / 8));

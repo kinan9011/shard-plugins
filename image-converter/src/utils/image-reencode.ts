@@ -4,6 +4,7 @@
  * output is upright.
  */
 import { spawnWorker } from "@/shard-sdk";
+import { t, type TKey } from "@/lib/i18n";
 import type { ProcessOptions, ProcessedPixels } from "./image-process";
 import type { RgbaImage, WasmFormat } from "./wasm-encoders";
 import { wasmBytes, wasmNeeded } from "./wasm-source";
@@ -13,15 +14,16 @@ export type OutputFormat = "jpeg" | "png" | "webp" | "avif";
 export interface OutputFormatOption {
   id: OutputFormat;
   title: string;
-  caption: string;
+  /** Dictionary key of the short description. */
+  caption: TKey;
   mime: string;
 }
 
 export const OUTPUT_FORMATS: OutputFormatOption[] = [
-  { id: "jpeg", title: "JPG", caption: "Most compatible", mime: "image/jpeg" },
-  { id: "png", title: "PNG", caption: "Lossless, keeps transparency", mime: "image/png" },
-  { id: "webp", title: "WebP", caption: "Smaller files", mime: "image/webp" },
-  { id: "avif", title: "AVIF", caption: "Smallest, newer format", mime: "image/avif" },
+  { id: "jpeg", title: "JPG", caption: "reencode.caption.jpeg", mime: "image/jpeg" },
+  { id: "png", title: "PNG", caption: "reencode.caption.png", mime: "image/png" },
+  { id: "webp", title: "WebP", caption: "reencode.caption.webp", mime: "image/webp" },
+  { id: "avif", title: "AVIF", caption: "reencode.caption.avif", mime: "image/avif" },
 ];
 
 export const DEFAULT_OUTPUT_FORMAT: OutputFormat = "jpeg";
@@ -50,7 +52,7 @@ const blobBytes = (blob: Blob) =>
   new Promise<Uint8Array>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the encoded image."));
+    reader.onerror = () => reject(reader.error ?? new Error(t("error.readEncoded")));
     reader.readAsArrayBuffer(blob);
   });
 
@@ -78,7 +80,7 @@ const getWorker = (): Promise<Worker | null> => {
         if (!task) return;
         pending.delete(event.data.id);
         if (event.data.result) task.resolve(event.data.result);
-        else task.reject(new Error(event.data.error ?? "Encoding failed."));
+        else task.reject(new Error(event.data.error ?? t("error.encodingFailed")));
       };
       w.onerror = () => {
         workerFailed = true;
@@ -143,7 +145,7 @@ const loadElement = (blob: Blob) =>
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Could not decode this image."));
+      reject(new Error(t("error.decode")));
     };
     image.src = url;
   });
@@ -168,7 +170,7 @@ export async function decodeToCanvas(blob: Blob, format: OutputFormat): Promise<
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not prepare the image canvas.");
+  if (!context) throw new Error(t("error.canvas"));
   if (format === "jpeg") {
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
@@ -180,7 +182,7 @@ export async function decodeToCanvas(blob: Blob, format: OutputFormat): Promise<
 
 export const canvasPixels = (canvas: HTMLCanvasElement): RgbaImage => {
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not read the image pixels.");
+  if (!context) throw new Error(t("error.pixels"));
   const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
   return { data, width, height };
 };
@@ -195,7 +197,7 @@ export async function encodeCanvas(
   const q = Math.min(100, Math.max(1, Math.round(quality)));
   if (format === "jpeg" || format === "png") {
     const blob = await canvasToBlob(canvas, outputMime(format), format === "jpeg" ? q / 100 : undefined);
-    if (!blob) throw new Error(`Could not encode the image as ${format === "jpeg" ? "JPG" : "PNG"}.`);
+    if (!blob) throw new Error(t("error.encode", { format: format === "jpeg" ? "JPG" : "PNG" }));
     return blobBytes(blob);
   }
   if (format === "webp") {
