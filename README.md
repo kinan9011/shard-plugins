@@ -77,6 +77,7 @@ It can only do what the user approves: see the
 | `token-counter/` | Token Counter | web | `clipboard:write` (optional) |
 | `ai-text-cleaner/` | AI Text Cleaner | web | `clipboard:write` (optional) |
 | `pdf-organizer/` | PDF Organizer | web | `files:open`, `files:save` (both optional) |
+| `pdf-forms/` | PDF Forms | web | `files:open`, `files:save` (both optional) |
 
 Most of these used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
 entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one

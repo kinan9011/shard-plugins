@@ -1,0 +1,8 @@
+{
+  "id": "pdf-forms", "name": "PDF Forms", "version": "1.0.0",
+  "description": "Read and fill AcroForm text, checkbox, choice and radio fields. Preview appearances, import JSON or CSV for batch filling, save editable PDFs or deliberately flatten a copy. All processing stays on your device.",
+  "category": "PDF Tools", "keywords": ["pdf", "form", "acroform", "fill", "batch", "flatten", "json", "csv"],
+  "icon": "lucide:FileInput", "entry": "index.html", "runtime": "web",
+  "permissions": [ { "name": "files:open", "reason": "Choose a PDF form or a JSON/CSV field mapping on your device", "optional": true }, { "name": "files:save", "reason": "Save filled PDFs, a batch ZIP, or a JSON field mapping", "optional": true } ],
+  "minAppVersion": "1.0.0"
+}
