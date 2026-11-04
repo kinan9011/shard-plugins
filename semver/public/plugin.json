@@ -1,7 +1,7 @@
 {
   "id": "semver",
   "name": "Semver Calculator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Check versions against npm, Cargo, Composer, or Python ranges, see the range as plain comparators, and compare two versions.",
   "category": "Development Tools",
   "keywords": [

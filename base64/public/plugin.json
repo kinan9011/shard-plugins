@@ -1,7 +1,7 @@
 {
   "id": "base64",
   "name": "Base64",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Encode and decode Base64 and Base32 text, files, and data URIs, with a URL-safe mode.",
   "category": "Converters",
   "keywords": [

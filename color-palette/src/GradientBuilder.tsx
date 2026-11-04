@@ -146,7 +146,7 @@ export const GradientBuilder = memo(function GradientBuilder() {
         <label>
           Type{" "}
           <select
-            className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+            className="rounded border bg-background px-2 pr-7 py-1 text-sm"
             aria-label="Gradient type"
             value={type}
             onChange={(e) => setType(e.target.value as typeof type)}

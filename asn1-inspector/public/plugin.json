@@ -1,7 +1,7 @@
 {
   "id": "asn1-inspector",
   "name": "ASN.1 Inspector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Show definite-length DER or BER data from PEM, Base64, hex, or a file as a tree of tags, offsets, lengths, and values.",
   "category": "Development Tools",
   "keywords": [

@@ -1,7 +1,7 @@
 {
   "id": "compression",
   "name": "Compression",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Decompress GZIP, zlib, and raw deflate from Base64, hex, or a .gz file, and compress text back, with format detection.",
   "category": "Converters",
   "keywords": [

@@ -1,7 +1,7 @@
 {
   "id": "line-tools",
   "name": "Line Tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Filter, sort, reverse, dedupe, trim, and shuffle lines, and compare two lists. Split, join, wrap, replace, sum, or multiply lines in Transform mode.",
   "category": "Text Tools",
   "keywords": [

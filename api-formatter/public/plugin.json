@@ -1,7 +1,7 @@
 {
   "id": "api-formatter",
   "name": "API Formatter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Format or minify JSON API responses, and turn URL-encoded data and query strings into JSON.",
   "category": "Text Tools",
   "keywords": [

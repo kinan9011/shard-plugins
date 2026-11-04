@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Restyled after the JetBrains New UI to match Shard's new look: flat surfaces, 4px corners, compact controls and the Int UI colors and fonts sent by the app.
+
 ## 1.1.0
 
 - Rebuilt around a PDF Arranger–style workspace: one icon toolbar, a full-size page grid with a zoom slider, a status bar, and a ☰ menu. The upload screen is a single Open PDF action.

@@ -1,7 +1,7 @@
 {
   "id": "stopwatch",
   "name": "Stopwatch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Record laps and split times, and copy or export them as CSV. The stopwatch keeps running while you use other tools.",
   "category": "Time & Date",
   "keywords": [

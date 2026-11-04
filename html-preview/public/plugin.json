@@ -1,7 +1,7 @@
 {
   "id": "html-preview",
   "name": "HTML Preview",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Render HTML in a sandbox that cannot reach the network or the app.",
   "category": "Development Tools",
   "keywords": [

@@ -1,7 +1,7 @@
 {
   "id": "lorem-generator",
   "name": "Lorem Ipsum",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generate placeholder text and fake names, emails, URLs, and titles as text or a JSON array.",
   "category": "Generators",
   "keywords": [

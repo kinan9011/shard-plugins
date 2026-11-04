@@ -47,7 +47,7 @@ function getGenerateButtonLabel(version: UUIDVersion, count: number) {
   return count === 1 ? `Generate 1 UUID v${version}` : `Generate ${count} UUID v${version}s`;
 }
 
-const field = "w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+const field = "w-full rounded border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const label = "text-sm font-medium text-foreground";
 
 export default function App({ sdk }: { sdk: ShardSdk }) {
@@ -86,7 +86,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <label htmlFor="uuid-version" className={label}>Version</label>
-          <select id="uuid-version" value={version} onChange={(event) => setVersion(event.target.value as UUIDVersion)} className={`${field} h-10`}>
+          <select id="uuid-version" value={version} onChange={(event) => setVersion(event.target.value as UUIDVersion)} className={`${field} h-7`}>
             {VERSION_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -98,7 +98,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
 
         <div className="space-y-2">
           <label htmlFor="uuid-count" className={label}>Count</label>
-          <input id="uuid-count" type="number" min="1" max="1000" value={count} onChange={(event) => setCount(parseInt(event.target.value) || 1)} className={`${field} h-10`} />
+          <input id="uuid-count" type="number" min="1" max="1000" value={count} onChange={(event) => setCount(parseInt(event.target.value) || 1)} className={`${field} h-7`} />
           <p className="text-xs text-muted-foreground">Generate between 1 and 1000 identifiers at a time.</p>
         </div>
       </div>
@@ -107,13 +107,13 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label htmlFor="uuid-namespace" className={label}>Namespace</label>
-            <select id="uuid-namespace" value={namespaceKey} onChange={(event) => setNamespaceKey(event.target.value as NamespaceKey)} className={`${field} h-10`}>
+            <select id="uuid-namespace" value={namespaceKey} onChange={(event) => setNamespaceKey(event.target.value as NamespaceKey)} className={`${field} h-7`}>
               {NAMESPACE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             {namespaceKey === "custom" ? (
-              <input aria-label="Custom namespace UUID" value={customNamespace} onChange={(event) => setCustomNamespace(event.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className={`${field} h-10 font-mono`} />
+              <input aria-label="Custom namespace UUID" value={customNamespace} onChange={(event) => setCustomNamespace(event.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className={`${field} h-7 font-mono`} />
             ) : (
               <p className="font-mono text-xs text-muted-foreground">{namespace}</p>
             )}
@@ -121,14 +121,14 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
           </div>
           <div className="space-y-2">
             <label htmlFor="uuid-name" className={label}>Name</label>
-            <input id="uuid-name" value={name} onChange={(event) => setName(event.target.value)} className={`${field} h-10`} />
+            <input id="uuid-name" value={name} onChange={(event) => setName(event.target.value)} className={`${field} h-7`} />
             <p className="text-xs text-muted-foreground">The same namespace and name always give the same UUID.</p>
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-3">
-        <button type="button" onClick={generate} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm text-primary-foreground hover:opacity-90">
+        <button type="button" onClick={generate} className="inline-flex h-7 items-center gap-2 rounded bg-primary-solid px-4 text-sm text-primary-solid-foreground hover:bg-primary-solid/90">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
             <path d="M21 3v5h-5" />
@@ -154,7 +154,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
         <h2 className="text-sm font-semibold text-foreground">Inspect</h2>
         <div className="space-y-2">
           <label htmlFor="uuid-inspect" className={label}>UUID or ULID</label>
-          <input id="uuid-inspect" value={inspectInput} onChange={(event) => setInspectInput(event.target.value)} placeholder="Paste a UUID or ULID" className={`${field} h-10 font-mono`} />
+          <input id="uuid-inspect" value={inspectInput} onChange={(event) => setInspectInput(event.target.value)} placeholder="Paste a UUID or ULID" className={`${field} h-7 font-mono`} />
         </div>
         {inspection && !inspection.valid && <p className="text-sm text-destructive">{inspection.error}</p>}
         {inspection?.valid && (

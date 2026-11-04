@@ -1,7 +1,7 @@
 {
   "id": "image-metadata",
   "name": "Image Metadata Cleaner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Remove AI prompts, Content Credentials (C2PA), AI-generated labels, GPS, and camera data from JPEG, PNG, and WebP images. Keep the original pixels, or save a clean copy as JPG, PNG, WebP, or AVIF.",
   "category": "AI Tools",
   "keywords": [

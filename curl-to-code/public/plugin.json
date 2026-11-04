@@ -1,7 +1,7 @@
 {
   "id": "curl-to-code",
   "name": "cURL to Code",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert a cURL command to fetch, Node, Python, Go, PHP, Rust, or HTTPie code.",
   "category": "Converters",
   "keywords": [

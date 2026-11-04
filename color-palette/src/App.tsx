@@ -485,7 +485,7 @@ function ContrastChecker({
                 id="contrast-target"
                 value={targetId}
                 onChange={(e) => setTargetId(e.target.value as ContrastTarget)}
-                className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+                className="rounded border bg-background px-2 pr-7 py-1 text-sm"
               >
                 {WCAG_TARGETS.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -912,7 +912,7 @@ function CvdImage({ severity }: { severity: number }) {
           id="cvd-image-type"
           value={type}
           onChange={(e) => setType(e.target.value as CvdType)}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          className="h-7 rounded border border-input bg-background px-2 text-xs"
         >
           {CVD_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -990,7 +990,7 @@ function PaletteGenerator({
             id="palette-mode"
             value={mode}
             onChange={(e) => setMode(e.target.value as PaletteMode)}
-            className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
+            className="rounded border bg-background px-2 pr-7 py-1 text-sm"
           >
             {PALETTE_MODES.map((item) => (
               <option key={item.id} value={item.id}>

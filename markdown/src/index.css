@@ -2,24 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Colors come from the app theme (src/App.tsx applies the variables the host sends). These are used until it answers. */
+/* Colors and fonts come from the app theme (src/App.tsx applies the variables the host sends). These JetBrains New UI
+   values (IntelliJ Light, Darcula-style Dark) are used until it answers. */
 :root {
   color-scheme: light dark;
-  --background: 220 23% 98%;
-  --foreground: 222 25% 16%;
-  --muted-foreground: 220 9% 46%;
-  --primary: 221 83% 53%;
+  --background: 220 23% 97%;
+  --foreground: 225 6% 13%;
+  --muted-foreground: 226 8% 41%;
+  --primary: 221 71% 52%;
   --primary-foreground: 0 0% 100%;
-  --border: 220 13% 88%;
-  --radius: 0.5rem;
-  --font-ui: system-ui, sans-serif;
+  --border: 223 14% 90%;
+  --radius: 0.375rem;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 222 32% 10%;
-    --foreground: 220 30% 93%;
-    --muted-foreground: 220 12% 62%;
-    --border: 222 20% 22%;
+    --background: 216 5% 18%;
+    --foreground: 220 10% 89%;
+    --muted-foreground: 224 6% 64%;
+    --primary: 220 93% 67%;
+    --primary-foreground: 225 6% 10%;
+    --border: 223 6% 24%;
   }
 }
 
@@ -29,6 +33,6 @@ body {
 }
 
 /* Small pieces the tool components rely on (the app has them in src/index.css). */
-.toolbar-text-button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 5px; color: hsl(var(--muted-foreground)); font-size: 12px; }
-.toolbar-text-button:hover:not(:disabled) { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.toolbar-text-button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 4px; color: hsl(var(--muted-foreground)); font-size: 12px; }
+.toolbar-text-button:hover:not(:disabled) { background: var(--surface-hover); color: hsl(var(--foreground)); }
 .toolbar-text-button:disabled { opacity: .4; }

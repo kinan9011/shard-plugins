@@ -277,7 +277,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
           ) : runs.length > 0 ? (
             <div className="space-y-2">
               {runs.map((date) => (
-                <div key={date.toISOString()} className="flex items-center gap-3 rounded-lg bg-muted p-3">
+                <div key={date.toISOString()} className="flex items-center gap-3 rounded-md bg-muted p-3">
                   <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <time dateTime={date.toISOString()} className="font-mono text-sm">
                     {runFormatter.format(date)}
