@@ -1,0 +1,16 @@
+{
+  "id": "pdf-compressor",
+  "name": "PDF Compressor",
+  "version": "1.0.0",
+  "description": "Compress PDFs from gentle optimization to strong page-image compression. Adjust resolution and quality, convert to grayscale or true black and white, flatten forms or all visible content, and remove metadata and attachments. Entirely on-device.",
+  "category": "PDF Tools",
+  "keywords": ["pdf", "compress", "reduce", "optimize", "flatten", "grayscale", "monochrome"],
+  "icon": "lucide:FileDown",
+  "entry": "index.html",
+  "runtime": "web",
+  "permissions": [
+    { "name": "files:open", "reason": "Choose the PDF you want to compress on your device", "optional": true },
+    { "name": "files:save", "reason": "Save the compressed PDF to a location you choose", "optional": true }
+  ],
+  "minAppVersion": "1.0.0"
+}

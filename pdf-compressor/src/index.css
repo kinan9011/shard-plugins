@@ -1,0 +1,81 @@
+:root {
+  color-scheme: light;
+  --background: 220 23% 97%; --foreground: 225 6% 13%; --muted-foreground: 226 8% 41%;
+  --primary: 221 71% 52%; --primary-foreground: 0 0% 100%; --border: 223 14% 86%; --input: 223 6% 53%;
+  --destructive: 356 68% 46%; --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; --background: 216 5% 18%; --foreground: 220 10% 89%; --muted-foreground: 224 6% 68%; --border: 223 6% 31%; --primary: 220 93% 67%; --primary-foreground: 225 6% 10%; --destructive: 353 77% 67%; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: hsl(var(--background)); color: hsl(var(--foreground)); font: 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; }
+button, select { min-height: 44px; padding: 10px 16px; color: inherit; background: hsl(var(--background)); border: 1px solid hsl(var(--input)); border-radius: 8px; }
+button { cursor: pointer; font-weight: 550; }
+button:hover:not(:disabled) { background: var(--surface-hover, hsl(var(--primary) / 0.1)); }
+button.primary { background: hsl(var(--primary-solid, var(--primary))); color: hsl(var(--primary-solid-foreground, var(--primary-foreground))); border-color: transparent; }
+button.primary:hover:not(:disabled) { filter: brightness(0.93); }
+button.quiet { border-color: transparent; background: transparent; color: hsl(var(--muted-foreground)); }
+button.quiet:hover:not(:disabled) { color: hsl(var(--foreground)); background: hsl(var(--foreground) / 0.05); }
+button:disabled { opacity: 0.45; cursor: default; }
+:focus-visible { outline: 2px solid hsl(var(--ring, var(--primary))); outline-offset: 4px; }
+::selection { background: hsl(var(--primary) / 0.22); }
+h1, h2, p { margin: 0; }
+h1 { font-size: 18px; font-weight: 650; letter-spacing: -0.025em; }
+h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.025em; }
+.hint, dt, figcaption { color: hsl(var(--muted-foreground)); font-size: 12px; }
+.compressor { min-width: 0; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 28px; border-bottom: 1px solid hsl(var(--border)); background: var(--surface-chrome, transparent); }
+.toolbar .hint { margin-top: 2px; }
+.workspace { width: min(100%, 744px); margin-inline: auto; padding: 36px 28px; flex: 1; }
+.file-area { min-height: 320px; margin-top: 36px; padding: 40px 24px; border: 1px dashed hsl(var(--input)); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+.file-area .hint { margin-top: 6px; }
+.document-icon { color: hsl(var(--muted-foreground)); flex: none; }
+.file-info { min-width: 0; }
+.file-actions, .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.has-file { min-height: 0; margin: 0; padding: 20px; border-style: solid; border-color: hsl(var(--border)); border-radius: 12px; flex-direction: row; text-align: start; gap: 16px; }
+.has-file .document-icon { width: 30px; height: 36px; }
+.has-file .file-info { flex: 1; }
+.has-file .file-actions { flex: none; }
+.has-file .file-actions button { padding-inline: 10px; }
+.filename { display: block; overflow-wrap: anywhere; font-weight: 600; }
+.settings { padding-block: 28px 0; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+legend { font-weight: 600; padding: 0; margin-bottom: 12px; }
+.field { display: flex; flex-direction: column; gap: 8px; font-weight: 550; }
+select { width: 100%; max-width: 100%; font-weight: 400; }
+.advanced { border-block: 1px solid hsl(var(--border)); }
+summary { min-height: 48px; padding-block: 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+summary:hover { color: hsl(var(--primary)); }
+.advanced-content { padding-block: 8px 24px; display: grid; gap: 24px; }
+.check { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding-block: 10px; cursor: pointer; }
+input[type="checkbox"] { margin: 3px 0 0; flex: none; accent-color: hsl(var(--primary)); width: 17px; height: 17px; }
+input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: hsl(var(--primary)); }
+.notice { font-size: 12px; color: hsl(var(--muted-foreground)); line-height: 1.65; }
+.notice .check { margin-top: 10px; color: hsl(var(--foreground)); font-size: 13px; }
+.notice strong { display: block; margin-top: 8px; color: hsl(var(--destructive)); }
+.compress-action { flex: 1; }
+.output { min-width: 0; margin-top: 32px; padding-top: 28px; border-top: 1px solid hsl(var(--border)); display: flex; flex-direction: column; gap: 20px; }
+.result-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.metrics { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 0; }
+dd { margin: 4px 0 0; font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -0.025em; }
+figure { margin: 0; padding: 24px; border-radius: 12px; background: var(--surface-hover, hsl(var(--foreground) / 0.035)); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+canvas { max-width: 100%; height: auto; max-height: 480px; object-fit: contain; box-shadow: 0 4px 18px #0002; background: white; }
+figcaption { text-align: center; }
+footer { width: min(100%, 744px); margin-inline: auto; padding: 0 28px 20px; color: hsl(var(--muted-foreground)); font-size: 12px; }
+[role="alert"] { color: hsl(var(--destructive)); margin-top: 6px; }
+.drop-overlay { position: fixed; inset: 12px; z-index: 10; pointer-events: none; display: grid; place-items: center; border: 2px dashed hsl(var(--primary)); border-radius: 16px; background: hsl(var(--background) / 0.96); }
+.drop-overlay > div { margin: 24px; text-align: center; font-size: 22px; font-weight: 600; }
+.is-dragging .file-area { border-color: hsl(var(--primary)); }
+@media (max-width: 600px) {
+  .toolbar { padding: 16px 20px; }
+  .workspace { padding: 24px 20px; }
+  .file-area { margin-top: 16px; padding: 32px 20px; min-height: 300px; }
+  .has-file { margin-top: 0; min-height: 0; padding: 16px; flex-wrap: wrap; }
+  .has-file .file-actions { width: 100%; justify-content: flex-start; }
+  .settings { padding-top: 24px; gap: 18px; }
+  h2 { font-size: 18px; }
+  dd { font-size: 20px; }
+  figure { padding: 16px; }
+  footer { padding-inline: 20px; }
+}
