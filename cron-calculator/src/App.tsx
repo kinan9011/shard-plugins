@@ -4,7 +4,7 @@ import { ClipboardProvider, CopyButton } from "./CopyButton";
 import { CronBuilder } from "./CronBuilder";
 import type { ShardSdk } from "./shard-sdk";
 import { ToolFaqSection, type ToolFaqItem } from "./ToolFaq";
-import { LOCALES, useLocale, useT } from "./lib/i18n";
+import { intlTag, useLocale, useT } from "./lib/i18n";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, SELECT_CLASS } from "./ui";
 import { useDebouncedValue } from "./useDebouncedValue";
 import {
@@ -107,7 +107,7 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
   const hasSeconds = result.ok && result.schedule.fields[0].name === "second";
   const runFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(`${LOCALES[locale].tag}-u-nu-latn`, {
+      new Intl.DateTimeFormat(intlTag(locale), {
         timeZone,
         weekday: "short",
         year: "numeric",

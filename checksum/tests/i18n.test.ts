@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { followHostLocale, formatNumber, getLocale, lookup, resolveLocale, setLocale, t, type TKey } from "../src/lib/i18n";
+import { codeDir, followHostLocale, formatNumber, getLocale, intlTag, lookup, resolveLocale, setLocale, t, type TKey } from "../src/lib/i18n";
 
 afterEach(() => {
   setLocale("en");
@@ -44,6 +44,22 @@ describe("formatNumber", () => {
   it("keeps Latin digits in Arabic", () => {
     setLocale("ar");
     expect(formatNumber(1234.5)).toBe("1,234.5");
+    expect(formatNumber(12345678901234567890n)).toBe("12,345,678,901,234,567,890");
+    expect(intlTag()).toBe("ar-u-nu-latn");
+  });
+
+  it("gives the same text on a repeated call (cached formatters)", () => {
+    expect(formatNumber(1.5, { minimumFractionDigits: 2 })).toBe("1.50");
+    expect(formatNumber(1.5, { minimumFractionDigits: 2 })).toBe("1.50");
+    expect(formatNumber(1.5)).toBe("1.5");
+  });
+});
+
+describe("codeDir", () => {
+  it("keeps typed code left-to-right and lets an empty field follow the page", () => {
+    expect(codeDir('["مرحبا"]')).toBe("ltr");
+    expect(codeDir("")).toBeUndefined();
+    expect(codeDir(undefined)).toBeUndefined();
   });
 });
 
@@ -65,6 +81,14 @@ describe("followHostLocale", () => {
     expect(document.documentElement.dir).toBe("rtl");
     push({ lang: "zh-CN", dir: "ltr" });
     expect(getLocale()).toBe("zh");
+    expect(document.documentElement.dir).toBe("ltr");
+  });
+
+  it("shows English, left-to-right, when the app language is one the plugin does not have", async () => {
+    const { sdk } = sdkWith({ lang: "fa", dir: "rtl" });
+    await followHostLocale(sdk);
+    expect(getLocale()).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
 

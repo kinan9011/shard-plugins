@@ -1,7 +1,7 @@
 import { useState, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { Columns2, Rows2, ShieldCheck } from "lucide-react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { autoDir, useT } from "@/lib/i18n";
+import { codeDir, useT } from "@/lib/i18n";
 
 type PaneLayout = "side" | "below";
 
@@ -114,9 +114,9 @@ export function EditorPane({ title, htmlFor, titleId, actions, children, scroll 
   );
 }
 
-/** A code-style text area that fills its pane. Typed text follows its own direction; read-only results stay left-to-right. */
+/** A code-style text area that fills its pane. Code stays left-to-right, whatever language is inside it. */
 export function CodeTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea dir={props.readOnly ? "ltr" : autoDir(props.value ?? props.defaultValue)} spellCheck={false} autoCapitalize="off" autoCorrect="off" {...props} className={`code-textarea ${props.className ?? ""}`} />;
+  return <textarea dir={props.readOnly ? "ltr" : codeDir(props.value ?? props.defaultValue)} spellCheck={false} autoCapitalize="off" autoCorrect="off" {...props} className={`code-textarea ${props.className ?? ""}`} />;
 }
 
 /** Placeholder for an empty result pane. */

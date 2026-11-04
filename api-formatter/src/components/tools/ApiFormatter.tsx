@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2 } from "lucide-react";
 import { toast } from "@/shims/sonner";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { useT } from "@/lib/i18n";
+import { codeDir, useT } from "@/lib/i18n";
 
 export function ApiFormatter() {
   const t = useT();
@@ -114,6 +114,7 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.json}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
@@ -128,6 +129,7 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.json}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
@@ -142,6 +144,7 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.urlEncoded}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
@@ -156,6 +159,7 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.queryString}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />

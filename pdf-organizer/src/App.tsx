@@ -13,13 +13,22 @@ import { usePageSelection } from "./hooks/usePageSelection";
 import { usePageReorder, type Drop } from "./hooks/usePageReorder";
 import { useToolActive } from "./hooks/useToolActive";
 import { describeError } from "./pdf/describe";
-import { useT } from "@/lib/i18n";
+import { CodedError } from "./pdf/errors";
+import { useT, t as translate, type TKey } from "@/lib/i18n";
 
 type Input = { name: string; size: number; arrayBuffer(): Promise<ArrayBuffer> };
 type Dialog = { kind: "warning"; options: ExportOptions } | { kind: "export" } | { kind: "shortcuts" } | { kind: "crop" | "split" | "scale" | "merge" | "properties" } | { kind: "confirm"; title: string; body: string; label: string; run: () => void };
 type MenuState = { x: number; y: number; kind: "main" | "page" | "background" };
 const ZOOM = { min: 80, max: 400, step: 16, initial: 160 };
 const plain = { ctrlKey: false, metaKey: false, shiftKey: false };
+
+/** A message the page shows, translated when it is rendered (not when it is made), so it follows a language change. A value may be `pg(n)`. */
+type Text = () => string;
+const msg = (key: TKey, vars?: Record<string, string | number | Text>): Text => () =>
+  translate(key, vars && Object.fromEntries(Object.entries(vars).map(([name, value]) => [name, typeof value === "function" ? value() : value])));
+const pg = (count: number): Text => () => translate("pages.count", { count });
+/** The save dialog cannot be aborted, so the page tells this label apart (by identity, not by its text) to hide Cancel. */
+const SAVING = msg("busy.saving");
 
 export default function App() {
   const t = useT();
@@ -30,11 +39,15 @@ export default function App() {
   const [history, dispatch] = useReducer(historyReducer, emptyHistory);
   const pages = history.pages;
   const [sources, setSources] = useState<Source[]>([]);
-  const [busy, setBusy] = useState("");
+  const [busy, setBusyText] = useState<Text | null>(null);
   const selection = usePageSelection(pages, !!busy);
   const { selected, setSelected } = selection;
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
+  const [notice, setNoticeText] = useState<Text | null>(null);
+  const [error, setErrorText] = useState<Text | null>(null);
+  // The function form keeps React from running the text as a state updater.
+  const setBusy = (text: Text | null) => setBusyText(() => text);
+  const setNotice = (text: Text | null) => setNoticeText(() => text);
+  const setError = (text: Text | null) => setErrorText(() => text);
   const [acknowledged, setAcknowledged] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -75,23 +88,23 @@ export default function App() {
     };
   }, []);
 
-  function change(next: Page[], message = "") {
+  function change(next: Page[], message: Text | null = null) {
     if (next === pages) return;
     dispatch({ type: "set", pages: next });
-    setNotice(message); setError("");
+    setNotice(message); setError(null);
   }
 
-  async function process(label: string, action: (signal: AbortSignal) => Promise<void>) {
+  async function process(label: Text, action: (signal: AbortSignal) => Promise<void>) {
     if (operation.current) return;
     const controller = new AbortController();
     operation.current = controller;
-    setBusy(label); setError(""); setNotice("");
+    setBusy(label); setError(null); setNotice(null);
     try { await action(controller.signal); }
     catch (error) {
-      if (controller.signal.aborted) setNotice(t("notice.cancelled"));
-      else setError(describeError(error));
+      if (controller.signal.aborted) setNotice(msg("notice.cancelled"));
+      else setError(() => describeError(error));
     } finally {
-      if (operation.current === controller) { operation.current = undefined; setBusy(""); }
+      if (operation.current === controller) { operation.current = undefined; setBusy(null); }
     }
   }
 
@@ -99,22 +112,22 @@ export default function App() {
     if (!files.length) return;
     const base = replace ? [] : pages;
     const position = anchorId === null ? base.length : base.findIndex(page => page.id === anchorId) + 1;
-    if (anchorId !== null && !position) throw new Error(t("error.importTarget"));
-    if (files.length > MAX_PAGES) throw new Error(t("error.tooManyFiles"));
+    if (anchorId !== null && !position) throw new CodedError("error.importTarget");
+    if (files.length > MAX_PAGES) throw new CodedError("error.tooManyFiles");
     const added: Source[] = [];
     const addedPages: Page[] = [];
     let bytes = replace ? 0 : sources.reduce((sum, source) => sum + source.bytes.length, 0);
     for (const file of files) {
-      if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new Error(t("error.fileSize", { name: file.name }));
-      if (bytes + file.size > MAX_SESSION_BYTES) throw new Error(t("error.sessionSize"));
+      if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new CodedError("error.fileSize", { name: file.name });
+      if (bytes + file.size > MAX_SESSION_BYTES) throw new CodedError("error.sessionSize");
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-      setBusy(t("busy.reading", { name: file.name }));
+      setBusy(msg("busy.reading", { name: file.name }));
       let result;
       try { result = await prepareInput(new Uint8Array(await file.arrayBuffer()), signal); }
-      catch (error) { throw new Error(t("error.fileFailed", { name: file.name, message: error instanceof Error ? describeError(error) : t("error.couldNotImport") })); }
+      catch (error) { throw new CodedError("error.fileFailed", { name: file.name, message: error instanceof Error ? error : new CodedError("error.couldNotImport") }); }
       bytes += result.bytes.length;
-      if (bytes > MAX_SESSION_BYTES) throw new Error(t("error.decodedSize"));
-      if (base.length + addedPages.length + result.count > MAX_PAGES) throw new Error(t("error.maxPages"));
+      if (bytes > MAX_SESSION_BYTES) throw new CodedError("error.decodedSize");
+      if (base.length + addedPages.length + result.count > MAX_PAGES) throw new CodedError("error.maxPages");
       const id = crypto.randomUUID();
       added.push({ id, name: file.name, ...result });
       for (let index = 0; index < result.count; index++) addedPages.push({ id: crypto.randomUUID(), sourceId: id, index, rotation: 0 });
@@ -125,11 +138,11 @@ export default function App() {
       clearPreviews(); selection.clear(); setClipboard([]); setMetadata({});
       setSources(added);
       dispatch({ type: "load", pages: addedPages });
-      setNotice(t("notice.opened", counts));
+      setNotice(msg("notice.opened", counts));
     } else {
       setSources(previous => [...previous, ...added]);
       change([...pages.slice(0, position), ...addedPages, ...pages.slice(position)],
-        anchorId === null ? t("notice.addedEnd", counts) : t("notice.addedAfter", { ...counts, n: position }));
+        anchorId === null ? msg("notice.addedEnd", counts) : msg("notice.addedAfter", { ...counts, n: position }));
     }
     setAcknowledged(false);
   }
@@ -153,22 +166,22 @@ export default function App() {
     event.stopPropagation();
     const files = Array.from(event.dataTransfer.files);
     const anchorId = fileTarget(event);
-    void process(t("busy.readingFiles"), signal => importFiles(files, signal, anchorId));
+    void process(msg("busy.readingFiles"), signal => importFiles(files, signal, anchorId));
   }
 
   async function chooseFile(replace: boolean) {
     const anchorId = replace ? null : importAnchor;
-    await process(t("busy.choosingFile"), async signal => {
+    await process(msg("busy.choosingFile"), async signal => {
       const file = await sdk.files.open({ as: "bytes", accept: ["pdf", "png", "jpg", "jpeg"] });
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
       if (file) await importFiles([{ ...file, arrayBuffer: async () => new Uint8Array(file.bytes).buffer }], signal, anchorId, replace);
-      else setNotice(t("notice.noFile"));
+      else setNotice(msg("notice.noFile"));
     });
   }
 
   async function chooseMultiple() {
     const anchorId = importAnchor;
-    await process(t("busy.choosingFiles"), async signal => {
+    await process(msg("busy.choosingFiles"), async signal => {
       const cancel = () => { nativePicker.current?.([]); nativePicker.current = undefined; };
       const abort = () => nativePicker.current?.([]);
       input.current!.addEventListener("cancel", cancel, { once: true });
@@ -180,7 +193,7 @@ export default function App() {
         });
         if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
         if (files.length) await importFiles(files, signal, anchorId);
-        else setNotice(t("notice.noFile"));
+        else setNotice(msg("notice.noFile"));
       } finally {
         input.current?.removeEventListener("cancel", cancel);
         signal.removeEventListener("abort", abort);
@@ -198,25 +211,25 @@ export default function App() {
   }
 
   function rotate(delta: number) {
-    change(pages.map(page => selected.has(page.id) ? { ...page, rotation: (page.rotation + delta + 360) % 360 } : page), t("notice.rotated", { pages: plural(selectedPages.length) }));
+    change(pages.map(page => selected.has(page.id) ? { ...page, rotation: (page.rotation + delta + 360) % 360 } : page), msg("notice.rotated", { pages: pg(selectedPages.length) }));
   }
 
-  function remove() { change(pages.filter(page => !selected.has(page.id)), t("notice.deleted", { pages: plural(selectedPages.length) })); }
+  function remove() { change(pages.filter(page => !selected.has(page.id)), msg("notice.deleted", { pages: pg(selectedPages.length) })); }
 
-  function copy() { setClipboard(selectedPages); setNotice(t("notice.copied", { pages: plural(selectedPages.length) })); }
+  function copy() { setClipboard(selectedPages); setNotice(msg("notice.copied", { pages: pg(selectedPages.length) })); }
 
-  function cut() { setClipboard(selectedPages); change(pages.filter(page => !selected.has(page.id)), t("notice.cut", { pages: plural(selectedPages.length) })); }
+  function cut() { setClipboard(selectedPages); change(pages.filter(page => !selected.has(page.id)), msg("notice.cut", { pages: pg(selectedPages.length) })); }
 
   function paste(after: boolean) {
-    if (pages.length + clipboard.length > MAX_PAGES) { setError(t("error.maxPages")); return; }
+    if (pages.length + clipboard.length > MAX_PAGES) { setError(msg("error.maxPages")); return; }
     const added = clonePages(clipboard);
     const edge = after ? selectedPages[selectedPages.length - 1] : selectedPages[0];
-    change(insertPages(pages, added, edge?.id ?? null, after), t("notice.pasted", { pages: plural(added.length) }));
+    change(insertPages(pages, added, edge?.id ?? null, after), msg("notice.pasted", { pages: pg(added.length) }));
     setSelected(new Set(added.map(page => page.id)));
   }
 
   function duplicate() {
-    change(pages.flatMap(page => selected.has(page.id) ? [page, { ...page, id: crypto.randomUUID() }] : [page]), t("notice.duplicated", { pages: plural(selectedPages.length) }));
+    change(pages.flatMap(page => selected.has(page.id) ? [page, { ...page, id: crypto.randomUUID() }] : [page]), msg("notice.duplicated", { pages: pg(selectedPages.length) }));
   }
 
   function move(ids: Set<string>, direction: number) {
@@ -225,19 +238,19 @@ export default function App() {
     const remaining = pages.filter(page => !ids.has(page.id));
     const target = pages[pages.indexOf(edge) + direction] ?? (direction < 0 ? remaining[0] : remaining[remaining.length - 1]);
     if (!edge || !target) return;
-    change(movePages(pages, ids, target.id, direction > 0), t("notice.moved", { pages: plural(moving.length) }));
+    change(movePages(pages, ids, target.id, direction > 0), msg("notice.moved", { pages: pg(moving.length) }));
   }
 
   function dropPages(ids: Set<string>, drop: Drop, copying: boolean) {
     if (copying) {
       const moving = pages.filter(page => ids.has(page.id));
-      if (pages.length + moving.length > MAX_PAGES) { setError(t("error.maxPages")); return; }
+      if (pages.length + moving.length > MAX_PAGES) { setError(msg("error.maxPages")); return; }
       const added = clonePages(moving);
-      change(insertPages(pages, added, drop.targetId, drop.after), t("notice.copied", { pages: plural(added.length) }));
+      change(insertPages(pages, added, drop.targetId, drop.after), msg("notice.copied", { pages: pg(added.length) }));
       setSelected(new Set(added.map(page => page.id)));
     } else {
       const next = movePages(pages, ids, drop.targetId, drop.after);
-      change(next, next === pages ? "" : t("notice.moved", { pages: plural(ids.size) }));
+      change(next, next === pages ? null : msg("notice.moved", { pages: pg(ids.size) }));
     }
   }
 
@@ -245,7 +258,7 @@ export default function App() {
 
   function clearSession() {
     dispatch({ type: "reset" }); setSources([]); selection.clear(); clearPreviews(); setClipboard([]); setMetadata({}); setThumb(ZOOM.initial);
-    setNotice(t("notice.cleared")); setError(""); setAcknowledged(false);
+    setNotice(msg("notice.cleared")); setError(null); setAcknowledged(false);
   }
 
   const suggestedName = () => {
@@ -260,9 +273,9 @@ export default function App() {
   }
 
   async function runSave(options: ExportOptions) {
-    await process(t("busy.building"), async signal => {
+    await process(msg("busy.building"), async signal => {
       const subset = options.scope === "selected" ? pages.flatMap((page, index) => selected.has(page.id) ? [index] : []) : pages.map((_, index) => index);
-      if (!subset.length) throw new Error(t("error.exportNone"));
+      if (!subset.length) throw new CodedError("error.exportNone");
       let local: number[][];
       if (options.mode === "ranges") local = parseRanges(options.ranges, subset.length);
       else if (options.mode === "every") local = everyNPages(subset.length, Number(options.every));
@@ -272,9 +285,9 @@ export default function App() {
       const needed = new Set(groups.flatMap(group => group.map(index => pages[index].sourceId)));
       const result = await runEngine<{ bytes: Uint8Array; extension: string }>({ kind: "export", sources: sources.filter(source => needed.has(source.id)), pages, groups, metadata: Object.keys(metadata).length ? metadata : undefined }, signal);
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-      setBusy(t("busy.saving"));
+      setBusy(SAVING);
       const saved = await sdk.files.save(`${suggestedName()}.${result.extension}`, result.bytes);
-      setNotice(saved ? t("notice.saved", { files: groups.length, pages: groups.reduce((sum, group) => sum + group.length, 0) }) : t("notice.saveCancelled"));
+      setNotice(saved ? msg("notice.saved", { files: groups.length, pages: groups.reduce((sum, group) => sum + group.length, 0) }) : msg("notice.saveCancelled"));
     });
   }
 
@@ -283,7 +296,7 @@ export default function App() {
 
   /** Adds an engine-built document (blank page, merged sheets) as a new source and returns its pages. */
   function adopt(name: string, result: ImportResult) {
-    if (sessionBytes() + result.bytes.length > MAX_SESSION_BYTES) throw new Error(t("error.sessionSize"));
+    if (sessionBytes() + result.bytes.length > MAX_SESSION_BYTES) throw new CodedError("error.sessionSize");
     const id = crypto.randomUUID();
     setSources(previous => [...previous, { id, name, ...result }]);
     return Array.from({ length: result.count }, (_, index): Page => ({ id: crypto.randomUUID(), sourceId: id, index, rotation: 0 }));
@@ -295,7 +308,7 @@ export default function App() {
     if (margins[0] + margins[2] > 95 || margins[1] + margins[3] > 95) return t("error.cropVisible");
     if (margins.every(value => value === 0)) return t("error.cropNone");
     setDialog(null);
-    change(cropPages(pages, selected, margins.map(value => value / 100) as [number, number, number, number]), t("notice.cropped", { pages: plural(selectedPages.length) }));
+    change(cropPages(pages, selected, margins.map(value => value / 100) as [number, number, number, number]), msg("notice.cropped", { pages: pg(selectedPages.length) }));
   }
 
   function splitDialog(values: Record<string, string>) {
@@ -304,7 +317,7 @@ export default function App() {
     if (pages.length + selectedPages.length * (cols * rows - 1) > MAX_PAGES) return t("error.maxPages");
     setDialog(null);
     const result = splitPages(pages, selected, cols, rows);
-    change(result.pages, t("notice.split", { pages: plural(selectedPages.length), pieces: cols * rows }));
+    change(result.pages, msg("notice.split", { pages: pg(selectedPages.length), pieces: cols * rows }));
     setSelected(new Set(result.created));
   }
 
@@ -312,12 +325,12 @@ export default function App() {
     const percent = number(values.percent);
     if (!(percent >= 10 && percent <= 400)) return t("error.scaleRange");
     setDialog(null);
-    change(scalePages(pages, selected, percent / 100), t("notice.scaled", { pages: plural(selectedPages.length), percent }));
+    change(scalePages(pages, selected, percent / 100), msg("notice.scaled", { pages: pg(selectedPages.length), percent }));
   }
 
   function propertiesDialog(values: Record<string, string>) {
     setMetadata(values);
-    setDialog(null); setNotice(t("notice.properties")); setError("");
+    setDialog(null); setNotice(msg("notice.properties")); setError(null);
   }
 
   function mergeDialog(values: Record<string, string>) {
@@ -325,22 +338,22 @@ export default function App() {
     if (![cols, rows].every(value => Number.isInteger(value) && value >= 1 && value <= 10) || cols * rows < 2) return t("error.mergeGrid");
     setDialog(null);
     const chosen = selectedPages, order = values.order === "columns" ? "columns" : "rows";
-    void process(t("busy.merging"), async signal => {
+    void process(msg("busy.merging"), async signal => {
       const needed = new Set(chosen.map(page => page.sourceId));
       const result = await runEngine<ImportResult>({ kind: "merge", sources: sources.filter(source => needed.has(source.id)), pages: chosen, cols, rows, order }, signal);
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
       const sheets = adopt(t("source.merged"), result);
       const first = pages.findIndex(page => selected.has(page.id));
       const rest = pages.filter(page => !selected.has(page.id));
-      if (rest.length + sheets.length > MAX_PAGES) throw new Error(t("error.maxPages"));
-      change([...rest.slice(0, first), ...sheets, ...rest.slice(first)], t("notice.merged", { pages: plural(chosen.length), sheets: plural(sheets.length) }));
+      if (rest.length + sheets.length > MAX_PAGES) throw new CodedError("error.maxPages");
+      change([...rest.slice(0, first), ...sheets, ...rest.slice(first)], msg("notice.merged", { pages: pg(chosen.length), sheets: pg(sheets.length) }));
       setSelected(new Set(sheets.map(page => page.id)));
     });
   }
 
   function cropWhiteBorders() {
     const chosen = selectedPages;
-    void process(t("busy.finding"), async signal => {
+    void process(msg("busy.finding"), async signal => {
       const found = new Map<string, Page>();
       for (const page of chosen) {
         if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
@@ -348,21 +361,21 @@ export default function App() {
         if (bounds) found.set(page.id, setCrop(page, bounds));
       }
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-      if (!found.size) throw new Error(t("error.noContent"));
-      change(pages.map(page => found.get(page.id) ?? page), found.size < chosen.length ? t("notice.croppedWhiteBlank", { pages: plural(found.size), blank: chosen.length - found.size }) : t("notice.croppedWhite", { pages: plural(found.size) }));
+      if (!found.size) throw new CodedError("error.noContent");
+      change(pages.map(page => found.get(page.id) ?? page), found.size < chosen.length ? msg("notice.croppedWhiteBlank", { pages: pg(found.size), blank: chosen.length - found.size }) : msg("notice.croppedWhite", { pages: pg(found.size) }));
     });
   }
 
   function insertBlank() {
     const anchor = selectedPages[selectedPages.length - 1] ?? pages[pages.length - 1];
-    void process(t("busy.blank"), async signal => {
+    void process(msg("busy.blank"), async signal => {
       let size: [number, number] = [595, 842];   // A4, when there is no page to copy the size from
       if (anchor) { try { size = await pageSize(sources.find(source => source.id === anchor.sourceId)!, anchor); } catch { /* keep A4 */ } }
       const result = await runEngine<ImportResult>({ kind: "blank", width: Math.round(size[0]), height: Math.round(size[1]) }, signal);
       if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-      if (pages.length + 1 > MAX_PAGES) throw new Error(t("error.maxPages"));
+      if (pages.length + 1 > MAX_PAGES) throw new CodedError("error.maxPages");
       const added = adopt(t("source.blank"), result);
-      change(insertPages(pages, added, anchor?.id ?? null, true), anchor ? t("notice.blankAfter", { n: pages.indexOf(anchor) + 1 }) : t("notice.blank"));
+      change(insertPages(pages, added, anchor?.id ?? null, true), anchor ? msg("notice.blankAfter", { n: pages.indexOf(anchor) + 1 }) : msg("notice.blank"));
       setSelected(new Set(added.map(page => page.id)));
     });
   }
@@ -402,7 +415,7 @@ export default function App() {
     remove: act(t("common.delete"), has, remove, "Del", "trash"),
     rotateLeft: act(t("act.rotateLeft"), has, () => rotate(-90), `${mod}←`, "rotateLeft"),
     rotateRight: act(t("act.rotateRight"), has, () => rotate(90), `${mod}→`, "rotateRight"),
-    reverse: act(selectedPages.length > 1 ? t("act.reverseSelected") : t("act.reverseAll"), pages.length > 1, () => change(reversePages(pages, selected), t("notice.reversed"))),
+    reverse: act(selectedPages.length > 1 ? t("act.reverseSelected") : t("act.reverseAll"), pages.length > 1, () => change(reversePages(pages, selected), msg("notice.reversed"))),
     earlier: act(t("act.earlier"), has && canMoveEarlier, () => move(selected, -1), "Alt+←"),
     later: act(t("act.later"), has && canMoveLater, () => move(selected, 1), "Alt+→"),
     selectAll: act(t("act.selectAll"), !!pages.length, () => choose(() => true), `${mod}A`),
@@ -417,7 +430,7 @@ export default function App() {
     cropWhite: act(t("act.cropWhite"), has, cropWhiteBorders),
     split: act(t("act.split"), has, () => setDialog({ kind: "split" })),
     scale: act(t("act.scale"), has, () => setDialog({ kind: "scale" })),
-    resetGeometry: act(t("act.resetGeometry"), has && selectedPages.some(page => page.crop || page.scale), () => change(resetGeometry(pages, selected), t("notice.restored", { pages: plural(selectedPages.length) }))),
+    resetGeometry: act(t("act.resetGeometry"), has && selectedPages.some(page => page.crop || page.scale), () => change(resetGeometry(pages, selected), msg("notice.restored", { pages: pg(selectedPages.length) }))),
     merge: act(t("act.merge"), has && selectedPages.length > 1, () => setDialog({ kind: "merge" })),
     blank: act(t("act.blank"), !!sources.length, insertBlank, "Ins"),
     properties: act(t("act.properties"), !!pages.length, () => setDialog({ kind: "properties" })),
@@ -509,7 +522,7 @@ export default function App() {
         if (nativePicker.current) { const finish = nativePicker.current; nativePicker.current = undefined; finish(files); return; }
         if (!files.length) return;
         const anchorId = importAnchor;
-        void process(t("busy.readingFiles"), signal => importFiles(files, signal, anchorId));
+        void process(msg("busy.readingFiles"), signal => importFiles(files, signal, anchorId));
       }} />
     {workspace && <div className="toolbar" role="toolbar" aria-label={t("toolbar.label")}>
       {button("open", t("toolbar.open"))}{button("import", t("toolbar.import"))}{button("save", t("common.save"))}<span className="divider" />
@@ -554,10 +567,10 @@ export default function App() {
     </div></ScrollRoot.Provider>}
     <footer className="status">
       <span className="count">{pages.length ? t("status.count", { pages: plural(pages.length), selected: selectedPages.length }) : ""}</span>
-      <span className="feedback" aria-live="polite">{busy ? <>{busy} {busy !== t("busy.saving") && <button type="button" onClick={() => operation.current?.abort()}>{t("status.cancel")}</button>}</> : dragNote || notice}</span>
+      <span className="feedback" aria-live="polite">{busy ? <>{busy()} {busy !== SAVING && <button type="button" onClick={() => operation.current?.abort()}>{t("status.cancel")}</button>}</> : dragNote || notice?.()}</span>
       <button type="button" className="link" onClick={a.shortcuts.run} aria-label={t("status.help")} title={t("status.helpTitle")}>?</button>
     </footer>
-    {error && <p className="error" role="alert">{error}</p>}
+    {error && <p className="error" role="alert">{error()}</p>}
     {reorder.ghost && <div className="drag-ghost" style={{ left: reorder.ghost.x + 14, top: reorder.ghost.y + 14 }}>{plural(reorder.ghost.count)}</div>}
     {menu && <Menu items={items[menu.kind]} x={menu.x} y={menu.y} label={menu.kind === "main" ? t("toolbar.more") : t("toolbar.pageActions")} onClose={() => setMenu(null)} />}
     {dialog?.kind === "warning" && <WarningDialog sources={activeSources} onCancel={() => setDialog(null)}

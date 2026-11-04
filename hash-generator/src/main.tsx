@@ -28,10 +28,12 @@ async function start() {
     .catch(() => {
       // Opened outside the app (npm run dev): the hashing still works, files and copying do not.
     });
-  // Wait for the app language first (it answers within 300 ms, or never outside the app), so the first paint is in it.
+  // The module loads while the app language is awaited (it answers within 300 ms, or never outside the app), so the first paint is in it.
+  const module = loadWasm("hash.wasm");
+  module.catch(() => {}); // handled below, once the language is in
   await followHostLocale(sdk);
   try {
-    const { instance } = await loadWasm("hash.wasm");
+    const { instance } = await module;
     root.render(<App sdk={sdk} hasher={createHasher(instance)} />);
   } catch (error) {
     root.render(<p role="alert" className="p-6 text-sm text-destructive">{t("error.startModule", { message: (error as Error).message })}</p>);

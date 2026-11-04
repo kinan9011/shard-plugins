@@ -57,10 +57,19 @@ export function setLocale(tag: string | undefined | null): void {
   for (const listener of [...listeners]) listener();
 }
 
+// ponytail: formatters are cached forever, keyed by kind + tag + options; the set of combinations a plugin uses is small and fixed.
+const formatters = new Map<string, unknown>();
+function cached<T>(kind: string, tag: string, options: unknown, make: () => T): T {
+  const key = `${kind}|${tag}|${options ? JSON.stringify(options) : ""}`;
+  let found = formatters.get(key) as T | undefined;
+  if (!found) formatters.set(key, (found = make()));
+  return found;
+}
+
 /** One entry of a dictionary; with `count`, the plural form of the language (`key_one`, `key_other`, ...), else the plain key. */
 export function lookup(dict: Dict, tag: string, key: string, count: number | undefined): string | undefined {
   if (count !== undefined) {
-    const category = new Intl.PluralRules(tag).select(count);
+    const category = cached("plural", tag, undefined, () => new Intl.PluralRules(tag)).select(count);
     return dict[`${key}_${category}`] ?? dict[`${key}_other`] ?? dict[key];
   }
   return dict[key];
@@ -97,19 +106,30 @@ export function useLocale(): { locale: LocaleId; dir: "ltr" | "rtl" } {
 }
 
 // A dev tool shows Latin digits in every language, so numbers read the same as in the code beside them.
-const numberTag = () => `${LOCALES[current].tag}-u-nu-latn`;
-export const formatNumber = (value: number, options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(numberTag(), options).format(value);
-export const formatDate = (value: Date | number, options?: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(numberTag(), options).format(value);
+/** The Intl locale tag of the current (or given) language, with Latin digits. */
+export const intlTag = (locale: LocaleId = current) => `${LOCALES[locale].tag}-u-nu-latn`;
+export const formatNumber = (value: number | bigint, options?: Intl.NumberFormatOptions) => {
+  const tag = intlTag();
+  return cached("number", tag, options, () => new Intl.NumberFormat(tag, options)).format(value);
+};
+export const formatDate = (value: Date | number, options?: Intl.DateTimeFormatOptions) => {
+  const tag = intlTag();
+  return cached("date", tag, options, () => new Intl.DateTimeFormat(tag, options)).format(value);
+};
 
 /** Comma/and lists in the current language, e.g. "A, B, and C". */
-export const formatList = (items: string[], type: Intl.ListFormatOptions["type"] = "conjunction") => new Intl.ListFormat(LOCALES[current].tag, { type }).format(items);
+export const formatList = (items: string[], type: Intl.ListFormatOptions["type"] = "conjunction") => {
+  const tag = LOCALES[current].tag;
+  return cached("list", tag, type, () => new Intl.ListFormat(tag, { type })).format(items);
+};
 
 function apply(locale: Locale | undefined) {
   if (!locale || typeof locale.lang !== "string") return;
   setLocale(locale.lang);
+  // The language the plugin actually shows, not the app's: an app language the plugin does not have is English, left-to-right.
   const root = document.documentElement;
-  root.lang = locale.lang;
-  root.dir = locale.dir === "rtl" || locale.dir === "ltr" ? locale.dir : getDir();
+  root.lang = LOCALES[current].tag;
+  root.dir = getDir();
 }
 
 /**
@@ -137,3 +157,6 @@ export async function followHostLocale(sdk: Pick<ShardSdk, "ready" | "locale">):
  * lines up with the rest of the right-to-left layout. Pass the field's `value` (or `defaultValue`).
  */
 export const autoDir = (value: unknown): "auto" | undefined => (value === undefined || value === null || value === "" ? undefined : "auto");
+
+/** `dir` for a field that holds code or data: always left-to-right once it has text, so Arabic or Hebrew inside a JSON paste does not flip the editor. */
+export const codeDir = (value: unknown): "ltr" | undefined => (autoDir(value) ? "ltr" : undefined);

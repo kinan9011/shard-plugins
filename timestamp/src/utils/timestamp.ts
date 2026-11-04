@@ -1,4 +1,4 @@
-import { LOCALES, getLocale, t } from "@/lib/i18n";
+import { intlTag, t } from "@/lib/i18n";
 
 /**
  * Timestamp converter utility functions
@@ -294,7 +294,6 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
 ];
 
 // The output of Intl is the feature here, so it follows the app language (with Latin digits).
-const intlTag = () => `${LOCALES[getLocale()].tag}-u-nu-latn`;
 
 /** Describes `ms` relative to `nowMs` in the largest whole unit, such as "3 hours ago" or "in 2 days". */
 export function formatRelativeTime(ms: number, nowMs: number): string {

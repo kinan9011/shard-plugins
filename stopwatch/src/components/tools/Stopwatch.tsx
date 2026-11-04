@@ -70,7 +70,6 @@ const LapTable = memo(function LapTable({ laps }: { laps: number[] }) {
   );
 });
 /** A CSV field, quoted when the translated heading holds a comma or a quote. */
-const csvField = (text: string) => (/[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
 
 export function Stopwatch() {
   const t = useT();
@@ -84,13 +83,13 @@ export function Stopwatch() {
   const csv = useMemo(
     () =>
       [
-        [t("table.lap"), t("table.split"), t("table.total")].map(csvField).join(","),
+        "Lap,Split,Total", // fixed: a data file reads the same in every language
         ...state.laps.map(
           (total, i) =>
             `${i + 1},${formatElapsed(total - (state.laps[i - 1] ?? 0))},${formatElapsed(total)}`,
         ),
       ].join("\n"),
-    [state.laps, t],
+    [state.laps],
   );
   return (
     <section className="space-y-6" aria-label={t("title")}>

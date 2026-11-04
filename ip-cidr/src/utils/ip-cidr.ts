@@ -2,7 +2,7 @@
  * IPv4 and IPv6 address and CIDR math. Addresses are BigInts, so IPv6 math is exact.
  * Everything runs offline with no dependencies.
  */
-import { t, getLocale, LOCALES, type TKey } from "@/lib/i18n";
+import { t, formatNumber, type TKey } from "@/lib/i18n";
 
 export type IpVersion = 4 | 6;
 
@@ -285,7 +285,7 @@ export const binaryText = (value: bigint, version: IpVersion) =>
     .join(version === 4 ? "." : ":");
 
 /** Adds thousands separators to a BigInt, in the app language (Latin digits). */
-export const groupThousands = (value: bigint) => new Intl.NumberFormat(`${LOCALES[getLocale()].tag}-u-nu-latn`).format(value);
+export const groupThousands = (value: bigint) => formatNumber(value);
 
 /** A count for display: exact digits, and a power of two for large IPv6 counts. */
 export function formatCount(value: bigint): string {

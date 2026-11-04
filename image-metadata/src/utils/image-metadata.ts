@@ -23,6 +23,8 @@ export interface MetadataFinding {
   source: string;
   /** True when cleaning with the given options removes this item. */
   removable: boolean;
+  /** The file always keeps this item (the JFIF header, the orientation), so it does not count as metadata left after cleaning. */
+  kept?: true;
 }
 
 export interface InspectResult {
@@ -403,7 +405,7 @@ function readExif(tiffBytes: Uint8Array, out: Findings, source: string, options:
       const value = tiff.number(entry);
       out.orientation = value;
       out.add(
-        { kind: "other", label: t("finding.orientation"), detail: t(value === 1 ? "detail.orientationNormal" : "detail.orientationRotated", { value }), source },
+        { kind: "other", label: t("finding.orientation"), detail: t(value === 1 ? "detail.orientationNormal" : "detail.orientationRotated", { value }), source, kept: true },
         !options.keepOrientation,
       );
     } else if (IFD0_TEXT[entry.tag]) {
@@ -752,7 +754,7 @@ function inspectJpeg(bytes: Uint8Array, options: CleanOptions, out: Findings) {
     const role = jpegRole(s);
     switch (role) {
       case "jfif":
-        out.add({ kind: "other", label: t("finding.jfifHeader"), detail: t("detail.jfifHeader"), source: "APP0" }, false);
+        out.add({ kind: "other", label: t("finding.jfifHeader"), detail: t("detail.jfifHeader"), source: "APP0", kept: true }, false);
         break;
       case "exif":
         readExif(s.data.subarray(EXIF_ID.length), out, "EXIF", options);
@@ -1128,5 +1130,5 @@ export function scanForMetadataMarkers(bytes: Uint8Array): string[] {
 
 /** Findings that still matter after cleaning: everything except the JFIF header, color data and orientation. */
 export function remainingMetadata(result: InspectResult): MetadataFinding[] {
-  return result.findings.filter((f) => f.kind !== "color-profile" && f.label !== t("finding.jfifHeader") && f.label !== t("finding.orientation"));
+  return result.findings.filter((f) => f.kind !== "color-profile" && !f.kept);
 }

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { inspectXml, parseXml } from "@/utils/xml-inspector";
 import { formatCode } from "@/utils/code-formatter";
 import { saveFile } from "@/lib/desktop";
-import { autoDir, formatNumber, useT } from "@/lib/i18n";
+import { codeDir, formatNumber, useT } from "@/lib/i18n";
 import { CopyButton } from "./CopyButton";
 import {
   CodeTextarea,
@@ -95,7 +95,7 @@ export function XmlInspector() {
             />
             <textarea
               className="rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              dir={autoDir(namespaces)}
+              dir={codeDir(namespaces)}
               aria-label={t("namespaces.label")}
               placeholder={t("namespaces.placeholder")}
               value={namespaces}
