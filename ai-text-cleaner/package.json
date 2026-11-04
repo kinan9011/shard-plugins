@@ -1,7 +1,7 @@
 {
   "name": "ai-text-cleaner",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "AI Text Cleaner plugin. Keep `version` in step with public/plugin.json.",
   "license": "MIT",
   "type": "module",

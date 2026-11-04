@@ -3,6 +3,8 @@
  * escapes, and hex bytes. Every function is pure and needs no DOM.
  */
 
+import { t as tr } from "@/lib/i18n";
+
 export type EscapeResult = { ok: true; value: string } | { ok: false; error: string };
 
 const ok = (value: string): EscapeResult => ({ ok: true, value });
@@ -117,13 +119,13 @@ function readUnicodeEscape(text: string, index: number): UnicodeEscape | string 
   if (text[index + 2] === "{") {
     const close = text.indexOf("}", index + 3);
     const digits = close === -1 ? "" : text.slice(index + 3, close);
-    if (!/^[0-9a-fA-F]{1,6}$/.test(digits)) return `Invalid \\u{…} escape at position ${index + 1}. Use 1 to 6 hex digits.`;
+    if (!/^[0-9a-fA-F]{1,6}$/.test(digits)) return tr("error.unicodeBraces", { position: index + 1 });
     const codePoint = parseInt(digits, 16);
-    if (codePoint > 0x10ffff) return `Code point ${digits} at position ${index + 1} is past U+10FFFF.`;
+    if (codePoint > 0x10ffff) return tr("error.codePoint", { digits, position: index + 1 });
     return { value: String.fromCodePoint(codePoint), length: close - index + 1 };
   }
   const digits = text.slice(index + 2, index + 6);
-  if (!/^[0-9a-fA-F]{4}$/.test(digits)) return `Invalid \\u escape at position ${index + 1}. Use exactly 4 hex digits.`;
+  if (!/^[0-9a-fA-F]{4}$/.test(digits)) return tr("error.unicodeShort", { position: index + 1 });
   return { value: String.fromCharCode(parseInt(digits, 16)), length: 6 };
 }
 
@@ -134,7 +136,7 @@ export function decodeBackslash(text: string): EscapeResult {
   for (let i = text.indexOf("\\"); i !== -1; i = text.indexOf("\\", start)) {
     out.push(text.slice(start, i));
     const next = text[i + 1];
-    if (next === undefined) return fail(`The text ends with a lone backslash at position ${i + 1}.`);
+    if (next === undefined) return fail(tr("error.loneBackslash", { position: i + 1 }));
     if (next === "u") {
       const escape = readUnicodeEscape(text, i);
       if (typeof escape === "string") return fail(escape);
@@ -142,7 +144,7 @@ export function decodeBackslash(text: string): EscapeResult {
       start = i + escape.length;
     } else if (next === "x") {
       const digits = text.slice(i + 2, i + 4);
-      if (!/^[0-9a-fA-F]{2}$/.test(digits)) return fail(`Invalid \\x escape at position ${i + 1}. Use exactly 2 hex digits.`);
+      if (!/^[0-9a-fA-F]{2}$/.test(digits)) return fail(tr("error.hexEscape", { position: i + 1 }));
       out.push(String.fromCharCode(parseInt(digits, 16)));
       start = i + 4;
     } else if (next === "\r" || next === "\n") {
@@ -221,14 +223,14 @@ export function encodeHex(text: string, options: HexEncodeOptions = {}): string 
 export function decodeHex(text: string): EscapeResult {
   const digits = text.replace(/0x|\\x/gi, "").replace(/[\s:,-]/g, "");
   const bad = digits.search(/[^0-9a-fA-F]/);
-  if (bad !== -1) return fail(`Invalid hex character "${digits[bad]}". Use only 0-9 and A-F.`);
-  if (digits.length % 2 !== 0) return fail(`Hex input has ${digits.length} digits. Each byte needs 2 digits, so the count must be even.`);
+  if (bad !== -1) return fail(tr("error.hexChar", { char: digits[bad] }));
+  if (digits.length % 2 !== 0) return fail(tr("error.hexOdd", { count: digits.length }));
   const bytes = new Uint8Array(digits.length / 2);
   for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(digits.slice(i * 2, i * 2 + 2), 16);
   try {
     return ok(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
   } catch {
-    return fail("The bytes are not valid UTF-8 text.");
+    return fail(tr("error.notUtf8"));
   }
 }
 
@@ -309,7 +311,7 @@ export function decodePunycode(input: string): string {
   const out: number[] = [];
   for (let j = 0; j < Math.max(delimiter, 0); j++) {
     const code = input.charCodeAt(j);
-    if (code >= 0x80) throw new Error("The basic part has non-ASCII characters.");
+    if (code >= 0x80) throw new Error(tr("error.punyBasic"));
     out.push(code);
   }
 
@@ -319,11 +321,11 @@ export function decodePunycode(input: string): string {
   for (let pos = delimiter > 0 ? delimiter + 1 : 0; pos < input.length; ) {
     const oldI = i;
     for (let w = 1, k = BASE; ; k += BASE) {
-      if (pos >= input.length) throw new Error("The input ends in the middle of a number.");
+      if (pos >= input.length) throw new Error(tr("error.punyEnds"));
       const digit = fromDigitChar(input.charCodeAt(pos++));
-      if (digit >= BASE) throw new Error(`"${input[pos - 1]}" is not a Punycode digit.`);
+      if (digit >= BASE) throw new Error(tr("error.punyDigit", { char: input[pos - 1] }));
       i += digit * w;
-      if (i > MAX_INT) throw new Error("The input is too large.");
+      if (i > MAX_INT) throw new Error(tr("error.punyLarge"));
       const t = threshold(k, bias);
       if (digit < t) break;
       w *= BASE - t;
@@ -332,7 +334,7 @@ export function decodePunycode(input: string): string {
     bias = adaptBias(i - oldI, length, oldI === 0);
     n += Math.floor(i / length);
     i %= length;
-    if (n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff)) throw new Error("The input decodes to an invalid code point.");
+    if (n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff)) throw new Error(tr("error.punyCodePoint"));
     out.splice(i, 0, n);
     i++;
   }
@@ -354,15 +356,15 @@ function labelToUnicode(label: string): string {
   try {
     decoded = decodePunycode(label.slice(4));
   } catch (e) {
-    throw new Error(`Invalid Punycode label "${label}". ${(e as Error).message}`);
+    throw new Error(tr("error.punyLabel", { label, reason: (e as Error).message }));
   }
-  if (!decoded || isAscii(decoded)) throw new Error(`Invalid Punycode label "${label}". It does not decode to non-ASCII text.`);
+  if (!decoded || isAscii(decoded)) throw new Error(tr("error.punyLabel", { label, reason: tr("reason.notNonAscii") }));
   // A valid label encodes back to the same digits. This rejects odd forms that decode by accident.
   if (encodePunycode(decoded).toLowerCase() !== label.slice(4).toLowerCase()) {
-    throw new Error(`Invalid Punycode label "${label}". It is not in the standard form.`);
+    throw new Error(tr("error.punyLabel", { label, reason: tr("reason.notStandard") }));
   }
   if (/[\p{Cc}\p{White_Space}.\u3002\uFF0E\uFF61]/u.test(decoded)) {
-    throw new Error(`Invalid Punycode label "${label}". It decodes to control, space, or dot characters.`);
+    throw new Error(tr("error.punyLabel", { label, reason: tr("reason.badChars") }));
   }
   return decoded;
 }
@@ -375,7 +377,7 @@ function labelToAscii(label: string): string {
   const normalized = label.normalize("NFC").toLowerCase();
   if (isAscii(normalized)) return normalized;
   const encoded = ACE_PREFIX + encodePunycode(normalized);
-  if (encoded.length > 63) throw new Error(`The label "${label}" is ${encoded.length} characters in ASCII. DNS allows 63.`);
+  if (encoded.length > 63) throw new Error(tr("error.labelTooLong", { label, length: encoded.length }));
   return encoded;
 }
 
@@ -421,7 +423,7 @@ export function convertIdn(text: string, direction: IdnDirection): EscapeResult 
     try {
       out.push(line ? convertHostIn(line, direction) : "");
     } catch (e) {
-      const where = lines.length > 1 ? `Line ${n + 1}: ` : "";
+      const where = lines.length > 1 ? tr("error.line", { line: n + 1 }) : "";
       return fail(where + (e as Error).message);
     }
   }

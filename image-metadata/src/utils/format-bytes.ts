@@ -1,3 +1,5 @@
+import { formatNumber } from "@/lib/i18n";
+
 /**
  * Format a byte count for display
  */
@@ -10,5 +12,6 @@ export function formatBytes(size: number): string {
     value /= 1024;
     i++;
   }
-  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[i]}`;
+  const digits = value >= 10 ? 1 : 2;
+  return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[i]}`;
 }

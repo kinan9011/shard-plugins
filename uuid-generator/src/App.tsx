@@ -1,36 +1,20 @@
 import { useState } from "react";
 import { CopyButton } from "./CopyButton";
+import { autoDir, t as tNow, useT, type TKey } from "./lib/i18n";
 import type { ShardSdk } from "./shard-sdk";
 import { UUID_NAMESPACES, generateMultipleUUIDs, inspectIdentifier, isValidUUID, type UUIDVersion } from "./uuid";
 
-const VERSION_OPTIONS: Array<{ value: UUIDVersion; label: string }> = [
-  { value: "4", label: "UUID v4 (Random)" },
-  { value: "1", label: "UUID v1 (Time-based, simplified)" },
-  { value: "7", label: "UUID v7 (Time-ordered, simplified)" },
-  { value: "6", label: "UUID v6 (Time-ordered, simplified)" },
-  { value: "3", label: "UUID v3 (Name-based, MD5)" },
-  { value: "5", label: "UUID v5 (Name-based, SHA-1)" },
-  { value: "ulid", label: "ULID (Sortable)" },
+const VERSION_OPTIONS: Array<{ value: UUIDVersion; labelKey: TKey }> = [
+  { value: "4", labelKey: "version.v4" },
+  { value: "1", labelKey: "version.v1" },
+  { value: "7", labelKey: "version.v7" },
+  { value: "6", labelKey: "version.v6" },
+  { value: "3", labelKey: "version.v3" },
+  { value: "5", labelKey: "version.v5" },
+  { value: "ulid", labelKey: "version.ulid" },
 ];
 
-const FAQ_ITEMS = [
-  {
-    q: "Which version should I pick most of the time?",
-    a: "Use UUID v4 when you just need a random identifier and do not care about ordering. Use ULID or the time-ordered versions when you want values that sort more naturally by creation time.",
-  },
-  {
-    q: "What is the difference between UUID and ULID?",
-    a: "UUIDs are 36-character identifiers with hyphens, while ULIDs are 26-character Crockford Base32 strings. ULIDs are easier to sort lexicographically by time and are often more compact in logs or URLs.",
-  },
-  {
-    q: "Are all UUID versions here strict RFC implementations?",
-    a: "UUID v3, v5, v4, and ULID follow their specifications. The v1, v6, and v7 options are lightweight local approximations. They are useful for demos and tooling, but not ideal when you need full standards-level interoperability.",
-  },
-  {
-    q: "Why are v3 and v5 called name-based?",
-    a: "Name-based UUIDs are derived from a namespace plus a name, so the same inputs always produce the same identifier. v3 uses MD5 and v5 uses SHA-1, as in RFC 4122. Prefer v5 for new work.",
-  },
-];
+const FAQ_KEYS = ["version", "ulid", "strict", "nameBased"] as const;
 
 type NamespaceKey = keyof typeof UUID_NAMESPACES | "custom";
 
@@ -39,18 +23,19 @@ const NAMESPACE_OPTIONS: Array<{ value: NamespaceKey; label: string }> = [
   { value: "URL", label: "URL" },
   { value: "OID", label: "OID" },
   { value: "X500", label: "X.500" },
-  { value: "custom", label: "Custom UUID" },
+  { value: "custom", label: "" },
 ];
 
 function getGenerateButtonLabel(version: UUIDVersion, count: number) {
-  if (version === "ulid") return count === 1 ? "Generate 1 ULID" : `Generate ${count} ULIDs`;
-  return count === 1 ? `Generate 1 UUID v${version}` : `Generate ${count} UUID v${version}s`;
+  if (version === "ulid") return tNow("generate.ulid", { count });
+  return tNow("generate.uuid", { count, version });
 }
 
 const field = "w-full rounded border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const label = "text-sm font-medium text-foreground";
 
 export default function App({ sdk }: { sdk: ShardSdk }) {
+  const t = useT();
   const [version, setVersion] = useState<UUIDVersion>("4");
   const [count, setCount] = useState(5);
   const [output, setOutput] = useState("");
@@ -73,11 +58,11 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
   const generate = () => {
     setNotice("");
     try {
-      if (namespaceInvalid) return fail("Namespace must be a valid UUID");
+      if (namespaceInvalid) return fail(t("error.namespace"));
       // Name-based UUIDs are deterministic, so repeating them adds nothing.
       setOutput(generateMultipleUUIDs(isNameBased ? 1 : count, version, { namespace, name }).join("\n"));
     } catch (error) {
-      fail(error instanceof Error ? error.message : "Unable to generate identifiers");
+      fail(error instanceof Error ? error.message : t("error.generate"));
     }
   };
 
@@ -85,44 +70,44 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <label htmlFor="uuid-version" className={label}>Version</label>
+          <label htmlFor="uuid-version" className={label}>{t("field.version")}</label>
           <select id="uuid-version" value={version} onChange={(event) => setVersion(event.target.value as UUIDVersion)} className={`${field} h-7`}>
             {VERSION_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
             ))}
           </select>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            v1, v6, and v7 are lightweight local implementations in this tool. Prefer v4 or ULID when you want the clearest expectations.
+            {t("note.simplified")}
           </p>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="uuid-count" className={label}>Count</label>
+          <label htmlFor="uuid-count" className={label}>{t("field.count")}</label>
           <input id="uuid-count" type="number" min="1" max="1000" value={count} onChange={(event) => setCount(parseInt(event.target.value) || 1)} className={`${field} h-7`} />
-          <p className="text-xs text-muted-foreground">Generate between 1 and 1000 identifiers at a time.</p>
+          <p className="text-xs text-muted-foreground">{t("note.countRange")}</p>
         </div>
       </div>
 
       {isNameBased && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="uuid-namespace" className={label}>Namespace</label>
+            <label htmlFor="uuid-namespace" className={label}>{t("field.namespace")}</label>
             <select id="uuid-namespace" value={namespaceKey} onChange={(event) => setNamespaceKey(event.target.value as NamespaceKey)} className={`${field} h-7`}>
               {NAMESPACE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>{option.value === "custom" ? t("namespace.custom") : option.label}</option>
               ))}
             </select>
             {namespaceKey === "custom" ? (
-              <input aria-label="Custom namespace UUID" value={customNamespace} onChange={(event) => setCustomNamespace(event.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className={`${field} h-7 font-mono`} />
+              <input aria-label={t("field.customNamespace")} dir="ltr" value={customNamespace} onChange={(event) => setCustomNamespace(event.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className={`${field} h-7 font-mono`} />
             ) : (
-              <p className="font-mono text-xs text-muted-foreground">{namespace}</p>
+              <p className="font-mono text-xs text-muted-foreground" dir="ltr">{namespace}</p>
             )}
-            {namespaceInvalid && <p className="text-xs text-destructive">Enter a valid UUID.</p>}
+            {namespaceInvalid && <p className="text-xs text-destructive">{t("error.validUuid")}</p>}
           </div>
           <div className="space-y-2">
-            <label htmlFor="uuid-name" className={label}>Name</label>
-            <input id="uuid-name" value={name} onChange={(event) => setName(event.target.value)} className={`${field} h-7`} />
-            <p className="text-xs text-muted-foreground">The same namespace and name always give the same UUID.</p>
+            <label htmlFor="uuid-name" className={label}>{t("field.name")}</label>
+            <input id="uuid-name" dir={autoDir(name)} value={name} onChange={(event) => setName(event.target.value)} className={`${field} h-7`} />
+            <p className="text-xs text-muted-foreground">{t("note.deterministic")}</p>
           </div>
         </div>
       )}
@@ -143,49 +128,49 @@ export default function App({ sdk }: { sdk: ShardSdk }) {
       {output && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="uuid-output" className={label}>Output</label>
-            <CopyButton value={output} label="Output" writeText={sdk.clipboard.writeText} onError={fail} />
+            <label htmlFor="uuid-output" className={label}>{t("field.output")}</label>
+            <CopyButton value={output} label={t("field.output")} writeText={sdk.clipboard.writeText} onError={fail} />
           </div>
-          <textarea id="uuid-output" value={output} readOnly className="h-48 w-full resize-none rounded-md border border-border bg-muted p-3 font-mono text-sm focus:outline-none" />
+          <textarea id="uuid-output" value={output} readOnly dir="ltr" className="h-48 w-full resize-none rounded-md border border-border bg-muted p-3 font-mono text-sm focus:outline-none" />
         </div>
       )}
 
       <div className="space-y-3 border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground">Inspect</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t("inspect.title")}</h2>
         <div className="space-y-2">
-          <label htmlFor="uuid-inspect" className={label}>UUID or ULID</label>
-          <input id="uuid-inspect" value={inspectInput} onChange={(event) => setInspectInput(event.target.value)} placeholder="Paste a UUID or ULID" className={`${field} h-7 font-mono`} />
+          <label htmlFor="uuid-inspect" className={label}>{t("inspect.label")}</label>
+          <input id="uuid-inspect" value={inspectInput} onChange={(event) => setInspectInput(event.target.value)} dir="ltr" placeholder={t("inspect.placeholder")} className={`${field} h-7 font-mono`} />
         </div>
         {inspection && !inspection.valid && <p className="text-sm text-destructive">{inspection.error}</p>}
         {inspection?.valid && (
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 rounded-md border border-border bg-muted p-3 text-sm">
-            <dt className="text-muted-foreground">Type</dt>
+            <dt className="text-muted-foreground">{t("inspect.type")}</dt>
             <dd>{inspection.kind === "ulid" ? "ULID" : "UUID"}</dd>
             {inspection.kind === "uuid" && (
               <>
-                <dt className="text-muted-foreground">Version</dt>
+                <dt className="text-muted-foreground">{t("field.version")}</dt>
                 <dd>{inspection.version}</dd>
-                <dt className="text-muted-foreground">Variant</dt>
+                <dt className="text-muted-foreground">{t("inspect.variant")}</dt>
                 <dd>{inspection.variant}</dd>
               </>
             )}
             {inspection.date && (
               <>
-                <dt className="text-muted-foreground">Timestamp</dt>
-                <dd className="font-mono">{inspection.date.toISOString()}</dd>
+                <dt className="text-muted-foreground">{t("inspect.timestamp")}</dt>
+                <dd className="font-mono" dir="ltr">{inspection.date.toISOString()}</dd>
               </>
             )}
           </dl>
         )}
-        <p className="text-xs text-muted-foreground">Timestamps follow the standard layouts. IDs made by the v1 and v6 options here may show other dates.</p>
+        <p className="text-xs text-muted-foreground">{t("inspect.note")}</p>
       </div>
 
-      <section aria-label="Frequently asked questions" className="space-y-2 border-t border-border pt-4">
-        <h2 className="text-sm font-medium text-foreground">FAQ</h2>
-        {FAQ_ITEMS.map((item) => (
-          <details key={item.q} className="rounded-md border border-border px-3 py-2 text-sm">
-            <summary className="cursor-pointer font-medium text-foreground">{item.q}</summary>
-            <p className="mt-1.5 text-muted-foreground">{item.a}</p>
+      <section aria-label={t("faq.label")} className="space-y-2 border-t border-border pt-4">
+        <h2 className="text-sm font-medium text-foreground">{t("toolFaq.title")}</h2>
+        {FAQ_KEYS.map((slug) => (
+          <details key={slug} className="rounded-md border border-border px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-medium text-foreground">{t(`faq.${slug}.q`)}</summary>
+            <p className="mt-1.5 text-muted-foreground">{t(`faq.${slug}.a`)}</p>
           </details>
         ))}
       </section>

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export interface CropRect {
   x: number;
   y: number;
@@ -31,7 +33,7 @@ export function imageEditSize(
       rotation,
     ].every(Number.isInteger)
   )
-    throw new Error("Use whole pixels for crop and output dimensions.");
+    throw new Error(t("edit.error.wholePixels"));
   if (
     crop.x < 0 ||
     crop.y < 0 ||
@@ -40,9 +42,7 @@ export function imageEditSize(
     crop.x + crop.width > sourceWidth ||
     crop.y + crop.height > sourceHeight
   )
-    throw new Error(
-      "Crop must stay inside the original image and contain at least one pixel.",
-    );
+    throw new Error(t("edit.error.cropInside"));
   if (
     width < 1 ||
     height < 1 ||
@@ -50,11 +50,9 @@ export function imageEditSize(
     height > 16384 ||
     width * height > 32000000
   )
-    throw new Error(
-      "Output must be 1–16,384 pixels per side and at most 32 megapixels.",
-    );
+    throw new Error(t("edit.error.outputRange"));
   if (![0, 90, 180, 270].includes(rotation))
-    throw new Error("Rotation must be a quarter turn.");
+    throw new Error(t("edit.error.rotation"));
   return rotation % 180 ? { width: height, height: width } : { width, height };
 }
 export function cropFromPoints(
@@ -100,7 +98,7 @@ export function drawEditedImage(
   canvas.width = size.width;
   canvas.height = size.height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Image editing is not supported in this browser.");
+  if (!ctx) throw new Error(t("edit.error.canvas"));
   if (type === "image/jpeg") {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, size.width, size.height);

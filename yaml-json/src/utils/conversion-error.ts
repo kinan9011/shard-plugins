@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /** An input error with a 1-based line and column when the parser reports one. */
 export class ConversionError extends Error {
   constructor(message: string, readonly line?: number, readonly column?: number) {
@@ -7,7 +9,7 @@ export class ConversionError extends Error {
 }
 
 export const withPosition = (message: string, line?: number, column?: number) =>
-  line ? `Line ${line}, column ${column ?? 1}: ${message}` : message;
+  line ? t("error.position", { line, column: column ?? 1, message }) : message;
 
 /** Builds a ConversionError whose message starts with "Line L, column C:". */
 export const errorAt = (message: string, line?: number, column?: number) =>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/shims/sonner";
 import { saveFile } from "@/lib/desktop";
+import { formatNumber, t as tNow, useT } from "@/lib/i18n";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { canvasPixels, processWasm } from "@/utils/image-reencode";
 import {
@@ -73,7 +74,7 @@ function getFileId(file: File): string {
 }
 
 function getProcessingErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unable to process this image.";
+  return error instanceof Error ? error.message : tNow("error.process");
 }
 
 function getUniqueFileName(fileName: string, usedNames: Map<string, number>): string {
@@ -103,7 +104,7 @@ async function loadImage(file: File): Promise<HTMLImageElement> {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error(`Couldn't load ${file.name}.`));
+      reject(new Error(tNow("error.load", { name: file.name })));
     };
 
     image.src = objectUrl;
@@ -120,7 +121,7 @@ async function compressImage(
   const outputFormat = getEffectiveOutputFormat(file.type, target);
 
   if (!outputFormat) {
-    throw new Error("This image format is not supported yet.");
+    throw new Error(tNow("error.unsupportedFormat"));
   }
 
   const image = await loadImage(file);
@@ -128,7 +129,7 @@ async function compressImage(
   const context = canvas.getContext("2d");
 
   if (!context) {
-    throw new Error("Your browser could not prepare the image canvas.");
+    throw new Error(tNow("error.canvasBrowser"));
   }
 
   canvas.width = image.naturalWidth || image.width;
@@ -155,7 +156,7 @@ async function compressImage(
       palette: palette.enabled ? { colors: palette.colors, dither: palette.dither } : undefined,
     });
   } catch {
-    throw new Error(`Couldn't compress ${file.name}.`);
+    throw new Error(tNow("error.compress", { name: file.name }));
   }
   const blob = new Blob([result.bytes.slice()], { type: getMimeTypeFromFormat(outputFormat) });
 
@@ -186,7 +187,10 @@ function StatsCard({
   );
 }
 
+const TARGETS: CompressionTarget[] = ["original", "jpeg", "png", "webp", "avif"];
+
 export function ImageConverter() {
+  const t = useT();
   const [singleFile, setSingleFile] = useState<File | null>(null);
   const [singleTarget, setSingleTarget] = useState<CompressionTarget>("original");
   const [singleQuality, setSingleQuality] = useState([82]);
@@ -381,7 +385,7 @@ export function ImageConverter() {
     }
 
     if (!isSupportedImageType(file.type)) {
-      toast.error("Please choose a JPG, PNG, or WebP image.");
+      toast.error(t("toast.chooseOne"));
       return;
     }
 
@@ -399,12 +403,12 @@ export function ImageConverter() {
     const supportedFiles = files.filter((file) => isSupportedImageType(file.type));
 
     if (supportedFiles.length === 0) {
-      toast.error("Please choose JPG, PNG, or WebP images.");
+      toast.error(t("toast.chooseMany"));
       return;
     }
 
     if (supportedFiles.length !== files.length) {
-      toast.error("Unsupported files were skipped. Use JPG, PNG, or WebP images.");
+      toast.error(t("toast.skipped"));
     }
 
     setBulkFiles(supportedFiles);
@@ -421,11 +425,11 @@ export function ImageConverter() {
         buildOutputFilename(singleFile.name, singleResult.format),
       );
       if (saved) {
-        toast.success("Compressed image downloaded.");
+        toast.success(t("toast.downloaded"));
       }
     } catch (error) {
       console.error("Failed to save compressed image:", error);
-      toast.error("Unable to save the compressed image.");
+      toast.error(t("toast.saveFailed"));
     }
   };
 
@@ -453,11 +457,11 @@ export function ImageConverter() {
 
     try {
       if (await saveFile(zipBlob, "compressed-images.zip")) {
-        toast.success("ZIP download is ready.");
+        toast.success(t("toast.zipReady"));
       }
     } catch (error) {
       console.error("Failed to save ZIP file:", error);
-      toast.error("Unable to save the ZIP file.");
+      toast.error(t("toast.zipFailed"));
     }
   };
 
@@ -479,17 +483,17 @@ export function ImageConverter() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Image Converter & Compressor</CardTitle>
+          <CardTitle>{t("app.title")}</CardTitle>
           <CardDescription>
-            Compress a single image or a batch locally, and convert to JPEG, PNG, WebP, or AVIF.
+            {t("app.description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Tabs defaultValue="single" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="single">Single Image</TabsTrigger>
-              <TabsTrigger value="bulk">Bulk Compress</TabsTrigger>
-              <TabsTrigger value="edit">Edit Image</TabsTrigger>
+              <TabsTrigger value="single">{t("tab.single")}</TabsTrigger>
+              <TabsTrigger value="bulk">{t("tab.bulk")}</TabsTrigger>
+              <TabsTrigger value="edit">{t("tab.edit")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="single" className="space-y-6">
@@ -506,25 +510,25 @@ export function ImageConverter() {
                 className="w-full"
                 variant="outline"
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Image
+                <Upload className="me-2 h-4 w-4" />
+                {t("action.uploadImage")}
               </Button>
 
               {!singleFile ? (
                 <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
                   <ImageIconLucide className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>Choose a JPG, PNG, or WebP image to compress locally.</p>
+                  <p>{t("empty.single")}</p>
                 </div>
               ) : (
                 <>
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_280px] lg:items-start">
                     <div className="space-y-2">
-                      <Label>Original</Label>
+                      <Label>{t("label.original")}</Label>
                       <div className="rounded-lg bg-muted p-3">
                         {singleOriginalPreviewUrl ? (
                           <img
                             src={singleOriginalPreviewUrl}
-                            alt="Original"
+                            alt={t("label.original")}
                             className="mx-auto max-h-64 w-auto max-w-full rounded-md"
                           />
                         ) : null}
@@ -535,12 +539,12 @@ export function ImageConverter() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Compressed Preview</Label>
+                      <Label>{t("label.compressedPreview")}</Label>
                       <div className="rounded-lg bg-muted p-3">
                         {singleProcessing ? (
                           <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
                             <LoaderCircle className="h-8 w-8 animate-spin" />
-                            <p>Compressing image...</p>
+                            <p>{t("progress.compressing")}</p>
                           </div>
                         ) : singleError ? (
                           <div className="flex min-h-64 items-center justify-center text-center text-sm text-destructive">
@@ -550,14 +554,14 @@ export function ImageConverter() {
                           <>
                             <img
                               src={singleResult.previewUrl}
-                              alt="Compressed preview"
+                              alt={t("alt.compressedPreview")}
                               className="mx-auto max-h-64 w-auto max-w-full rounded-md"
                             />
                             <div className="mt-2 text-center text-sm text-muted-foreground">
                               {getFormatLabel(singleResult.format)} •{" "}
                               {formatFileSize(singleResult.blob.size)}
                               <span
-                                className={`ml-2 ${
+                                className={`ms-2 ${
                                   getSavingsPercent(singleFile.size, singleResult.blob.size) >= 0
                                     ? "text-success"
                                     : "text-warning"
@@ -576,10 +580,10 @@ export function ImageConverter() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Compression Settings</Label>
+                      <Label>{t("label.settings")}</Label>
                       <div className="space-y-4 rounded-lg bg-muted/50 p-4">
                         <div className="space-y-1.5">
-                          <Label>Output Format</Label>
+                          <Label>{t("label.outputFormat")}</Label>
                           <Select
                             value={singleTarget}
                             onValueChange={(value) => setSingleTarget(value as CompressionTarget)}
@@ -588,11 +592,9 @@ export function ImageConverter() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="original">Keep Original Format</SelectItem>
-                              <SelectItem value="jpeg">Convert to JPEG</SelectItem>
-                              <SelectItem value="png">Convert to PNG</SelectItem>
-                              <SelectItem value="webp">Convert to WebP</SelectItem>
-                              <SelectItem value="avif">Convert to AVIF</SelectItem>
+                              {TARGETS.map((target) => (
+                                <SelectItem key={target} value={target}>{t(`target.${target}`)}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -600,7 +602,7 @@ export function ImageConverter() {
                         {shouldShowQualityControl(singleFile.type, singleTarget) ? (
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <Label>Quality</Label>
+                              <Label>{t("label.quality")}</Label>
                               <span className="text-sm text-muted-foreground">{singleQuality[0]}%</span>
                             </div>
                             <Slider
@@ -613,7 +615,7 @@ export function ImageConverter() {
                           </div>
                         ) : (
                           <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-                            PNG is lossless. OxiPNG finds the smallest PNG encoding for the same pixels.
+                            {t("note.png")}
                           </div>
                         )}
 
@@ -630,23 +632,23 @@ export function ImageConverter() {
 
                   <div className="grid gap-3 sm:grid-cols-3">
                     <StatsCard
-                      label="Original Size"
+                      label={t("stats.originalSize")}
                       value={formatFileSize(singleFile.size)}
                       hint={singleFile.type.replace("image/", "").toUpperCase()}
                     />
                     <StatsCard
-                      label="Compressed Size"
-                      value={singleResult ? formatFileSize(singleResult.blob.size) : "Processing..."}
+                      label={t("stats.compressedSize")}
+                      value={singleResult ? formatFileSize(singleResult.blob.size) : t("stats.processing")}
                       hint={singleResult ? getFormatLabel(singleResult.format) : undefined}
                     />
                     <StatsCard
-                      label="Savings"
+                      label={t("stats.savings")}
                       value={
                         singleResult
                           ? formatSavingsLabel(
                               getSavingsPercent(singleFile.size, singleResult.blob.size),
                             )
-                          : "Processing..."
+                          : t("stats.processing")
                       }
                       hint={singleResult ? `${singleResult.width} × ${singleResult.height}` : undefined}
                     />
@@ -659,8 +661,8 @@ export function ImageConverter() {
                       size="lg"
                       disabled={!singleResult || singleProcessing}
                     >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Image
+                      <Download className="me-2 h-4 w-4" />
+                      {t("action.downloadImage")}
                     </Button>
                   </div>
                 </>
@@ -682,40 +684,40 @@ export function ImageConverter() {
                 className="w-full"
                 variant="outline"
               >
-                <Images className="mr-2 h-4 w-4" />
-                Upload Images
+                <Images className="me-2 h-4 w-4" />
+                {t("action.uploadImages")}
               </Button>
 
               {!bulkFiles.length ? (
                 <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
                   <Images className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>Batch compress JPG, PNG, and WebP images into one ZIP download.</p>
+                  <p>{t("empty.bulk")}</p>
                 </div>
               ) : (
                 <>
                   <div className="grid gap-4 md:grid-cols-3">
                     <StatsCard
-                      label="Files"
-                      value={`${bulkFiles.length}`}
-                      hint={`${bulkCompletedCount} processed`}
+                      label={t("stats.files")}
+                      value={formatNumber(bulkFiles.length)}
+                      hint={t("stats.processed", { count: bulkCompletedCount, n: formatNumber(bulkCompletedCount) })}
                     />
                     <StatsCard
-                      label="Original Size"
+                      label={t("stats.originalSize")}
                       value={formatFileSize(totalBulkOriginalSize)}
-                      hint="Completed results only"
+                      hint={t("stats.completedOnly")}
                     />
                     <StatsCard
-                      label="Compressed Size"
+                      label={t("stats.compressedSize")}
                       value={formatFileSize(totalBulkCompressedSize)}
                       hint={
-                        completedBulkResults.length > 0 ? `${totalBulkSavings}% smaller overall` : undefined
+                        completedBulkResults.length > 0 ? t("stats.smallerOverall", { percent: formatNumber(totalBulkSavings) }) : undefined
                       }
                     />
                   </div>
 
                   <div className="space-y-4 rounded-lg bg-muted/50 p-4">
                     <div className="space-y-2">
-                      <Label>Bulk Output</Label>
+                      <Label>{t("label.bulkOutput")}</Label>
                       <Select
                         value={bulkTarget}
                         onValueChange={(value) => setBulkTarget(value as CompressionTarget)}
@@ -724,18 +726,16 @@ export function ImageConverter() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="original">Keep Original Format</SelectItem>
-                          <SelectItem value="jpeg">Convert to JPEG</SelectItem>
-                          <SelectItem value="png">Convert to PNG</SelectItem>
-                          <SelectItem value="webp">Convert to WebP</SelectItem>
-                          <SelectItem value="avif">Convert to AVIF</SelectItem>
+                          {TARGETS.map((target) => (
+                            <SelectItem key={target} value={target}>{t(`target.${target}`)}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
                     {bulkHasQualityControl ? (
                       <div className="space-y-2">
-                        <Label>Quality: {bulkQuality[0]}%</Label>
+                        <Label>{t("label.qualityValue", { value: bulkQuality[0] })}</Label>
                         <Slider
                           value={bulkQuality}
                           onValueChange={setBulkQuality}
@@ -746,7 +746,7 @@ export function ImageConverter() {
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        PNG is lossless. OxiPNG finds the smallest PNG encoding for the same pixels.
+                        {t("note.png")}
                       </p>
                     )}
 
@@ -759,18 +759,18 @@ export function ImageConverter() {
                       size="lg"
                       disabled={completedBulkResults.length === 0 || bulkProcessing}
                     >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download ZIP
+                      <Download className="me-2 h-4 w-4" />
+                      {t("action.downloadZip")}
                     </Button>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label>Compression Results</Label>
+                      <Label>{t("label.results")}</Label>
                       {bulkProcessing ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <LoaderCircle className="h-4 w-4 animate-spin" />
-                          Processing {bulkCompletedCount} of {bulkFiles.length}
+                          {t("progress.bulk", { done: formatNumber(bulkCompletedCount), total: formatNumber(bulkFiles.length) })}
                         </div>
                       ) : null}
                     </div>
@@ -783,7 +783,7 @@ export function ImageConverter() {
                         >
                           <div className="min-w-0">
                             <p className="truncate font-medium">{result.name}</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p dir="ltr" className="text-sm text-muted-foreground text-start">
                               {formatFileSize(result.originalSize)}
                               {result.compressedSize
                                 ? ` -> ${formatFileSize(result.compressedSize)}`
@@ -802,13 +802,7 @@ export function ImageConverter() {
                               </Badge>
                             ) : null}
                             <Badge variant="outline">
-                              {result.status === "processing"
-                                ? "Processing"
-                                : result.status === "done"
-                                  ? "Ready"
-                                  : result.status === "error"
-                                    ? "Failed"
-                                    : "Queued"}
+                              {t(`status.${result.status}`)}
                             </Badge>
                           </div>
                         </div>
@@ -825,33 +819,25 @@ export function ImageConverter() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Compression Notes</CardTitle>
+          <CardTitle className="text-base">{t("notes.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 text-sm md:grid-cols-2">
             <div>
-              <dt className="font-medium">Keep Original Format</dt>
-              <dd className="text-muted-foreground">
-                Best when you want a smaller file without changing the extension.
-              </dd>
+              <dt className="font-medium">{t("notes.keep.title")}</dt>
+              <dd className="text-muted-foreground">{t("notes.keep.body")}</dd>
             </div>
             <div>
-              <dt className="font-medium">WebP Output</dt>
-              <dd className="text-muted-foreground">
-                Usually gives the best size savings for photos and mixed-content images.
-              </dd>
+              <dt className="font-medium">{t("notes.webp.title")}</dt>
+              <dd className="text-muted-foreground">{t("notes.webp.body")}</dd>
             </div>
             <div>
-              <dt className="font-medium">AVIF Output</dt>
-              <dd className="text-muted-foreground">
-                Often the smallest file at the same quality. Encoding is slower, and older viewers may not open it.
-              </dd>
+              <dt className="font-medium">{t("notes.avif.title")}</dt>
+              <dd className="text-muted-foreground">{t("notes.avif.body")}</dd>
             </div>
             <div>
-              <dt className="font-medium">PNG Output</dt>
-              <dd className="text-muted-foreground">
-                OxiPNG compresses PNG without loss. For logos and screenshots, reduce the palette for much smaller files.
-              </dd>
+              <dt className="font-medium">{t("notes.png.title")}</dt>
+              <dd className="text-muted-foreground">{t("notes.png.body")}</dd>
             </div>
           </dl>
         </CardContent>

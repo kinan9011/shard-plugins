@@ -1,3 +1,5 @@
+import { formatNumber, t } from "@/lib/i18n";
+
 /**
  * AI Text Cleaner: remove the hidden characters, typographic punctuation,
  * Markdown markers, and citation markers that text copied from AI chats and
@@ -58,17 +60,15 @@ export interface CleanResult {
   total: number;
 }
 
-const plural = (count: number, one: string, many: string) => `${count.toLocaleString()} ${count === 1 ? one : many}`;
-
 const CHANGE_LABELS: Record<ChangeKind, (n: number) => string> = {
-  invisible: (n) => `${plural(n, "invisible character", "invisible characters")} removed`,
-  spaces: (n) => `${plural(n, "unusual space", "unusual spaces")} normalized`,
-  quotes: (n) => `${plural(n, "quote", "quotes")} straightened`,
-  dashes: (n) => `${plural(n, "dash", "dashes")} replaced`,
-  ellipsis: (n) => `${plural(n, "ellipsis", "ellipses")} expanded`,
-  markdown: (n) => `${plural(n, "Markdown marker", "Markdown markers")} removed`,
-  citations: (n) => `${plural(n, "citation marker", "citation markers")} removed`,
-  whitespace: (n) => `${plural(n, "line", "lines")} trimmed or collapsed`,
+  invisible: (n) => t("label.invisible", { count: n, number: formatNumber(n) }),
+  spaces: (n) => t("label.spaces", { count: n, number: formatNumber(n) }),
+  quotes: (n) => t("label.quotes", { count: n, number: formatNumber(n) }),
+  dashes: (n) => t("label.dashes", { count: n, number: formatNumber(n) }),
+  ellipsis: (n) => t("label.ellipsis", { count: n, number: formatNumber(n) }),
+  markdown: (n) => t("label.markdown", { count: n, number: formatNumber(n) }),
+  citations: (n) => t("label.citations", { count: n, number: formatNumber(n) }),
+  whitespace: (n) => t("label.whitespace", { count: n, number: formatNumber(n) }),
 };
 
 /* ------------------------------------------------------------------ */

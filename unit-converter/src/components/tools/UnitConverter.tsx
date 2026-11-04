@@ -6,64 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight } from "lucide-react";
 import { toast } from "@/shims/sonner";
-import { formatResult } from "@/utils/unit-converter";
+import { useT, type TKey } from "@/lib/i18n";
+import { conversions, formatResult } from "@/utils/unit-converter";
 
-interface ConversionUnit {
-  name: string;
-  symbol: string;
-  toBase: (value: number) => number;
-  fromBase: (value: number) => number;
-}
-
-const conversions: Record<string, { category: string; units: Record<string, ConversionUnit> }> = {
-  length: {
-    category: "Length",
-    units: {
-      meter: { name: "Meter", symbol: "m", toBase: (v) => v, fromBase: (v) => v },
-      kilometer: { name: "Kilometer", symbol: "km", toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
-      centimeter: { name: "Centimeter", symbol: "cm", toBase: (v) => v / 100, fromBase: (v) => v * 100 },
-      millimeter: { name: "Millimeter", symbol: "mm", toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
-      mile: { name: "Mile", symbol: "mi", toBase: (v) => v * 1609.344, fromBase: (v) => v / 1609.344 },
-      yard: { name: "Yard", symbol: "yd", toBase: (v) => v * 0.9144, fromBase: (v) => v / 0.9144 },
-      foot: { name: "Foot", symbol: "ft", toBase: (v) => v * 0.3048, fromBase: (v) => v / 0.3048 },
-      inch: { name: "Inch", symbol: "in", toBase: (v) => v * 0.0254, fromBase: (v) => v / 0.0254 },
-    },
-  },
-  weight: {
-    category: "Weight",
-    units: {
-      kilogram: { name: "Kilogram", symbol: "kg", toBase: (v) => v, fromBase: (v) => v },
-      gram: { name: "Gram", symbol: "g", toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
-      milligram: { name: "Milligram", symbol: "mg", toBase: (v) => v / 1000000, fromBase: (v) => v * 1000000 },
-      pound: { name: "Pound", symbol: "lb", toBase: (v) => v * 0.453592, fromBase: (v) => v / 0.453592 },
-      ounce: { name: "Ounce", symbol: "oz", toBase: (v) => v * 0.0283495, fromBase: (v) => v / 0.0283495 },
-    },
-  },
-  temperature: {
-    category: "Temperature",
-    units: {
-      celsius: { name: "Celsius", symbol: "°C", toBase: (v) => v, fromBase: (v) => v },
-      fahrenheit: {
-        name: "Fahrenheit",
-        symbol: "°F",
-        toBase: (v) => (v - 32) * 5 / 9,
-        fromBase: (v) => v * 9 / 5 + 32,
-      },
-      kelvin: { name: "Kelvin", symbol: "K", toBase: (v) => v - 273.15, fromBase: (v) => v + 273.15 },
-    },
-  },
-  data: {
-    category: "Data",
-    units: {
-      byte: { name: "Byte", symbol: "B", toBase: (v) => v, fromBase: (v) => v },
-      kilobyte: { name: "Kilobyte", symbol: "KB", toBase: (v) => v * 1024, fromBase: (v) => v / 1024 },
-      megabyte: { name: "Megabyte", symbol: "MB", toBase: (v) => v * 1024 * 1024, fromBase: (v) => v / (1024 * 1024) },
-      gigabyte: { name: "Gigabyte", symbol: "GB", toBase: (v) => v * 1024 * 1024 * 1024, fromBase: (v) => v / (1024 * 1024 * 1024) },
-    },
-  },
-};
+const unitLabel = (t: ReturnType<typeof useT>, key: string) => t(`unit.${key}` as TKey);
 
 export function UnitConverter() {
+  const t = useT();
   const [category, setCategory] = useState<string>("length");
   const [fromUnit, setFromUnit] = useState<string>("meter");
   const [toUnit, setToUnit] = useState<string>("kilometer");
@@ -123,15 +72,15 @@ export function UnitConverter() {
       <Card>
         <CardContent className="pt-6 space-y-6">
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>{t("field.category")}</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.values(conversions).map((conv) => (
-                  <SelectItem key={conv.category.toLowerCase()} value={conv.category.toLowerCase()}>
-                    {conv.category}
+                {Object.keys(conversions).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {t(`category.${key}` as TKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -140,7 +89,7 @@ export function UnitConverter() {
 
           <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-end">
             <div className="space-y-2">
-              <Label>From</Label>
+              <Label>{t("field.from")}</Label>
               <Select value={fromUnit} onValueChange={setFromUnit}>
                 <SelectTrigger>
                   <SelectValue />
@@ -148,19 +97,19 @@ export function UnitConverter() {
                 <SelectContent>
                   {Object.entries(currentConversion.units).map(([key, unit]) => (
                     <SelectItem key={key} value={key}>
-                      {unit.name} ({unit.symbol})
+                      {unitLabel(t, key)} ({unit.symbol})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button onClick={swapUnits} variant="outline" size="icon">
-              <ArrowRight className="h-4 w-4" />
+            <Button onClick={swapUnits} variant="outline" size="icon" aria-label={t("action.swap")} title={t("action.swap")}>
+              <ArrowRight className="h-4 w-4 rtl:-scale-x-100" />
             </Button>
 
             <div className="space-y-2">
-              <Label>To</Label>
+              <Label>{t("field.to")}</Label>
               <Select value={toUnit} onValueChange={setToUnit}>
                 <SelectTrigger>
                   <SelectValue />
@@ -168,7 +117,7 @@ export function UnitConverter() {
                 <SelectContent>
                   {Object.entries(currentConversion.units).map(([key, unit]) => (
                     <SelectItem key={key} value={key}>
-                      {unit.name} ({unit.symbol})
+                      {unitLabel(t, key)} ({unit.symbol})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -178,23 +127,23 @@ export function UnitConverter() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="from-value">Value</Label>
+              <Label htmlFor="from-value">{t("field.value")}</Label>
               <Input
                 id="from-value"
                 type="number"
                 value={fromValue}
                 onChange={(e) => setFromValue(e.target.value)}
-                placeholder="Enter value"
+                placeholder={t("placeholder.value")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="to-value">Result</Label>
+              <Label htmlFor="to-value">{t("field.result")}</Label>
               <Input
                 id="to-value"
                 value={toValue}
                 readOnly
-                placeholder="Result"
+                placeholder={t("field.result")}
                 className="font-semibold"
               />
             </div>
@@ -202,10 +151,12 @@ export function UnitConverter() {
 
           <div className="p-4 bg-muted rounded-lg text-center">
             <p className="text-sm text-muted-foreground">
-              {fromValue}
-              {currentConversion.units[fromUnit]?.name && ` ${currentConversion.units[fromUnit].name}`} ={" "}
-              {toValue}
-              {currentConversion.units[toUnit]?.name && ` ${currentConversion.units[toUnit].name}`}
+              {t("summary", {
+                fromValue,
+                fromUnit: unitLabel(t, fromUnit),
+                toValue,
+                toUnit: unitLabel(t, toUnit),
+              })}
             </p>
           </div>
         </CardContent>

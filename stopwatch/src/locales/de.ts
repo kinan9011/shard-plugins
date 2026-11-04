@@ -1,0 +1,17 @@
+export default {
+  "title": "Stoppuhr",
+  "time.label": "Verstrichene Zeit",
+  "action.start": "Start",
+  "action.pause": "Pause",
+  "action.resume": "Fortsetzen",
+  "action.lap": "Runde",
+  "action.reset": "Zurücksetzen",
+  "note": "Läuft über Tool-Tabs hinweg weiter und zählt auch die Zeit im Ruhezustand mit. Beim Schließen dieses Tools wird die Stoppuhr gelöscht.",
+  "action.copyLaps": "Runden kopieren",
+  "action.exportLaps": "Runden exportieren",
+  "table.lap": "Runde",
+  "table.split": "Zwischenzeit",
+  "table.total": "Gesamt",
+  "empty.laps": "Starte die Stoppuhr und erfasse dann eine Runde, um Zwischenzeiten zu vergleichen.",
+  "error.save": "Die Runden konnten nicht gespeichert werden. Versuche stattdessen, sie zu kopieren.",
+};

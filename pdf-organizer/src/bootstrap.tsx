@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ToolActiveContext } from "@/hooks/useToolActive";
 import { sdk } from "./sdk";
 import { installLocalStorage } from "./storage-shim";
+import { followHostLocale } from "@/lib/i18n";
 import type { Theme } from "./shard-sdk";
 
 /** Match the app: the host sends its CSS custom properties, which the Tailwind preset reads through var(--...). */
@@ -30,9 +31,10 @@ function Root({ Tool, form }: { Tool: ComponentType; form: boolean }) {
   );
 }
 
-/** Renders a tool component the way the app does, then follows the app theme. `form`: a single-column tool. */
+/** Renders a tool component the way the app does, then follows the app theme and language. `form`: a single-column tool. */
 export async function mountTool(Tool: ComponentType, { form = false }: { form?: boolean } = {}) {
-  await installLocalStorage(); // tools read their settings while they render
+  // Tools read their settings while they render, and the first paint is already in the app language; both handshakes run together.
+  await Promise.all([installLocalStorage(), followHostLocale(sdk)]);
   createRoot(document.getElementById("root")!).render(<Root Tool={Tool} form={form} />);
   sdk
     .ready()

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export type CodeLanguage = "html" | "css" | "javascript" | "xml" | "sql";
 export type FormatMode = "beautify" | "minify";
 export type IndentChoice = "2" | "4" | "tab";
@@ -21,6 +23,9 @@ const loadBeautify = async () => {
   const mod = await import("js-beautify");
   return (mod as unknown as { default?: typeof mod }).default ?? mod;
 };
+
+/** A parse error of the SQL library. Its message is the library's own English text, which the UI shows after a translated lead-in. */
+export class SqlParseError extends Error {}
 
 /** Keeps the first line of a library error. sql-formatter adds a long grammar trace after it. */
 const firstLine = (error: unknown, fallback: string) => {
@@ -57,7 +62,7 @@ export async function formatCode(input: string, options: CodeFormatOptions): Pro
         useTabs: indent === "tab",
       });
     } catch (error) {
-      throw new Error(firstLine(error, "Could not parse the SQL."));
+      throw new SqlParseError(firstLine(error, t("error.sqlParse")));
     }
   }
 
@@ -97,7 +102,7 @@ export function minifyCss(input: string): string {
     const c = input[i];
     if (c === "/" && input[i + 1] === "*") {
       const end = input.indexOf("*/", i + 2);
-      if (end === -1) throw new Error("Unterminated comment in the CSS.");
+      if (end === -1) throw new Error(t("error.cssComment"));
       i = end + 1;
       pendingSpace = true;
       continue;
@@ -110,10 +115,10 @@ export function minifyCss(input: string): string {
       let j = i + 1;
       while (j < input.length && input[j] !== c) {
         if (input[j] === "\\") j++;
-        else if (input[j] === "\n") throw new Error("Unterminated string in the CSS.");
+        else if (input[j] === "\n") throw new Error(t("error.cssString"));
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated string in the CSS.");
+      if (j >= input.length) throw new Error(t("error.cssString"));
       emit(input.slice(i, j + 1));
       lastSemicolon = false;
       i = j;
@@ -147,14 +152,14 @@ function tokenizeMarkup(input: string, html: boolean): MarkupToken[] {
   while (i < input.length) {
     if (input.startsWith("<!--", i)) {
       const end = input.indexOf("-->", i + 4);
-      if (end === -1) throw new Error("Unterminated comment.");
+      if (end === -1) throw new Error(t("error.comment"));
       tokens.push({ kind: "comment", text: input.slice(i, end + 3) });
       i = end + 3;
       continue;
     }
     if (input.startsWith("<![CDATA[", i)) {
       const end = input.indexOf("]]>", i);
-      if (end === -1) throw new Error("Unterminated CDATA section.");
+      if (end === -1) throw new Error(t("error.cdata"));
       tokens.push({ kind: "raw", text: input.slice(i, end + 3) });
       i = end + 3;
       continue;
@@ -173,7 +178,7 @@ function tokenizeMarkup(input: string, html: boolean): MarkupToken[] {
         }
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated tag.");
+      if (j >= input.length) throw new Error(t("error.tag"));
       const raw = input.slice(i, j + 1);
       const match = /^<(\/?)([^\s/>]+)/.exec(raw);
       const name = match ? match[2].toLowerCase() : "";
@@ -286,7 +291,7 @@ export function minifySql(input: string): string {
     }
     if (c === "/" && input[i + 1] === "*") {
       const end = input.indexOf("*/", i + 2);
-      if (end === -1) throw new Error("Unterminated comment in the SQL.");
+      if (end === -1) throw new Error(t("error.sqlComment"));
       i = end + 1;
       pendingSpace = true;
       continue;
@@ -305,7 +310,7 @@ export function minifySql(input: string): string {
         }
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated quoted value in the SQL.");
+      if (j >= input.length) throw new Error(t("error.sqlQuote"));
       emit(input.slice(i, j + 1));
       i = j;
       continue;
@@ -314,7 +319,7 @@ export function minifySql(input: string): string {
       const tag = /^\$[A-Za-z_]*\$/.exec(input.slice(i));
       if (tag) {
         const end = input.indexOf(tag[0], i + tag[0].length);
-        if (end === -1) throw new Error("Unterminated dollar-quoted string in the SQL.");
+        if (end === -1) throw new Error(t("error.sqlDollar"));
         emit(input.slice(i, end + tag[0].length));
         i = end + tag[0].length - 1;
         continue;
@@ -384,7 +389,7 @@ function tokenizeJs(input: string): JsToken[] {
       else if (input[j] === "$" && input[j + 1] === "{") return { end: j + 2, opens: true };
       else j++;
     }
-    throw new Error("Unterminated template literal.");
+    throw new Error(t("error.template"));
   };
 
   if (input.startsWith("#!")) {
@@ -413,7 +418,7 @@ function tokenizeJs(input: string): JsToken[] {
     }
     if (c === "/" && next === "*") {
       const end = input.indexOf("*/", i + 2);
-      if (end === -1) throw new Error("Unterminated comment.");
+      if (end === -1) throw new Error(t("error.comment"));
       addGap(input.slice(i, end + 2));
       i = end + 2;
       continue;
@@ -422,10 +427,10 @@ function tokenizeJs(input: string): JsToken[] {
       let j = i + 1;
       while (j < input.length && input[j] !== c) {
         if (input[j] === "\\") j++;
-        else if (input[j] === "\n") throw new Error("Unterminated string literal.");
+        else if (input[j] === "\n") throw new Error(t("error.string"));
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated string literal.");
+      if (j >= input.length) throw new Error(t("error.string"));
       push("string", input.slice(i, j + 1));
       i = j + 1;
       continue;
@@ -460,14 +465,14 @@ function tokenizeJs(input: string): JsToken[] {
       let inClass = false;
       while (j < input.length) {
         const ch = input[j];
-        if (ch === "\n") throw new Error("Unterminated regular expression.");
+        if (ch === "\n") throw new Error(t("error.regex"));
         if (ch === "\\") j++;
         else if (ch === "[") inClass = true;
         else if (ch === "]") inClass = false;
         else if (ch === "/" && !inClass) break;
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated regular expression.");
+      if (j >= input.length) throw new Error(t("error.regex"));
       j++;
       while (j < input.length && /[a-z]/i.test(input[j])) j++;
       push("regex", input.slice(i, j));

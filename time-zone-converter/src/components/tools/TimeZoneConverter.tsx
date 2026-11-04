@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpToLine, X } from "lucide-react";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import {
   formatInTimeZone,
   getLocalTimeZone,
@@ -13,32 +13,17 @@ import {
   loadSavedTimeZones,
   saveTimeZones,
 } from "@/utils/timestamp";
+import { t as tNow, useT } from "@/lib/i18n";
 import { canonicalTimeZone, dayShift, formatWallClockInput, parseWallClockInput, resolveWallClock } from "@/utils/time-zone";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "How do I convert UTC to local time, or local time to UTC?",
-    a: "Set From to UTC and enter the UTC time. The Local row shows your time. For the other direction, set From to your own zone. The UTC row shows the result.",
-  },
-  {
-    q: "What happens when clocks change for daylight saving time?",
-    a: "When clocks move forward, some times do not exist. The tool moves such a time ahead by the gap and says so. When clocks move back, some times happen twice. The tool shows the first one, and you can switch to the second one.",
-  },
-  {
-    q: "What does Convert from this zone do?",
-    a: "It makes that row the new source and keeps the same moment. Use it to convert in the other direction.",
-  },
-  {
-    q: "Where do the time zones come from?",
-    a: "They come from the time zone data built into the app. The tool makes no network calls. The Timestamp tool uses the same saved list of zones.",
-  },
-];
+const FAQ_KEYS = ["utc", "dst", "convertFrom", "data"] as const;
 
 const storage = () => (typeof window !== "undefined" ? window.localStorage : undefined);
 
-const formatShift = (days: number) => (days === 0 ? "" : `${days > 0 ? "+" : "−"}${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`);
+const formatShift = (days: number) => (days === 0 ? "" : tNow("row.dayShift", { count: Math.abs(days), sign: days > 0 ? "+" : "−" }));
 
 export function TimeZoneConverter() {
+  const t = useT();
   const localZone = useMemo(() => {
     const zone = getLocalTimeZone();
     return isValidTimeZone(zone) ? zone : "UTC";
@@ -96,7 +81,7 @@ export function TimeZoneConverter() {
     if (!typed) return;
     const zone = canonicalTimeZone(typed, zoneOptions);
     if (!zone) {
-      setZoneError(`Unknown time zone: ${typed}. Use an IANA name such as Asia/Tokyo.`);
+      setZoneError(t("error.unknownZone", { zone: typed }));
       return;
     }
     if (!zones.includes(zone)) updateZones([...zones, zone]);
@@ -113,31 +98,31 @@ export function TimeZoneConverter() {
 
   const rows = [
     { zone: "UTC", label: "UTC", saved: false },
-    { zone: localZone, label: `Local (${localZone})`, saved: false },
+    { zone: localZone, label: t("row.local", { zone: localZone }), saved: false },
     ...zones.map((zone) => ({ zone, label: zone, saved: true })),
   ].filter((row, index, all) => all.findIndex((other) => other.zone === row.zone) === index);
 
   let note = "";
   if (resolution?.kind === "gap") {
-    note = `This time does not exist in ${fromZone} because clocks move forward. It moved ahead by ${resolution.gapMinutes} minutes.`;
+    note = t("note.gap", { zone: fromZone, count: resolution.gapMinutes });
   } else if (resolution?.kind === "overlap") {
     const offset = (at: number) => formatInTimeZone(at, fromZone).offset;
-    note = `This time happens twice in ${fromZone} because clocks move back. Showing the ${useLater ? "second" : "first"} one (UTC${offset(useLater ? resolution.laterMs : resolution.ms)}).`;
+    note = t(useLater ? "note.overlapSecond" : "note.overlapFirst", { zone: fromZone, offset: offset(useLater ? resolution.laterMs : resolution.ms) });
   }
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Time Zone Converter</CardTitle>
-          <CardDescription>Enter a date and time and the time zone it is in. See the same moment in other time zones.</CardDescription>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="datetime-local"
               step={1}
-              aria-label="Date and time"
+              aria-label={t("input.dateTime")}
               value={value}
               onChange={(event) => setInput(event.target.value)}
               className="w-auto font-mono"
@@ -147,14 +132,14 @@ export function TimeZoneConverter() {
               className="toolbar-text-button"
               onClick={() => setInput(formatWallClockInput(getWallClock(Date.now(), fromZone)))}
             >
-              Now
+              {t("action.now")}
             </button>
             <label className="flex min-w-[16rem] flex-1 items-center gap-2 text-sm">
-              From
+              {t("input.from")}
               <Input
-                aria-label="From time zone"
+                aria-label={t("input.fromZone")}
                 list="time-zone-converter-options"
-                placeholder="A time zone, such as UTC or Asia/Tokyo"
+                placeholder={t("input.fromPlaceholder")}
                 value={fromDraft}
                 onChange={(event) => changeFromDraft(event.target.value)}
                 onBlur={() => setFromDraft(fromZone)}
@@ -166,18 +151,18 @@ export function TimeZoneConverter() {
           </div>
           {fromDraftInvalid && (
             <div className="workspace-notice" data-tone="error" role="alert">
-              Unknown time zone: {fromDraft.trim()}. The conversion still uses {fromZone}.
+              {t("error.unknownFrom", { zone: fromDraft.trim(), current: fromZone })}
             </div>
           )}
           {!clock && (
-            <div className="workspace-notice" data-tone="error" role="alert">Enter a date and time.</div>
+            <div className="workspace-notice" data-tone="error" role="alert">{t("error.enterDateTime")}</div>
           )}
           {note && (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-muted-foreground" role="status">{note}</p>
               {resolution?.kind === "overlap" && (
                 <button type="button" className="toolbar-text-button" onClick={() => setUseLater(!useLater)}>
-                  Use the {useLater ? "first" : "second"} time
+                  {t(useLater ? "action.useFirst" : "action.useSecond")}
                 </button>
               )}
             </div>
@@ -187,8 +172,8 @@ export function TimeZoneConverter() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Converted times</CardTitle>
-          <CardDescription>The same moment in each time zone. The day change is from the date in {fromZone}.</CardDescription>
+          <CardTitle>{t("converted.title")}</CardTitle>
+          <CardDescription>{t("converted.description", { zone: fromZone })}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {ms !== undefined && (
@@ -199,15 +184,15 @@ export function TimeZoneConverter() {
                 const shift = formatShift(dayShift(ms, fromZone, zone));
                 return (
                   <div key={zone} className="flex items-center gap-3 rounded-md bg-muted px-3 py-2">
-                    <dt className="w-36 shrink-0 break-all text-xs text-muted-foreground">{label}</dt>
-                    <dd className="min-w-0 flex-1 break-words font-mono text-sm">{text}</dd>
-                    {shift && <span className="shrink-0 text-xs text-muted-foreground">{shift}</span>}
-                    <CopyButton value={text} ariaLabel={`Copy ${label}`} iconOnly />
+                    <dt className="w-36 shrink-0 break-all text-xs text-muted-foreground" dir="auto">{label}</dt>
+                    <dd className="min-w-0 flex-1 break-words font-mono text-sm" dir="ltr">{text}</dd>
+                    {shift && <span className="shrink-0 text-xs text-muted-foreground" dir="ltr">{shift}</span>}
+                    <CopyButton value={text} ariaLabel={t("action.copyRow", { label })} iconOnly />
                     <button
                       type="button"
                       className="toolbar-text-button"
-                      aria-label={`Convert from ${zone}`}
-                      title="Convert from this zone"
+                      aria-label={t("action.convertFrom", { zone })}
+                      title={t("action.convertFromTitle")}
                       disabled={zone === fromZone}
                       onClick={() => convertFrom(zone)}
                     >
@@ -217,7 +202,7 @@ export function TimeZoneConverter() {
                       <button
                         type="button"
                         className="toolbar-text-button"
-                        aria-label={`Remove ${zone}`}
+                        aria-label={t("action.remove", { zone })}
                         onClick={() => updateZones(zones.filter((item) => item !== zone))}
                       >
                         <X size={14} />
@@ -231,9 +216,9 @@ export function TimeZoneConverter() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Input
-                aria-label="Add a time zone"
+                aria-label={t("input.addZone")}
                 list="time-zone-converter-options"
-                placeholder="Add a time zone, such as Asia/Tokyo"
+                placeholder={t("input.addPlaceholder")}
                 value={zoneDraft}
                 onChange={(event) => {
                   setZoneDraft(event.target.value);
@@ -245,7 +230,7 @@ export function TimeZoneConverter() {
                 autoComplete="off"
               />
               <button type="button" className="toolbar-text-button" onClick={addZone} disabled={!zoneDraft.trim()}>
-                Add
+                {t("action.add")}
               </button>
             </div>
             {zoneError && <div className="workspace-notice" data-tone="error" role="alert">{zoneError}</div>}
@@ -258,7 +243,7 @@ export function TimeZoneConverter() {
         </CardContent>
       </Card>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />
     </div>
   );
 }

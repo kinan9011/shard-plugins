@@ -1,7 +1,7 @@
 {
   "id": "date-format",
   "name": "Date Format Translator",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Translate date format strings between Go, strftime, Java, date-fns, Moment.js, PHP, and .NET, with a live preview.",
   "category": "Time & Date",
   "keywords": [

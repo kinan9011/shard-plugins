@@ -1,6 +1,7 @@
 import { useState, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { Columns2, Rows2, ShieldCheck } from "lucide-react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { codeDir, useT } from "@/lib/i18n";
 
 type PaneLayout = "side" | "below";
 
@@ -38,6 +39,7 @@ const readLayout = (id: string): PaneLayout => {
  * pane and a result pane that can sit side by side or stacked, and a status bar.
  */
 export function ToolWorkspace({ id, toolbar, wrapToolbar = false, secondaryToolbar, notice, first, second, status, help }: ToolWorkspaceProps) {
+  const t = useT();
   const [layout, setLayout] = useState<PaneLayout>(() => readLayout(id));
 
   const changeLayout = (next: PaneLayout) => {
@@ -53,12 +55,12 @@ export function ToolWorkspace({ id, toolbar, wrapToolbar = false, secondaryToolb
     <div className="json-workspace tool-workspace">
       <div className="editor-toolbar">
         <div className={`toolbar-actions ${wrapToolbar ? "flex-wrap min-w-0" : ""}`}>{toolbar}</div>
-        <div className="layout-switch" role="group" aria-label="Result layout">
+        <div className="layout-switch" role="group" aria-label={t("toolWorkspace.resultLayout")}>
           <button type="button" aria-pressed={layout === "side"} onClick={() => changeLayout("side")}>
-            <Columns2 size={14} aria-hidden="true" />Side
+            <Columns2 size={14} aria-hidden="true" />{t("toolWorkspace.side")}
           </button>
           <button type="button" aria-pressed={layout === "below"} onClick={() => changeLayout("below")}>
-            <Rows2 size={14} aria-hidden="true" />Below
+            <Rows2 size={14} aria-hidden="true" />{t("toolWorkspace.below")}
           </button>
         </div>
       </div>
@@ -71,15 +73,15 @@ export function ToolWorkspace({ id, toolbar, wrapToolbar = false, secondaryToolb
       <div className="editor-panels" data-layout={layout}>
         <PanelGroup direction={layout === "side" ? "horizontal" : "vertical"} key={layout}>
           <Panel minSize={20} defaultSize={50}>{first}</Panel>
-          <PanelResizeHandle className="editor-resize" aria-label="Resize input and result" />
+          <PanelResizeHandle className="editor-resize" aria-label={t("toolWorkspace.resize")} />
           <Panel minSize={20} defaultSize={50}>{second}</Panel>
         </PanelGroup>
       </div>
       {help && <div className="workspace-help">{help}</div>}
       <footer className="editor-status" aria-live="polite">
         {status}
-        <span className="ml-auto">UTF-8</span>
-        <span><ShieldCheck size={13} aria-hidden="true" />Local processing</span>
+        <span className="ms-auto">UTF-8</span>
+        <span><ShieldCheck size={13} aria-hidden="true" />{t("toolWorkspace.localProcessing")}</span>
       </footer>
     </div>
   );
@@ -112,9 +114,9 @@ export function EditorPane({ title, htmlFor, titleId, actions, children, scroll 
   );
 }
 
-/** A code-style text area that fills its pane. */
+/** A code-style text area that fills its pane. Code stays left-to-right, whatever language is inside it. */
 export function CodeTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea spellCheck={false} autoCapitalize="off" autoCorrect="off" {...props} className={`code-textarea ${props.className ?? ""}`} />;
+  return <textarea dir={props.readOnly ? "ltr" : codeDir(props.value ?? props.defaultValue)} spellCheck={false} autoCapitalize="off" autoCorrect="off" {...props} className={`code-textarea ${props.className ?? ""}`} />;
 }
 
 /** Placeholder for an empty result pane. */

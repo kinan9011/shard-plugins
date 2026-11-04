@@ -43,7 +43,8 @@ export type RegexResult =
       truncated: false | "limit" | "time";
       replaced?: string;
     }
-  | { ok: false; error: string };
+  /** `error` is English: this code also runs in a worker that has no app language. The UI translates it, from `reason` for an invalid pattern. */
+  | { ok: false; error: string; reason?: string };
 
 /** Puts the flags in a stable order and drops unknown or repeated flags. */
 export function normalizeFlags(flags: string): string {
@@ -56,14 +57,14 @@ export function toggleFlag(flags: string, flag: RegexFlag): string {
 }
 
 /** Builds the RegExp, or returns a short error message for an invalid pattern. */
-export function compileRegex(pattern: string, flags: string): { ok: true; regex: RegExp } | { ok: false; error: string } {
+export function compileRegex(pattern: string, flags: string): { ok: true; regex: RegExp } | { ok: false; error: string; reason: string } {
   try {
     return { ok: true, regex: new RegExp(pattern, flags) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Engines prefix the message with the whole pattern, which the user can already see.
     const reason = message.replace(/^Invalid regular expression: \/[\s\S]*\/[a-z]*: /, "");
-    return { ok: false, error: `Invalid pattern: ${reason}` };
+    return { ok: false, error: `Invalid pattern: ${reason}`, reason };
   }
 }
 
@@ -116,7 +117,7 @@ const toMatch = (match: RegExpExecArray, names: (string | undefined)[]): RegexMa
  */
 export function runRegex({ pattern, flags, text, replacement, limit = MATCH_LIMIT, budgetMs = MATCH_BUDGET_MS }: RegexRequest): RegexResult {
   const compiled = compileRegex(pattern, flags);
-  if ("error" in compiled) return { ok: false, error: compiled.error };
+  if ("error" in compiled) return { ok: false, error: compiled.error, reason: compiled.reason };
   const { regex } = compiled;
   const names = captureGroupNames(pattern);
   const matches: RegexMatch[] = [];

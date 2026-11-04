@@ -6,6 +6,7 @@
  * with CRLF when the input has any CRLF, otherwise with LF. A trailing line
  * break in the input is kept as a trailing line break in the output.
  */
+import { t } from "@/lib/i18n";
 
 export type LineSort = "none" | "asc" | "desc" | "natural" | "length" | "shuffle";
 
@@ -111,7 +112,14 @@ function sortLines(lines: string[], sort: LineSort, ignoreCase: boolean, randomI
 export function lineMatcher(filter: LineFilter, ignoreCase = false): (line: string) => boolean {
   if (filter.regex) {
     // No g or y flag: those make test() keep state between lines.
-    const re = new RegExp(filter.pattern, ignoreCase ? "i" : "");
+    let re: RegExp;
+    try {
+      re = new RegExp(filter.pattern, ignoreCase ? "i" : "");
+    } catch (error) {
+      // The engine's own wording, without the pattern it repeats.
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(t("error.invalidRegex", { message: message.replace(/^Invalid regular expression: \/[\s\S]*\/[a-z]*: /, "") }));
+    }
     return (line) => re.test(line);
   }
   if (!ignoreCase) return (line) => line.includes(filter.pattern);

@@ -1,0 +1,23 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "card.title": "Date Difference Calculator",
+  "card.description": "Calculate the difference between two dates",
+  "date.first": "First Date",
+  "date.second": "Second Date",
+  "date.firstDate": "First date",
+  "date.firstTime": "First time",
+  "date.secondDate": "Second date",
+  "date.secondTime": "Second time",
+  "action.now": "Now",
+  "result.title": "Difference",
+  "result.earlier": "Second date is earlier",
+  "result.later": "Second date is later",
+  "unit.years": "Years",
+  "unit.months": "Months",
+  "unit.weeks": "Weeks",
+  "unit.days": "Days",
+  "unit.hours": "Hours",
+  "unit.minutes": "Minutes",
+  "unit.seconds": "Seconds",
+  "unit.milliseconds": "Milliseconds",
+};

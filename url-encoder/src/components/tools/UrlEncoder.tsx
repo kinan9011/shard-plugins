@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2 } from "lucide-react";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
+import { useT } from "@/lib/i18n";
 import {
   buildUrlFromDetails,
   decodeUrl,
@@ -18,31 +19,21 @@ import {
 type Mode = "encode" | "decode" | "parse";
 type Scope = "component" | "full";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "What does URL encoding do?",
-    a: "URL encoding replaces reserved or unsafe characters with percent-encoded bytes such as `%20`. That makes text safe to place in query strings, form values, and path segments.",
-  },
-  {
-    q: "Is URL encoding the same as Base64?",
-    a: "No. URL encoding preserves text meaning while escaping special characters for URLs, whereas Base64 rewrites data into a different text alphabet for transport.",
-  },
-  {
-    q: "Why do spaces become `%20`?",
-    a: "A space is not safe to include literally in many URL contexts, so it is percent-encoded as `%20`. HTML forms use `+` instead. Turn on Spaces as + to match form encoding.",
-  },
-  {
-    q: "What does Parse URL do?",
-    a: "It splits a full URL into protocol, credentials, host, port, path, hash, and query parameters. You can edit the parameters and copy the rebuilt URL. Parameter names and values are shown decoded and are encoded again when the URL is rebuilt.",
-  },
-  {
-    q: "When should I use Full URL instead of Component?",
-    a: "Use Full URL (`encodeURI`) when you already have a full URL and want to keep structural characters like `:`, `/`, `?`, and `#` intact. Use Component (`encodeURIComponent`) for individual pieces of a URL, such as one query value.",
-  },
-];
+const FAQ_KEYS = ["what", "base64", "spaces", "parse", "scope"] as const;
 
+// [key of the label, field of the parsed URL]
+const PARTS = [
+  ["protocol", "protocol"],
+  ["username", "username"],
+  ["password", "password"],
+  ["host", "hostname"],
+  ["port", "port"],
+  ["path", "pathname"],
+  ["hash", "hash"],
+] as const;
 
 export function UrlEncoder() {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("encode");
   const [scope, setScope] = useState<Scope>("component");
   const [form, setForm] = useState(false);
@@ -60,14 +51,9 @@ export function UrlEncoder() {
     try {
       return { output: mode === "decode" ? decodeUrl(pendingInput, options) : encodeUrl(pendingInput, options), error: "" };
     } catch {
-      return {
-        output: "",
-        error: mode === "decode"
-          ? "Invalid percent-encoding. Each % must be followed by two hex digits."
-          : "Could not encode the text. It contains an unpaired surrogate character.",
-      };
+      return { output: "", error: t(mode === "decode" ? "error.decode" : "error.encode") };
     }
-  }, [pendingInput, mode, scope, form]);
+  }, [pendingInput, mode, scope, form, t]);
 
   // Parse again when the URL changes. Parameter edits apply to the last parse.
   useEffect(() => {
@@ -77,14 +63,14 @@ export function UrlEncoder() {
       return;
     }
     const next = parseUrlDetails(pendingParse);
-    if ("error" in next) {
+    if (!next.ok) {
       setParsed(null);
       setParseError(next.error);
     } else {
       setParsed(next.value);
       setParseError("");
     }
-  }, [pendingParse]);
+  }, [pendingParse, t]);
 
   const updateParam = (index: number, field: "key" | "value", value: string) => {
     setParsed((prev) =>
@@ -112,29 +98,23 @@ export function UrlEncoder() {
 
   const parsing = mode === "parse";
   const error = parsing ? parseError : result.error;
-  const outputTitle = mode === "decode" ? "Decoded" : "Encoded";
+  const decoding = mode === "decode";
+  const outputTitle = t(decoding ? "pane.decoded" : "pane.encoded");
 
   const status = () => {
-    if (error) return <span className="text-destructive">Invalid input</span>;
+    if (error) return <span className="text-destructive">{t("status.invalid")}</span>;
     if (parsing) {
-      if (!parsed) return <span>Ready</span>;
-      const count = parsed.params.length;
-      return <span>{parsed.hostname || parsed.protocol} · {count} {count === 1 ? "parameter" : "parameters"}</span>;
+      if (!parsed) return <span>{t("status.ready")}</span>;
+      return <span>{t("status.params", { host: parsed.hostname || parsed.protocol, count: parsed.params.length })}</span>;
     }
-    if (!result.output) return <span>Ready</span>;
-    return <span>{pendingInput.length} → {result.output.length} characters</span>;
+    if (!result.output) return <span>{t("status.ready")}</span>;
+    return <span>{t("status.chars", { input: pendingInput.length, count: result.output.length })}</span>;
   };
 
   const parts = parsed
-    ? ([
-        ["Protocol", parsed.protocol],
-        ["Username", parsed.username],
-        ["Password", parsed.password],
-        ["Host", parsed.hostname],
-        ["Port", parsed.port],
-        ["Path", parsed.pathname],
-        ["Hash", parsed.hash],
-      ] as const).filter(([label, value]) => value || ["Protocol", "Host", "Path"].includes(label))
+    ? PARTS.map(([key, field]) => [key, parsed[field]] as const).filter(
+        ([key, value]) => value || key === "protocol" || key === "host" || key === "path"
+      )
     : [];
 
   return (
@@ -143,28 +123,28 @@ export function UrlEncoder() {
       toolbar={
         <>
           <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-            <TabsList aria-label="Mode">
-              <TabsTrigger value="encode">Encode</TabsTrigger>
-              <TabsTrigger value="decode">Decode</TabsTrigger>
-              <TabsTrigger value="parse">Parse URL</TabsTrigger>
+            <TabsList aria-label={t("mode.label")}>
+              <TabsTrigger value="encode">{t("mode.encode")}</TabsTrigger>
+              <TabsTrigger value="decode">{t("mode.decode")}</TabsTrigger>
+              <TabsTrigger value="parse">{t("mode.parse")}</TabsTrigger>
             </TabsList>
           </Tabs>
           {!parsing && (
             <>
               <Tabs value={scope} onValueChange={(v) => setScope(v as Scope)} className="indent-control">
-                <TabsList aria-label="Scope">
-                  <TabsTrigger value="component">Component</TabsTrigger>
-                  <TabsTrigger value="full">Full URL</TabsTrigger>
+                <TabsList aria-label={t("scope.label")}>
+                  <TabsTrigger value="component">{t("scope.component")}</TabsTrigger>
+                  <TabsTrigger value="full">{t("scope.full")}</TabsTrigger>
                 </TabsList>
               </Tabs>
               {scope === "component" && (
                 <label className="option-switch" htmlFor="url-form">
-                  Spaces as +
+                  {t("option.spacesAsPlus")}
                   <Switch id="url-form" checked={form} onCheckedChange={setForm} />
                 </label>
               )}
               <button type="button" className="toolbar-text-button" onClick={swap} disabled={!result.output}>
-                Swap
+                {t("action.swap")}
               </button>
             </>
           )}
@@ -173,8 +153,8 @@ export function UrlEncoder() {
       notice={error ? <div className="workspace-notice" data-tone="error" role="alert">{error}</div> : undefined}
       first={
         parsing ? (
-          <EditorPane title="URL" htmlFor="parse-input" scroll={false}
-            actions={parseInput ? <button type="button" className="toolbar-text-button" onClick={() => setParseInput("")}>Clear</button> : undefined}>
+          <EditorPane title={t("pane.url")} htmlFor="parse-input" scroll={false}
+            actions={parseInput ? <button type="button" className="toolbar-text-button" onClick={() => setParseInput("")}>{t("common.clear")}</button> : undefined}>
             <CodeTextarea
               id="parse-input"
               placeholder="https://user:pass@example.com:8080/path?tag=a&tag=b#top"
@@ -183,11 +163,11 @@ export function UrlEncoder() {
             />
           </EditorPane>
         ) : (
-          <EditorPane title={mode === "decode" ? "Encoded text" : "Text"} htmlFor="url-input" scroll={false}
-            actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}>
+          <EditorPane title={decoding ? t("pane.encodedText") : t("pane.text")} htmlFor="url-input" scroll={false}
+            actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}>
             <CodeTextarea
               id="url-input"
-              placeholder={mode === "decode" ? "Enter URL-encoded text (e.g., Hello%20World%21%20%40%23%24)" : "Enter text to encode (e.g., Hello World! @#$)"}
+              placeholder={t(decoding ? "placeholder.decode" : "placeholder.encode")}
               value={input}
               onChange={(e) => setInput(e.target.value)}
             />
@@ -196,43 +176,43 @@ export function UrlEncoder() {
       }
       second={
         parsing ? (
-          <EditorPane title="Parts">
+          <EditorPane title={t("pane.parts")}>
             {parsed ? (
               <div className="result-list">
-                {parts.map(([label, value]) => (
-                  <div key={label} className="result-row">
-                    <span className="result-row-label">{label}</span>
-                    <span className="result-row-value">{value}</span>
-                    <CopyButton value={value} iconOnly label={`Copy ${label.toLowerCase()}`} />
+                {parts.map(([key, value]) => (
+                  <div key={key} className="result-row">
+                    <span className="result-row-label">{t(`part.${key}`)}</span>
+                    <span className="result-row-value" dir="ltr">{value}</span>
+                    <CopyButton value={value} iconOnly label={t(`copy.${key}`)} />
                   </div>
                 ))}
                 <div className="pane-options">
-                  <span className="font-medium">Query parameters ({parsed.params.length})</span>
+                  <span className="font-medium">{t("params.title", { count: parsed.params.length })}</span>
                   <button type="button" className="toolbar-text-button" onClick={addParam}>
                     <Plus size={14} aria-hidden="true" />
-                    Add parameter
+                    {t("params.add")}
                   </button>
                 </div>
                 {parsed.params.map((param, index) => (
                   <div key={index} className="flex gap-2 border-b px-4 py-2">
                     <Input
-                      aria-label={`Parameter ${index + 1} name`}
+                      aria-label={t("params.nameLabel", { n: index + 1 })}
                       value={param.key}
                       onChange={(e) => updateParam(index, "key", e.target.value)}
                       className="h-7 font-mono text-xs"
-                      placeholder="name"
+                      placeholder={t("params.namePlaceholder")}
                     />
                     <Input
-                      aria-label={`Parameter ${index + 1} value`}
+                      aria-label={t("params.valueLabel", { n: index + 1 })}
                       value={param.value}
                       onChange={(e) => updateParam(index, "value", e.target.value)}
                       className="h-7 font-mono text-xs"
-                      placeholder="value"
+                      placeholder={t("params.valuePlaceholder")}
                     />
                     <button
                       type="button"
                       className="toolbar-text-button"
-                      aria-label={`Remove parameter ${index + 1}`}
+                      aria-label={t("params.remove", { n: index + 1 })}
                       onClick={() => removeParam(index)}
                     >
                       <Trash2 size={14} aria-hidden="true" />
@@ -240,34 +220,35 @@ export function UrlEncoder() {
                   </div>
                 ))}
                 <div className="result-row">
-                  <label className="result-row-label" htmlFor="parse-output">Rebuilt URL</label>
+                  <label className="result-row-label" htmlFor="parse-output">{t("parts.rebuilt")}</label>
                   <textarea
                     id="parse-output"
                     className="result-row-value code-textarea"
                     value={rebuiltUrl}
                     readOnly
+                    dir="ltr"
                     rows={Math.max(1, Math.ceil(rebuiltUrl.length / 64))}
                   />
-                  <CopyButton value={rebuiltUrl} iconOnly label="Copy URL" />
+                  <CopyButton value={rebuiltUrl} iconOnly label={t("copy.url")} />
                 </div>
               </div>
             ) : (
-              <PaneEmpty title="URL parts appear here" hint="Paste a full URL, for example https://example.com/?q=1." />
+              <PaneEmpty title={t("empty.parts")} hint={t("empty.partsHint")} />
             )}
           </EditorPane>
         ) : (
           <EditorPane title={outputTitle} htmlFor={result.output ? "url-output" : undefined} scroll={false}
-            actions={<CopyButton value={result.output} label="Copy" ariaLabel={`Copy ${outputTitle.toLowerCase()} text`} />}>
+            actions={<CopyButton value={result.output} ariaLabel={t(decoding ? "copy.decoded" : "copy.encoded")} />}>
             {result.output ? (
               <CodeTextarea id="url-output" value={result.output} readOnly />
             ) : (
-              <PaneEmpty title={`${outputTitle} text appears here`} />
+              <PaneEmpty title={t(decoding ? "empty.decoded" : "empty.encoded")} />
             )}
           </EditorPane>
         )
       }
       status={status()}
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

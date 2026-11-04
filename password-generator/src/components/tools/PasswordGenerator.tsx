@@ -8,8 +8,10 @@ import { Slider } from "@/components/ui/slider";
 import { RefreshCw } from "lucide-react";
 import { toast } from "@/shims/sonner";
 import { CopyButton } from "@/components/tools/CopyButton";
+import { formatNumber, useT } from "@/lib/i18n";
 
 export function PasswordGenerator() {
+  const t = useT();
   const [length, setLength] = useState(16);
   const [password, setPassword] = useState("");
   const [options, setOptions] = useState({
@@ -32,7 +34,7 @@ export function PasswordGenerator() {
     if (options.symbols) chars += symbols;
 
     if (!chars) {
-      toast.error("Please select at least one character type");
+      toast.error(t("error.noCharacterType"));
       return;
     }
 
@@ -49,6 +51,8 @@ export function PasswordGenerator() {
 
   useEffect(() => {
     generatePassword();
+    // generatePassword only reads length and options; a language change must not make a new password.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [length, options]);
 
 
@@ -60,10 +64,10 @@ export function PasswordGenerator() {
     if (options.numbers) strength++;
     if (options.symbols) strength++;
 
-    if (strength <= 2) return { label: "Weak", color: "text-destructive", bg: "bg-destructive text-destructive-foreground" };
-    if (strength <= 3) return { label: "Fair", color: "text-warning", bg: "bg-warning" };
-    if (strength <= 4) return { label: "Good", color: "text-info", bg: "bg-info" };
-    return { label: "Strong", color: "text-success", bg: "bg-success text-success-foreground" };
+    if (strength <= 2) return { label: t("strength.weak"), percent: 25, color: "text-destructive", bg: "bg-destructive text-destructive-foreground" };
+    if (strength <= 3) return { label: t("strength.fair"), percent: 50, color: "text-warning", bg: "bg-warning" };
+    if (strength <= 4) return { label: t("strength.good"), percent: 75, color: "text-info", bg: "bg-info" };
+    return { label: t("strength.strong"), percent: 100, color: "text-success", bg: "bg-success text-success-foreground" };
   };
 
   const strength = getStrength();
@@ -73,7 +77,7 @@ export function PasswordGenerator() {
       <Card>
         <CardContent className="pt-6 space-y-6">
           <div className="space-y-2">
-            <Label>Password Length: {length}</Label>
+            <Label>{t("length.label", { length: formatNumber(length) })}</Label>
             <Slider
               value={[length]}
               onValueChange={([value]) => setLength(value)}
@@ -86,7 +90,7 @@ export function PasswordGenerator() {
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="uppercase">Uppercase (A-Z)</Label>
+              <Label htmlFor="uppercase">{t("option.uppercase")}</Label>
               <Switch
                 id="uppercase"
                 checked={options.uppercase}
@@ -95,7 +99,7 @@ export function PasswordGenerator() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="lowercase">Lowercase (a-z)</Label>
+              <Label htmlFor="lowercase">{t("option.lowercase")}</Label>
               <Switch
                 id="lowercase"
                 checked={options.lowercase}
@@ -104,7 +108,7 @@ export function PasswordGenerator() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="numbers">Numbers (0-9)</Label>
+              <Label htmlFor="numbers">{t("option.numbers")}</Label>
               <Switch
                 id="numbers"
                 checked={options.numbers}
@@ -113,7 +117,7 @@ export function PasswordGenerator() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="symbols">Symbols (!@#$...)</Label>
+              <Label htmlFor="symbols">{t("option.symbols")}</Label>
               <Switch
                 id="symbols"
                 checked={options.symbols}
@@ -123,24 +127,24 @@ export function PasswordGenerator() {
           </div>
 
           <div className="space-y-2">
-            <Label>Generated Password</Label>
+            <Label>{t("output.label")}</Label>
             <div className="flex gap-2">
-              <Input value={password} readOnly className="font-mono" />
-              <CopyButton value={password} label="Copy password" iconOnly />
-              <button type="button" className="toolbar-text-button" onClick={generatePassword} aria-label="Generate new password" title="Generate new password"><RefreshCw size={14} aria-hidden="true" /></button>
+              <Input value={password} readOnly dir="ltr" className="font-mono" />
+              <CopyButton value={password} label={t("output.copy")} iconOnly />
+              <button type="button" className="toolbar-text-button" onClick={generatePassword} aria-label={t("output.regenerate")} title={t("output.regenerate")}><RefreshCw size={14} aria-hidden="true" /></button>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Strength</Label>
+              <Label>{t("strength.label")}</Label>
               <span className={`font-medium ${strength.color}`}>{strength.label}</span>
             </div>
             <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full ${strength.bg} transition-all`}
                 style={{
-                  width: `${(strength.label === "Weak" ? 25 : strength.label === "Fair" ? 50 : strength.label === "Good" ? 75 : 100)}%`,
+                  width: `${strength.percent}%`,
                 }}
               />
             </div>

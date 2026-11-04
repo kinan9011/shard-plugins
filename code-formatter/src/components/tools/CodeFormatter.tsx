@@ -1,12 +1,14 @@
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
+import { formatNumber, useT } from "@/lib/i18n";
 import { formatBytes } from "@/utils/format-bytes";
 import {
   formatCode,
+  SqlParseError,
   type CodeLanguage,
   type FormatMode,
   type IndentChoice,
@@ -21,31 +23,9 @@ const LANGUAGES: { value: CodeLanguage; label: string; placeholder: string }[] =
   { value: "sql", label: "SQL", placeholder: "select id, name from users where active = 1 order by name" },
 ];
 
-const DIALECTS: { value: SqlDialect; label: string }[] = [
-  { value: "sql", label: "Standard SQL" },
-  { value: "postgresql", label: "PostgreSQL" },
-  { value: "mysql", label: "MySQL" },
-  { value: "sqlite", label: "SQLite" },
-];
+const DIALECTS: SqlDialect[] = ["sql", "postgresql", "mysql", "sqlite"];
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Is my code sent anywhere?",
-    a: "No. The code is formatted on this device. Nothing is uploaded, and the tool works offline.",
-  },
-  {
-    q: "What does Minify do?",
-    a: "Minify removes comments and extra whitespace to make the code smaller. It does not rename variables or rewrite code, so the result behaves the same as the input.",
-  },
-  {
-    q: "Why does minified JavaScript still have some line breaks?",
-    a: "JavaScript can insert semicolons at line breaks. The minifier keeps a line break wherever removing it could change how the code runs.",
-  },
-  {
-    q: "Why do I see a parse error for SQL?",
-    a: "The SQL formatter reads the statement before it formats it. Check the line and column in the message. If you use database-specific syntax, select the matching dialect.",
-  },
-];
+const FAQ_KEYS = ["upload", "minify", "lineBreaks", "sqlError"] as const;
 
 interface Result {
   output: string;
@@ -57,6 +37,7 @@ const EMPTY: Result = { output: "", error: "" };
 const lineCount = (text: string) => (text ? text.split("\n").length : 0);
 
 export function CodeFormatter() {
+  const t = useT();
   const [language, setLanguage] = useState<CodeLanguage>("html");
   const [mode, setMode] = useState<FormatMode>("beautify");
   const [indent, setIndent] = useState<IndentChoice>("2");
@@ -80,35 +61,36 @@ export function CodeFormatter() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setResult({ output: "", error: error instanceof Error ? error.message : "Could not format the code." });
+          setResult({
+            output: "",
+            error: error instanceof SqlParseError ? t("error.sql", { message: error.message }) : error instanceof Error ? error.message : t("error.format"),
+          });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [pending]);
+  }, [pending, t]);
 
   const current = input.trim() ? result : EMPTY;
   const languageInfo = LANGUAGES.find((l) => l.value === language) ?? LANGUAGES[0];
   const name = languageInfo.label;
-  const resultTitle = mode === "beautify" ? "Formatted" : "Minified";
+  const resultTitle = (lang: string) => t(mode === "beautify" ? "pane.formatted" : "pane.minified", { language: lang });
 
   const status = () => {
-    if (current.error) return <span className="text-destructive">Invalid input</span>;
-    if (!current.output) return <span>Ready</span>;
+    if (current.error) return <span className="text-destructive">{t("status.invalid")}</span>;
+    if (!current.output) return <span>{t("status.ready")}</span>;
     const inBytes = new TextEncoder().encode(pending.input).length;
     const outBytes = new TextEncoder().encode(current.output).length;
     const saved = inBytes > 0 ? Math.round((1 - outBytes / inBytes) * 100) : 0;
     return (
       <>
         <span>
-          {formatBytes(inBytes)} in · {formatBytes(outBytes)} out
-          {mode === "minify" && saved > 0 ? ` · ${saved}% smaller` : ""}
+          {t("status.sizes", { input: formatBytes(inBytes), output: formatBytes(outBytes) })}
+          {mode === "minify" && saved > 0 ? ` · ${t("status.smaller", { percent: formatNumber(saved) })}` : ""}
         </span>
-        <span>
-          {lineCount(current.output)} {lineCount(current.output) === 1 ? "line" : "lines"}
-        </span>
-        {mode === "minify" && language === "javascript" && <span>Names are not shortened</span>}
+        <span>{t("status.lines", { count: lineCount(current.output), n: formatNumber(lineCount(current.output)) })}</span>
+        {mode === "minify" && language === "javascript" && <span>{t("status.namesKept")}</span>}
       </>
     );
   };
@@ -119,34 +101,34 @@ export function CodeFormatter() {
       toolbar={
         <>
           <Tabs value={language} onValueChange={(v) => setLanguage(v as CodeLanguage)}>
-            <TabsList aria-label="Language">
+            <TabsList aria-label={t("language.label")}>
               {LANGUAGES.map((l) => (
                 <TabsTrigger key={l.value} value={l.value}>{l.label}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <Tabs value={mode} onValueChange={(v) => setMode(v as FormatMode)}>
-            <TabsList aria-label="Mode">
-              <TabsTrigger value="beautify">Beautify</TabsTrigger>
-              <TabsTrigger value="minify">Minify</TabsTrigger>
+            <TabsList aria-label={t("mode.label")}>
+              <TabsTrigger value="beautify">{t("mode.beautify")}</TabsTrigger>
+              <TabsTrigger value="minify">{t("mode.minify")}</TabsTrigger>
             </TabsList>
           </Tabs>
           {mode === "beautify" && (
             <label className="indent-control">
-              Indent
-              <select aria-label="Indentation" value={indent} onChange={(e) => setIndent(e.target.value as IndentChoice)}>
-                <option value="2">2 spaces</option>
-                <option value="4">4 spaces</option>
-                <option value="tab">Tab</option>
+              {t("indent.label")}
+              <select aria-label={t("indent.aria")} value={indent} onChange={(e) => setIndent(e.target.value as IndentChoice)}>
+                <option value="2">{t("indent.spaces", { count: 2 })}</option>
+                <option value="4">{t("indent.spaces", { count: 4 })}</option>
+                <option value="tab">{t("indent.tab")}</option>
               </select>
             </label>
           )}
           {language === "sql" && mode === "beautify" && (
             <label className="indent-control">
-              Dialect
-              <select aria-label="SQL dialect" value={dialect} onChange={(e) => setDialect(e.target.value as SqlDialect)}>
+              {t("dialect.label")}
+              <select aria-label={t("dialect.aria")} value={dialect} onChange={(e) => setDialect(e.target.value as SqlDialect)}>
                 {DIALECTS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
+                  <option key={d} value={d}>{t(`dialect.${d}`)}</option>
                 ))}
               </select>
             </label>
@@ -159,8 +141,8 @@ export function CodeFormatter() {
         ) : undefined
       }
       first={
-        <EditorPane title={`${name} input`} htmlFor="code-formatter-input" scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}>
+        <EditorPane title={t("pane.input", { language: name })} htmlFor="code-formatter-input" scroll={false}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}>
           <CodeTextarea
             id="code-formatter-input"
             wrap="off"
@@ -171,17 +153,17 @@ export function CodeFormatter() {
         </EditorPane>
       }
       second={
-        <EditorPane title={`${resultTitle} ${name}`} htmlFor={current.output ? "code-formatter-output" : undefined} scroll={false}
-          actions={<CopyButton value={current.output} label={`Copy ${name}`} />}>
+        <EditorPane title={resultTitle(name)} htmlFor={current.output ? "code-formatter-output" : undefined} scroll={false}
+          actions={<CopyButton value={current.output} label={t("copy.language", { language: name })} />}>
           {current.output ? (
             <CodeTextarea id="code-formatter-output" wrap="off" value={current.output} readOnly />
           ) : (
-            <PaneEmpty title={`${resultTitle} ${name} appears here`} hint={`Type or paste ${name} on the left.`} />
+            <PaneEmpty title={t(mode === "beautify" ? "empty.formatted" : "empty.minified", { language: name })} hint={t("empty.hint", { language: name })} />
           )}
         </EditorPane>
       }
       status={status()}
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

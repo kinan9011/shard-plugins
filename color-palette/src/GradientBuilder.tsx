@@ -1,5 +1,6 @@
 import { memo, useRef, useState } from "react";
 import { Button, Input } from "./ui";
+import { useT } from "./lib/i18n";
 import {
   colorAtPosition,
   gradientCss,
@@ -10,7 +11,7 @@ import { CopyButton } from "./CopyButton";
 import { GradientBar } from "./GradientBar";
 
 type Preset = {
-  name: string;
+  id: "sunset" | "ocean" | "navy" | "candy" | "mint" | "fire";
   type: "linear" | "radial";
   angle: number;
   stops: { color: string; position: number }[];
@@ -18,7 +19,7 @@ type Preset = {
 
 const PRESET_DEFS: Preset[] = [
   {
-    name: "Sunset",
+    id: "sunset",
     type: "linear",
     angle: 45,
     stops: [
@@ -27,7 +28,7 @@ const PRESET_DEFS: Preset[] = [
     ],
   },
   {
-    name: "Ocean",
+    id: "ocean",
     type: "linear",
     angle: 120,
     stops: [
@@ -36,7 +37,7 @@ const PRESET_DEFS: Preset[] = [
     ],
   },
   {
-    name: "Navy",
+    id: "navy",
     type: "linear",
     angle: 135,
     stops: [
@@ -45,7 +46,7 @@ const PRESET_DEFS: Preset[] = [
     ],
   },
   {
-    name: "Candy",
+    id: "candy",
     type: "linear",
     angle: 90,
     stops: [
@@ -54,7 +55,7 @@ const PRESET_DEFS: Preset[] = [
     ],
   },
   {
-    name: "Mint",
+    id: "mint",
     type: "radial",
     angle: 0,
     stops: [
@@ -63,7 +64,7 @@ const PRESET_DEFS: Preset[] = [
     ],
   },
   {
-    name: "Fire",
+    id: "fire",
     type: "linear",
     angle: 90,
     stops: [
@@ -89,6 +90,7 @@ const MAX_STOPS = 16;
 
 // Memoized because Color Palette keeps it mounted and renders it again on each color edit.
 export const GradientBuilder = memo(function GradientBuilder() {
+  const t = useT();
   const [type, setType] = useState<"linear" | "radial">("linear");
   const [angle, setAngle] = useState(90);
   const [stops, setStops] = useState<GradientStop[]>([
@@ -141,39 +143,39 @@ export const GradientBuilder = memo(function GradientBuilder() {
   }
 
   return (
-    <section className="space-y-4" aria-label="Gradient builder">
+    <section className="space-y-4" aria-label={t("gradient.builder")}>
       <div className="flex flex-wrap gap-3 items-center">
         <label>
-          Type{" "}
+          {t("gradient.type")}{" "}
           <select
-            className="rounded border bg-background px-2 pr-7 py-1 text-sm"
-            aria-label="Gradient type"
+            className="rounded border bg-background px-2 pe-7 py-1 text-sm"
+            aria-label={t("gradient.typeAria")}
             value={type}
             onChange={(e) => setType(e.target.value as typeof type)}
           >
-            <option value="linear">Linear</option>
-            <option value="radial">Radial</option>
+            <option value="linear">{t("gradient.linear")}</option>
+            <option value="radial">{t("gradient.radial")}</option>
           </select>
         </label>
         {type === "linear" && (
           <label className="flex items-center gap-2">
-            Angle
+            {t("gradient.angle")}
             <Input
               className="w-24"
               type="number"
-              aria-label="Gradient angle"
+              aria-label={t("gradient.angleAria")}
               value={Number.isNaN(angle) ? "" : angle}
               onChange={(e) => setAngle(e.target.valueAsNumber)}
             />
           </label>
         )}
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Gradient presets">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t("gradient.presets")}>
         {PRESETS.map((preset) => (
           <button
-            key={preset.name}
+            key={preset.id}
             type="button"
-            aria-label={`Apply ${preset.name} gradient`}
+            aria-label={t("gradient.applyPreset", { name: t(`gradient.preset.${preset.id}`) })}
             className="flex items-center gap-2 rounded-md border px-2 py-1 text-sm hover:bg-accent"
             onClick={() => applyPreset(preset)}
           >
@@ -182,7 +184,7 @@ export const GradientBuilder = memo(function GradientBuilder() {
               style={{ backgroundImage: preset.css }}
               aria-hidden="true"
             />
-            {preset.name}
+            {t(`gradient.preset.${preset.id}`)}
           </button>
         ))}
       </div>
@@ -196,37 +198,36 @@ export const GradientBuilder = memo(function GradientBuilder() {
         onRemove={removeStop}
       />
       <p className="text-sm text-muted-foreground">
-        Click the preview to add a stop, and drag a handle to move it. A
-        focused handle moves with the arrow keys, and Delete removes it. Stops
-        are sorted by position in the CSS output.
+        {t("gradient.hint")}
       </p>
       {stops.map((stop, i) => (
         <div key={stop.id} className="flex flex-wrap items-center gap-3">
           <input
             type="color"
-            aria-label={`Pick color for stop ${i + 1}`}
+            aria-label={t("gradient.pickStop", { n: i + 1 })}
             className="h-9 w-9 cursor-pointer rounded border bg-transparent p-1"
             value={parseColor(stop.color)?.hex ?? "#000000"}
             onChange={(e) => pickColor(stop, e.target.value)}
             onFocus={() => setSelectedId(stop.id)}
           />
           <label className="min-w-40 flex-1">
-            Color {i + 1}
+            {t("gradient.colorN", { n: i + 1 })}
             <Input
               className="font-mono"
-              aria-label={`Stop ${i + 1} color`}
+              dir="ltr"
+              aria-label={t("gradient.stopColor", { n: i + 1 })}
               value={stop.color}
               onChange={(e) => update(stop.id, { color: e.target.value })}
             />
           </label>
           <label>
-            Position %
+            {t("gradient.position")}
             <Input
               className="w-24"
               type="number"
               min={0}
               max={100}
-              aria-label={`Stop ${i + 1} position`}
+              aria-label={t("gradient.stopPosition", { n: i + 1 })}
               value={Number.isNaN(stop.position) ? "" : stop.position}
               onChange={(e) =>
                 update(stop.id, { position: e.target.valueAsNumber })
@@ -235,11 +236,11 @@ export const GradientBuilder = memo(function GradientBuilder() {
           </label>
           <Button
             variant="outline"
-            aria-label={`Remove stop ${i + 1}`}
+            aria-label={t("gradient.removeStop", { n: i + 1 })}
             disabled={stops.length <= 2}
             onClick={() => removeStop(stop.id)}
           >
-            Remove
+            {t("gradient.remove")}
           </Button>
         </div>
       ))}
@@ -248,7 +249,7 @@ export const GradientBuilder = memo(function GradientBuilder() {
         disabled={stops.length >= MAX_STOPS}
         onClick={() => addStop(50)}
       >
-        Add stop
+        {t("gradient.addStop")}
       </Button>
       {error ? (
         <p role="alert" className="workspace-notice" data-tone="error">
@@ -256,8 +257,8 @@ export const GradientBuilder = memo(function GradientBuilder() {
         </p>
       ) : (
         <div className="rounded-md border p-3 space-y-2">
-          <CopyButton value={`background: ${css};`} label="Copy CSS" />
-          <pre className="text-sm font-mono whitespace-pre-wrap break-all">
+          <CopyButton value={`background: ${css};`} label={t("gradient.copyCss")} />
+          <pre dir="ltr" className="text-sm font-mono whitespace-pre-wrap break-all text-start">
             background: {css};
           </pre>
         </div>

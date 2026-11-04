@@ -1,0 +1,21 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "title": "API Response Formatter",
+  "description": "Format and parse API responses",
+  "mode.format": "Format JSON",
+  "mode.minify": "Minify JSON",
+  "mode.url": "URL Encoded",
+  "mode.query": "Query String",
+  "action.format": "Format JSON",
+  "action.minify": "Minify JSON",
+  "action.url": "Parse URL Encoded",
+  "action.query": "Parse Query String",
+  "copy.output": "Copy output",
+  "toast.enterJsonFormat": "Please enter JSON to format",
+  "toast.enterJsonMinify": "Please enter JSON to minify",
+  "toast.enterUrlEncoded": "Please enter URL-encoded data",
+  "toast.enterQuery": "Please enter a query string",
+  "toast.invalidJson": "Invalid JSON",
+  "toast.invalidUrlEncoded": "Invalid URL-encoded data",
+  "toast.invalidQuery": "Invalid query string",
+};

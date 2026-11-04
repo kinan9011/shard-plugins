@@ -1,4 +1,7 @@
-/** Starter diagrams for the Mermaid Renderer, one for each common diagram type. */
+/**
+ * Starter diagrams for the Mermaid Renderer, one for each common diagram type. The sources are sample code and stay as they are.
+ * `label` is the English name of the type, kept for reference; the picker shows the translation `template.<id>`.
+ */
 export const MERMAID_TEMPLATES = [
   {
     id: "flowchart",

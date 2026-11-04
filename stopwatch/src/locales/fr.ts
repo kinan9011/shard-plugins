@@ -1,0 +1,17 @@
+export default {
+  "title": "Chronomètre",
+  "time.label": "Temps écoulé",
+  "action.start": "Démarrer",
+  "action.pause": "Pause",
+  "action.resume": "Reprendre",
+  "action.lap": "Tour",
+  "action.reset": "Réinitialiser",
+  "note": "Continue à tourner d’un onglet d’outil à l’autre et compte le temps de veille. La fermeture de cet outil efface le chronomètre.",
+  "action.copyLaps": "Copier les tours",
+  "action.exportLaps": "Exporter les tours",
+  "table.lap": "Tour",
+  "table.split": "Temps intermédiaire",
+  "table.total": "Total",
+  "empty.laps": "Démarrez le chronomètre, puis enregistrez un tour pour comparer les temps intermédiaires.",
+  "error.save": "Impossible d’enregistrer les tours. Essayez plutôt de les copier.",
+};

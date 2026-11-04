@@ -2,6 +2,7 @@
  * Turns SVG markup into data URIs and CSS snippets. The SVG is parsed as XML
  * into an inert document. It is never added to the page.
  */
+import { t } from "@/lib/i18n";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
@@ -69,11 +70,11 @@ const addMissingNamespaces = (input: string, notes: string[]): string => {
   let tag = match[0];
   if (!/\sxmlns\s*=/.test(tag)) {
     tag = tag.replace(/^<svg\b/i, `<svg xmlns="${SVG_NS}"`);
-    notes.push("Added the SVG namespace. An SVG image does not render without it.");
+    notes.push(t("note.svgNamespace"));
   }
   if (/\bxlink:/.test(input) && !/\sxmlns:xlink\s*=/.test(tag)) {
     tag = tag.replace(/^<svg\b/i, `<svg xmlns:xlink="${XLINK_NS}"`);
-    notes.push("Added the xlink namespace.");
+    notes.push(t("note.xlinkNamespace"));
   }
   return input.slice(0, match.index) + tag + input.slice(match.index + match[0].length);
 };
@@ -84,7 +85,8 @@ const stripControls = (value: string) => Array.from(value).filter((ch) => ch.cha
 /** Reads the first line of a parser error without the browser-specific wrapper text. */
 const parserMessage = (error: Element) => {
   const text = (error.textContent ?? "").replace(/\s+/g, " ").trim();
-  return text.replace(/^This page contains the following errors:\s*/i, "").replace(/\s*Below is a rendering.*$/i, "") || "The SVG is not well-formed XML.";
+  const message = text.replace(/^This page contains the following errors:\s*/i, "").replace(/\s*Below is a rendering.*$/i, "");
+  return message ? t("error.xml", { message }) : t("error.notWellFormed");
 };
 
 const usedPrefixes = (root: Element): Set<string> => {
@@ -191,7 +193,7 @@ export function convertSvg(input: string): SvgResult {
   if (error) return { ok: false, error: parserMessage(error) };
   const root = doc.documentElement;
   if (root.localName !== "svg" || root.namespaceURI !== SVG_NS) {
-    return { ok: false, error: `The root element is <${root.tagName}>. An SVG file starts with <svg>.` };
+    return { ok: false, error: t("error.root", { element: `<${root.tagName}>` }) };
   }
 
   const { scripts, handlers } = clean(root);

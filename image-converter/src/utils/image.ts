@@ -1,3 +1,4 @@
+import { formatNumber, t } from "@/lib/i18n";
 import type { ResizeMethod } from "./image-process";
 
 export type ImageFormat = "jpeg" | "png" | "webp" | "avif";
@@ -61,17 +62,17 @@ export function shouldShowQualityControl(
 
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) {
-    return "0 Bytes";
+    return `0 ${t("size.bytes")}`;
   }
 
-  const units = ["Bytes", "KB", "MB", "GB"];
+  const units = [t("size.bytes"), "KB", "MB", "GB"];
   const sizeIndex = Math.min(
     Math.floor(Math.log(bytes) / Math.log(1024)),
     units.length - 1,
   );
   const value = bytes / Math.pow(1024, sizeIndex);
 
-  return `${Math.round(value * 100) / 100} ${units[sizeIndex]}`;
+  return `${formatNumber(Math.round(value * 100) / 100, { maximumFractionDigits: 2, useGrouping: false })} ${units[sizeIndex]}`;
 }
 
 export function getSavingsPercent(originalSize: number, compressedSize: number): number {
@@ -83,8 +84,8 @@ export function getSavingsPercent(originalSize: number, compressedSize: number):
 }
 
 export function formatSavingsLabel(savingsPercent: number): string {
-  const absolutePercent = Math.abs(savingsPercent);
-  return savingsPercent >= 0 ? `${absolutePercent}% smaller` : `${absolutePercent}% larger`;
+  const percent = formatNumber(Math.abs(savingsPercent));
+  return t(savingsPercent >= 0 ? "savings.smaller" : "savings.larger", { percent });
 }
 
 export function getFormatLabel(format: ImageFormat): string {
@@ -124,12 +125,8 @@ export const DEFAULT_RESIZE: ResizeSettings = {
   linearRgb: true,
 };
 
-export const RESIZE_METHODS: { id: ResizeMethod; label: string }[] = [
-  { id: "lanczos3", label: "Lanczos3 (sharpest)" },
-  { id: "mitchell", label: "Mitchell" },
-  { id: "catrom", label: "Catmull-Rom" },
-  { id: "triangle", label: "Triangle (bilinear)" },
-];
+/** The label of each method is `t("resizeMethod.<id>")`. */
+export const RESIZE_METHODS: { id: ResizeMethod }[] = [{ id: "lanczos3" }, { id: "mitchell" }, { id: "catrom" }, { id: "triangle" }];
 
 export const RESIZE_PRESETS = [100, 75, 50, 33.33, 25];
 

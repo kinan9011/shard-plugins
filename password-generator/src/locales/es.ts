@@ -1,0 +1,16 @@
+export default {
+  "length.label": "Longitud de la contraseña: {length}",
+  "option.uppercase": "Mayúsculas (A-Z)",
+  "option.lowercase": "Minúsculas (a-z)",
+  "option.numbers": "Números (0-9)",
+  "option.symbols": "Símbolos (!@#$...)",
+  "output.label": "Contraseña generada",
+  "output.copy": "Copiar contraseña",
+  "output.regenerate": "Generar una contraseña nueva",
+  "strength.label": "Seguridad",
+  "strength.weak": "Débil",
+  "strength.fair": "Aceptable",
+  "strength.good": "Buena",
+  "strength.strong": "Fuerte",
+  "error.noCharacterType": "Selecciona al menos un tipo de carácter",
+};

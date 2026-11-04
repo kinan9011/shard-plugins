@@ -35,7 +35,7 @@ export function Menu({ items, x, y, label, onClose }: { items: MenuItem[]; x: nu
   return <div ref={ref} className="menu" role="menu" aria-label={label} style={position} onKeyDown={keyDown} onContextMenu={event => event.preventDefault()}>
     {items.map((item, index) => item === "separator" ? <hr key={index} role="separator" /> :
       <button key={item.id} type="button" role="menuitem" disabled={item.disabled} onClick={() => { onClose(); item.run(); }}>
-        <span>{item.label}</span>{item.keys && <kbd>{item.keys}</kbd>}
+        <span>{item.label}</span>{item.keys && <kbd dir="ltr">{item.keys}</kbd>}
       </button>)}
   </div>;
 }

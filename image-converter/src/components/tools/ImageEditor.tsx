@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "./CopyButton";
+import { useT } from "@/lib/i18n";
 import { saveFile } from "@/lib/desktop";
 import {
   cropFromPoints,
@@ -32,6 +33,7 @@ const initialEdits = (width: number, height: number): ImageEdits => ({
   flipY: false,
 });
 export function ImageEditor() {
+  const t = useT();
   const [source, setSource] = useState<{
     url: string;
     name: string;
@@ -70,7 +72,7 @@ export function ImageEditor() {
     img.onload = () => {
       if (cancelled) return;
       if (img.naturalWidth * img.naturalHeight > 32000000) {
-        setError("Source images are limited to 32 megapixels.");
+        setError(t("editor.error.tooLarge"));
         setBusy(false);
         return;
       }
@@ -82,7 +84,7 @@ export function ImageEditor() {
     };
     img.onerror = () => {
       if (!cancelled) {
-        setError("Could not read this image. Choose a PNG, JPG or WebP file.");
+        setError(t("editor.error.read"));
         setBusy(false);
       }
     };
@@ -107,13 +109,11 @@ export function ImageEditor() {
             if (cancelled) return;
             setBusy(false);
             if (!blob) {
-              setError("Could not export the image.");
+              setError(t("editor.error.export"));
               return;
             }
             if (blob.type !== type) {
-              setError(
-                "This browser cannot export the selected format. Choose PNG.",
-              );
+              setError(t("editor.error.format"));
               return;
             }
             url = URL.createObjectURL(blob);
@@ -194,14 +194,14 @@ export function ImageEditor() {
     });
   };
   return (
-    <section className="space-y-4" aria-label="Image editor">
+    <section className="space-y-4" aria-label={t("editor.aria")}>
       <label className="block text-sm font-medium">
-        Open image
+        {t("editor.open")}
         <Input
           className="mt-2"
           type="file"
           accept="image/png,image/jpeg,image/webp"
-          aria-label="Image to edit"
+          aria-label={t("editor.fileAria")}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;
@@ -209,7 +209,7 @@ export function ImageEditor() {
               !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
               file.size > 32 * 1024 * 1024
             ) {
-              setError("Choose a PNG, JPG or WebP file under 32 MiB.");
+              setError(t("editor.error.choose"));
               return;
             }
             setSource({ url: URL.createObjectURL(file), name: file.name });
@@ -225,7 +225,7 @@ export function ImageEditor() {
         <>
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Original · drag to crop</h3>
+              <h3 className="text-sm font-medium">{t("editor.originalDrag")}</h3>
               <div
                 className="relative w-fit max-w-full touch-none select-none"
                 onPointerDown={(e) => {
@@ -262,7 +262,7 @@ export function ImageEditor() {
               >
                 <img
                   src={source.url}
-                  alt="Original image for cropping"
+                  alt={t("editor.altCrop")}
                   draggable={false}
                   className="max-h-96 max-w-full object-contain block"
                 />
@@ -279,17 +279,17 @@ export function ImageEditor() {
             </div>
             <div className="space-y-2">
               <h3 className="text-sm font-medium">
-                Output {output && `· ${output.width} × ${output.height}`}
+                {t("editor.output")} {output && `· ${output.width} × ${output.height}`}
               </h3>
               {busy ? (
                 <p role="status" className="text-sm text-muted-foreground">
-                  Updating preview…
+                  {t("editor.updating")}
                 </p>
               ) : (
                 output && (
                   <img
                     src={output.url}
-                    alt="Edited image preview"
+                    alt={t("editor.altOutput")}
                     className="max-h-96 max-w-full object-contain rounded-md border"
                   />
                 )
@@ -298,16 +298,16 @@ export function ImageEditor() {
           </div>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">
-              Crop in original pixels
+              {t("editor.cropLegend")}
             </legend>
             <div className="flex flex-wrap gap-3">
               {(["x", "y", "width", "height"] as const).map((key) => (
                 <label key={key} className="text-sm">
-                  {key}
+                  {t(`editor.field.${key}`)}
                   <Input
                     className="w-24"
                     type="number"
-                    aria-label={`Crop ${key}`}
+                    aria-label={t(`editor.crop.${key}`)}
                     value={Number.isNaN(edits.crop[key]) ? "" : edits.crop[key]}
                     onChange={(e) =>
                       setCrop({ ...edits.crop, [key]: e.target.valueAsNumber })
@@ -319,16 +319,16 @@ export function ImageEditor() {
           </fieldset>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">
-              Resize before rotation
+              {t("editor.resizeLegend")}
             </legend>
             <div className="flex flex-wrap gap-3 items-end">
               {(["width", "height"] as const).map((key) => (
                 <label key={key} className="text-sm">
-                  {key}
+                  {t(`editor.field.${key}`)}
                   <Input
                     className="w-28"
                     type="number"
-                    aria-label={`Output ${key}`}
+                    aria-label={t(`editor.out.${key}`)}
                     value={Number.isNaN(edits[key]) ? "" : edits[key]}
                     onChange={(e) => dimension(key, e.target.valueAsNumber)}
                   />
@@ -340,14 +340,14 @@ export function ImageEditor() {
                   checked={locked}
                   onChange={(e) => setLocked(e.target.checked)}
                 />
-                Lock crop aspect ratio
+                {t("editor.lock")}
               </label>
               <label className="text-sm">
-                Scale crop %
+                {t("editor.scale")}
                 <Input
                   className="w-24"
                   type="number"
-                  aria-label="Resize percent"
+                  aria-label={t("editor.resizePercent")}
                   value={Number.isNaN(percent) ? "" : percent}
                   onChange={(e) => {
                     const p = e.target.valueAsNumber;
@@ -370,7 +370,7 @@ export function ImageEditor() {
                 setEdits({ ...edits, rotation: (edits.rotation + 270) % 360 })
               }
             >
-              Rotate left
+              {t("editor.rotateLeft")}
             </Button>
             <Button
               variant="outline"
@@ -378,21 +378,21 @@ export function ImageEditor() {
                 setEdits({ ...edits, rotation: (edits.rotation + 90) % 360 })
               }
             >
-              Rotate right
+              {t("editor.rotateRight")}
             </Button>
             <Button
               variant="outline"
               aria-pressed={edits.flipX}
               onClick={() => setEdits({ ...edits, flipX: !edits.flipX })}
             >
-              Flip horizontal
+              {t("editor.flipH")}
             </Button>
             <Button
               variant="outline"
               aria-pressed={edits.flipY}
               onClick={() => setEdits({ ...edits, flipY: !edits.flipY })}
             >
-              Flip vertical
+              {t("editor.flipV")}
             </Button>
             <Button
               variant="outline"
@@ -402,17 +402,16 @@ export function ImageEditor() {
                 setSizeBy("percent");
               }}
             >
-              Reset edits
+              {t("editor.reset")}
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Order: crop, resize, flip in source axes, then rotate. JPEG fills
-            transparency with white.
+            {t("editor.order")}
           </p>
           <div className="flex flex-wrap gap-3 items-center">
             <select
-              className="rounded-md border bg-background py-2 pl-2 pr-7 text-sm"
-              aria-label="Edited image format"
+              className="rounded-md border bg-background py-2 ps-2 pe-7 text-sm"
+              aria-label={t("editor.formatAria")}
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
@@ -435,23 +434,22 @@ export function ImageEditor() {
                       type.split("/")[1],
                   );
                 } catch {
-                  setError("Could not save the image. Try again.");
+                  setError(t("editor.error.save"));
                 }
               }}
             >
-              Save edited image
+              {t("editor.save")}
             </Button>
             <CopyButton
               value={output ? `${output.width} × ${output.height}` : ""}
-              label="Copy dimensions"
+              label={t("editor.copyDims")}
             />
           </div>
         </>
       )}
       {!source && (
         <p className="text-sm text-muted-foreground">
-          Resize, crop, rotate and flip an image locally. Use numeric crop
-          controls or drag over the original preview.
+          {t("editor.intro")}
         </p>
       )}
     </section>

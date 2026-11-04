@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { blobSource, patchedBlob, type ByteSource } from "@/utils/byte-source";
 import { scanBmff } from "@/utils/video-bmff";
 import { scanEbml } from "@/utils/video-ebml";
@@ -25,7 +26,7 @@ export interface VideoInspection extends ScanResult {
 
 export async function inspectVideo(source: ByteSource, options: VideoCleanOptions = DEFAULT_VIDEO_OPTIONS): Promise<VideoInspection> {
   const container = await detectContainer(source);
-  if (!container) throw new VideoError("This file is not an MP4, MOV, M4V, 3GP, MKV, or WebM video.");
+  if (!container) throw new VideoError(t("error.notVideo"));
   const scan = container === "bmff" ? await scanBmff(source, options) : await scanEbml(source, options);
   return {
     ...scan,

@@ -87,6 +87,7 @@ function addPackage(spec) {
 }
 
 const seen = new Set();
+for (const l of ["en", "de", "ar", "fr", "es", "zh", "ja", "he"]) seen.add(`locales/${l}`); // the tool's own strings, written from the template below
 function walk(rel) {
   if (seen.has(rel)) return;
   seen.add(rel);
@@ -194,7 +195,9 @@ for (const [rel, file] of files) {
 }
 for (const [rel, code] of tests) write(`tests/${rel}`, code);
 write("src/tool.css", read(path.join(shared, "tool.css")));
-for (const rel of ["postcss.config.js", "tailwind.preset.ts", "tailwind.config.ts", "tsconfig.json", "vite.config.ts", "vitest.config.ts", "scripts/pack.mjs", "tests/setup.ts", "public/CHANGELOG.md", "src/index.css", ".gitignore"]) copyTemplate(rel);
+for (const rel of ["postcss.config.js", "tailwind.preset.ts", "tailwind.config.ts", "tsconfig.json", "vite.config.ts", "vitest.config.ts", "scripts/pack.mjs", "tests/setup.ts", "tests/i18n.test.ts", "tests/locales.test.ts", "public/CHANGELOG.md", "src/index.css", ".gitignore", ...["en", "de", "ar", "fr", "es", "zh", "ja", "he"].map((l) => `src/locales/${l}.ts`)]) copyTemplate(rel);
+// The shared components translate through these; the tool's own strings go into src/locales/*.ts.
+for (const rel of ["i18n.ts", "i18n-common.ts"]) write(`src/lib/${rel}`, read(path.join(shared, "lib", rel)));
 copyTemplate("index.html", (html) => html.replace("__NAME__", name));
 write("src/main.tsx", `import { mountTool } from "./bootstrap";\nimport { ${componentName} } from "@/components/tools/${componentFile}";\nimport "./index.css";\n\nvoid mountTool(${componentName}, { form: ${!workspace} });\n`);
 

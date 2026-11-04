@@ -1,6 +1,7 @@
 import { Findings, crc32, type FindingKind } from "@/utils/image-metadata";
 import { formatBytes } from "@/utils/format-bytes";
 import type { ByteSource, Patch } from "@/utils/byte-source";
+import { formatNumber, t } from "@/lib/i18n";
 import { VideoError, iso6709, namedKey, type ScanResult, type VideoCleanOptions } from "@/utils/video-format";
 
 /**
@@ -42,16 +43,16 @@ export function readVint(b: Uint8Array, o: number, keepMarker: boolean): { value
 export function elementAt(h: Uint8Array, start: number, parentEnd: number): EbmlElement {
   const id = readVint(h, 0, true);
   const size = id && id.length <= 4 ? readVint(h, id.length, false) : null;
-  if (!id || !size) throw new VideoError(`The element at byte ${start} is not valid Matroska data.`);
+  if (!id || !size) throw new VideoError(t("error.elementInvalid", { offset: formatNumber(start) }), true);
   const dataStart = start + id.length + size.length;
   const end = size.unknown ? parentEnd : dataStart + size.value;
-  if (end > parentEnd) throw new VideoError(`The element at byte ${start} runs past the end of its parent.`);
+  if (end > parentEnd) throw new VideoError(t("error.elementPastEnd", { offset: formatNumber(start) }), true);
   return { id: id.value, start, dataStart, size: size.unknown ? null : size.value, end };
 }
 
 /** A Void element of `total` bytes: ID 0xEC, a size, and zero data. */
 export function voidElement(total: number): Uint8Array {
-  if (total < 2) throw new Error("A Void element needs at least 2 bytes.");
+  if (total < 2) throw new Error(t("error.voidTooSmall"));
   const out = new Uint8Array(total);
   out[0] = 0xec;
   // A size field of n bytes. Short elements use a longer size field that holds 0.
@@ -175,18 +176,18 @@ function push(ctx: Ctx, patch: Patch | null) {
 
 function scanInfo(buf: Uint8Array, base: number, element: EbmlElement, ctx: Ctx) {
   const edit = new ElementEdit(element, buf, base);
-  const source = "Matroska info";
+  const source = t("source.matroskaInfo");
   for (const child of ebmlChildren(buf, base, element)) {
     const value = data(buf, base, child);
     if (child.id === EBML_ID.Title || child.id === EBML_ID.MuxingApp || child.id === EBML_ID.WritingApp) {
       const content = text(value);
       if (!content) continue;
-      const label = child.id === EBML_ID.Title ? "Title" : child.id === EBML_ID.MuxingApp ? "Muxing app" : "Writing app";
+      const label = t(child.id === EBML_ID.Title ? "label.title" : child.id === EBML_ID.MuxingApp ? "label.muxingApp" : "label.writingApp");
       ctx.out.addText(label, content, source, child.id === EBML_ID.Title ? "text" : "other");
       // Zero bytes make an empty string, so the elements that the format requires stay in place.
       edit.zero(child);
     } else if (child.id === EBML_ID.DateUTC) {
-      ctx.out.add({ kind: "camera", label: "Recording date", detail: dateUtc(value) ?? "Unreadable date", source }, ctx.options.clearDates);
+      ctx.out.add({ kind: "camera", label: t("label.recordingDate"), detail: dateUtc(value) ?? t("detail.unreadableDate"), source }, ctx.options.clearDates);
       if (ctx.options.clearDates) edit.void(child);
     }
   }
@@ -201,7 +202,7 @@ function scanTracks(buf: Uint8Array, base: number, element: EbmlElement, ctx: Ct
       if (child.id !== EBML_ID.Name) continue;
       const content = text(data(buf, base, child));
       if (!content) continue;
-      ctx.out.addText("Track name", content, "Matroska tracks", "text");
+      ctx.out.addText(t("label.trackName"), content, t("source.matroskaTracks"), "text");
       edit.zero(child);
     }
   }
@@ -250,16 +251,15 @@ function scanTags(buf: Uint8Array, base: number, element: EbmlElement, ctx: Ctx)
       return;
     }
     if (!name && !value) return;
-    const [label, kind] = namedKey(name) ?? [name || "Tag", tagKind(name)];
-    ctx.out.addText(label, kind === "location" ? iso6709(value) : value || "(empty)", "Matroska tags", kind);
+    const [label, kind] = namedKey(name) ?? [name || t("label.tag"), tagKind(name)];
+    ctx.out.addText(label, kind === "location" ? iso6709(value) : value || t("detail.empty"), t("source.matroskaTags"), kind);
   };
   for (const tag of ebmlChildren(buf, base, element)) {
     if (tag.id !== EBML_ID.Tag) continue;
     for (const child of ebmlChildren(buf, base, tag)) if (child.id === EBML_ID.SimpleTag) readSimpleTag(child);
   }
   if (technical) {
-    const values = `${technical} ${technical === 1 ? "value" : "values"}`;
-    ctx.out.add({ kind: "other", label: "Technical tags", detail: `${values}, such as the bit rate, the frame count, and the source format`, source: "Matroska tags" });
+    ctx.out.add({ kind: "other", label: t("label.technicalTags"), detail: t("detail.technicalValues", { count: technical, number: formatNumber(technical) }), source: t("source.matroskaTags") });
   }
   ctx.patches.push({ offset: element.start, bytes: voidElement(element.end - element.start) });
 }
@@ -282,8 +282,8 @@ function scanAttachments(buf: Uint8Array, base: number, element: EbmlElement, ct
     }
     const font = isFont(name, mime);
     const keep = font && ctx.options.keepFonts;
-    const label = font ? "Attached font" : mime.startsWith("image/") ? "Attached picture" : "Attached file";
-    ctx.out.add({ kind: "other", label, detail: `${name || "No name"}, ${mime || "unknown type"}, ${formatBytes(length)}`, source: "Matroska attachments" }, !keep);
+    const label = t(font ? "label.attachedFont" : mime.startsWith("image/") ? "label.attachedPicture" : "label.attachedFile");
+    ctx.out.add({ kind: "other", label, detail: t("detail.attachment", { name: name || t("detail.noName"), type: mime || t("detail.unknownType"), size: formatBytes(length) }), source: t("source.matroskaAttachments") }, !keep);
     if (keep) kept++;
     else remove.push(file);
   }
@@ -320,21 +320,21 @@ export async function scanEbml(source: ByteSource, options: VideoCleanOptions): 
   const ctx: Ctx = { out: new Findings(), patches: [], options };
   const warnings: string[] = [];
   const ebml = elementAt(await source.read(0, 12), 0, source.size);
-  if (ebml.id !== EBML_ID.EBML || ebml.size === null || ebml.end > 4096) throw new VideoError("The file does not start with a valid Matroska header.");
+  if (ebml.id !== EBML_ID.EBML || ebml.size === null || ebml.end > 4096) throw new VideoError(t("error.matroskaHeader"));
   const header = await source.read(0, ebml.end);
   let docType = "matroska";
   for (const child of ebmlChildren(header, 0, ebml)) if (child.id === EBML_ID.DocType) docType = text(data(header, 0, child));
-  if (docType !== "webm" && docType !== "matroska") throw new VideoError(`The Matroska document type "${docType}" is not supported.`);
+  if (docType !== "webm" && docType !== "matroska") throw new VideoError(t("error.docType", { type: docType }));
   const segment = elementAt(await source.read(ebml.end, 12), ebml.end, source.size);
-  if (segment.id !== EBML_ID.Segment) throw new VideoError("The file has no Matroska segment.");
+  if (segment.id !== EBML_ID.Segment) throw new VideoError(t("error.noSegment"));
 
   const visited = new Set<number>();
   const pending: number[] = [];
   const visit = async (element: EbmlElement) => {
     if (visited.has(element.start) || !READ_IDS.has(element.id)) return;
     visited.add(element.start);
-    if (element.size === null) throw new VideoError("A metadata element has an unknown size. This tool cannot read it.");
-    if (element.end - element.start > MAX_LEVEL1) throw new VideoError("A metadata element is larger than 64 MB. This tool cannot read it.");
+    if (element.size === null) throw new VideoError(t("error.unknownSize"));
+    if (element.end - element.start > MAX_LEVEL1) throw new VideoError(t("error.elementTooLarge"));
     const buf = await source.read(element.start, element.end - element.start);
     if (element.id === EBML_ID.SeekHead) pending.push(...seekTargets(buf, element.start, element, segment.dataStart));
     else if (element.id === EBML_ID.Info) scanInfo(buf, element.start, element, ctx);
@@ -349,13 +349,13 @@ export async function scanEbml(source: ByteSource, options: VideoCleanOptions): 
     try {
       element = elementAt(await source.read(o, 12), o, segment.end);
     } catch {
-      warnings.push(`The file ends inside an element at byte ${o}. It may be cut off.`);
+      warnings.push(t("warning.endsInside", { offset: formatNumber(o) }));
       break;
     }
     await visit(element);
     // After an element of unknown size (a live recording), the rest of the segment cannot be walked.
     if (element.size === null) {
-      warnings.push(`The scan is incomplete after an unknown-size element at byte ${element.start}. Metadata not listed in the seek index may remain in the clean copy.`);
+      warnings.push(t("warning.incompleteScan", { offset: formatNumber(element.start) }));
       break;
     }
     o = element.end;
@@ -366,8 +366,8 @@ export async function scanEbml(source: ByteSource, options: VideoCleanOptions): 
     try {
       await visit(elementAt(await source.read(position, 12), position, segment.end));
     } catch (error) {
-      if (error instanceof VideoError && !/not valid|past the end/.test(error.message)) throw error;
-      warnings.push(`The seek index points to byte ${position}, which is not a valid element.`);
+      if (error instanceof VideoError && !error.soft) throw error;
+      warnings.push(t("warning.badSeek", { position: formatNumber(position) }));
     }
   }
   return { format: docType === "webm" ? "webm" : "mkv", findings: ctx.out.items, patches: ctx.patches, warnings };

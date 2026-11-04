@@ -3,6 +3,7 @@
  */
 
 import { md5, sha1 } from "@noble/hashes/legacy.js";
+import { t } from "./lib/i18n";
 
 export type UUIDVersion = "1" | "3" | "4" | "5" | "6" | "7" | "ulid";
 
@@ -182,7 +183,7 @@ function generateNameBasedUUID(
   name: string
 ): string {
   if (!isValidUUID(namespace)) {
-    throw new Error("Namespace must be a valid UUID");
+    throw new Error(t("error.namespace"));
   }
   const nameBytes = new TextEncoder().encode(name);
   const input = new Uint8Array(16 + nameBytes.length);
@@ -234,19 +235,19 @@ const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
  */
 export function inspectIdentifier(input: string): UUIDInspection {
   const value = input.trim();
-  if (!value) return { valid: false, error: "Enter a UUID or ULID" };
+  if (!value) return { valid: false, error: t("error.enterIdentifier") };
 
   if (isValidUUID(value)) {
     const hex = value.replace(/-/g, "").toLowerCase();
     const version = parseInt(hex[12], 16);
     const variantNibble = parseInt(hex[16], 16);
     let variant: string;
-    if (hex === "0".repeat(32)) variant = "Nil UUID";
-    else if (hex === "f".repeat(32)) variant = "Max UUID";
-    else if ((variantNibble & 0x8) === 0) variant = "NCS (reserved)";
+    if (hex === "0".repeat(32)) variant = t("variant.nil");
+    else if (hex === "f".repeat(32)) variant = t("variant.max");
+    else if ((variantNibble & 0x8) === 0) variant = t("variant.ncs");
     else if ((variantNibble & 0xc) === 0x8) variant = "RFC 4122 / RFC 9562";
-    else if ((variantNibble & 0xe) === 0xc) variant = "Microsoft (reserved)";
-    else variant = "Reserved (future)";
+    else if ((variantNibble & 0xe) === 0xc) variant = t("variant.microsoft");
+    else variant = t("variant.future");
 
     let date: Date | undefined;
     if (version === 1 || version === 6) {
@@ -273,7 +274,7 @@ export function inspectIdentifier(input: string): UUIDInspection {
     return { valid: true, kind: "ulid", date: new Date(ms) };
   }
 
-  return { valid: false, error: "Not a valid UUID or ULID" };
+  return { valid: false, error: t("error.notIdentifier") };
 }
 
 /**
@@ -310,7 +311,7 @@ export function generateMultipleUUIDs(
   nameBased?: NameBasedOptions
 ): string[] {
   if (count < 1 || count > 1000) {
-    throw new Error("Count must be between 1 and 1000");
+    throw new Error(t("error.countRange"));
   }
 
   const uuids: string[] = [];

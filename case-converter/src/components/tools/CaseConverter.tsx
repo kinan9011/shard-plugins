@@ -2,38 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
+import { formatNumber, useT } from "@/lib/i18n";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { CASE_TYPES, convertToAllCases, slugLines, type SlugSeparator } from "@/utils/case";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "How does the tool find the words?",
-    a: "Spaces, underscores, hyphens, dots, and other symbols separate words. A capital letter starts a new word. A run of capitals is one word, so `HTTPServerID` becomes `http`, `server`, and `id`.",
-  },
-  {
-    q: "How are plurals and numbers handled?",
-    a: "A capital run that ends in a lowercase s is one plural word, so `userIDs` becomes `user_ids`. Digits stay with the word before them, so `base64Encode` becomes `base64_encode`.",
-  },
-  {
-    q: "What does Keep acronyms do?",
-    a: "It keeps words that you wrote in capitals, such as `ID` or `URL`, in capitals. This applies to camelCase, PascalCase, Train-Case, Title Case, and Sentence case. `user_ID` becomes `UserID` instead of `UserId`. If the whole line is in capitals, no word counts as an acronym.",
-  },
-  {
-    q: "Can I convert many names at once?",
-    a: "Yes. Put one name on each line. The tool converts each line on its own and keeps blank lines.",
-  },
-  {
-    q: "How is the slug made?",
-    a: "The slug is for URLs. The tool removes accents, so `Crème Brûlée` becomes `creme-brulee`. It writes letters such as `ß` and `æ` as `ss` and `ae`. Other symbols become the separator. Letters with no ASCII form, such as CJK, are removed. Set Max length to cut the slug at a word boundary.",
-  },
-  {
-    q: "Why do lowercase and UPPERCASE keep my punctuation?",
-    a: "These two cases change only the letter case of your text. The other cases rebuild the text from its words, so they drop symbols.",
-  },
-];
+const FAQ_KEYS = ["words", "plurals", "acronyms", "many", "slug", "punctuation"] as const;
 
 // Lets a read-only result grow to show every line of a multi-line result.
 const fitHeight = (el: HTMLTextAreaElement | null) => {
@@ -43,6 +19,7 @@ const fitHeight = (el: HTMLTextAreaElement | null) => {
 };
 
 export function CaseConverter() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [keepAcronyms, setKeepAcronyms] = useState(false);
   const [slugSeparator, setSlugSeparator] = useState<SlugSeparator>("-");
@@ -68,68 +45,69 @@ export function CaseConverter() {
       id="case-converter"
       toolbar={
         <label className="option-switch" htmlFor="case-keep-acronyms">
-          Keep acronyms
+          {t("option.keepAcronyms")}
           <Switch id="case-keep-acronyms" checked={keepAcronyms} onCheckedChange={setKeepAcronyms} />
         </label>
       }
       first={
         <EditorPane
-          title="Input"
+          title={t("pane.input")}
           htmlFor="case-input"
           scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}
         >
           <CodeTextarea
             id="case-input"
-            placeholder={"Enter a name or phrase, one per line (e.g., HTTPServerID, user_name)"}
+            placeholder={t("input.placeholder")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
         </EditorPane>
       }
       second={
-        <EditorPane title="Cases">
+        <EditorPane title={t("pane.cases")}>
           <div className="result-list" ref={listRef}>
             {CASE_TYPES.map((type) => {
               const value = outputs?.[type] ?? "";
               return (
                 <div key={type} className="result-row">
-                  <label className="result-row-label" htmlFor={`case-out-${type}`}>{type}</label>
+                  <label className="result-row-label" dir="ltr" htmlFor={`case-out-${type}`}>{type}</label>
                   <textarea
                     id={`case-out-${type}`}
                     className="result-row-value code-textarea"
+                    dir="ltr"
                     value={value}
                     readOnly
                     rows={1}
                     ref={fitHeight}
                   />
-                  <CopyButton value={value} iconOnly label={`Copy ${type}`} />
+                  <CopyButton value={value} iconOnly label={t("copy.case", { name: type })} />
                 </div>
               );
             })}
             <div className="result-row">
-              <label className="result-row-label" htmlFor="case-out-slug">slug</label>
-              <textarea id="case-out-slug" className="result-row-value code-textarea" value={slug} readOnly rows={1} ref={fitHeight} />
-              <CopyButton value={slug} iconOnly label="Copy slug" />
+              <label className="result-row-label" dir="ltr" htmlFor="case-out-slug">slug</label>
+              <textarea id="case-out-slug" className="result-row-value code-textarea" dir="ltr" value={slug} readOnly rows={1} ref={fitHeight} />
+              <CopyButton value={slug} iconOnly label={t("copy.case", { name: "slug" })} />
             </div>
             <div className="pane-options">
               <Tabs value={slugSeparator} onValueChange={(v) => setSlugSeparator(v as SlugSeparator)}>
-                <TabsList aria-label="Slug separator">
-                  <TabsTrigger value="-">Hyphen</TabsTrigger>
-                  <TabsTrigger value="_">Underscore</TabsTrigger>
+                <TabsList aria-label={t("slug.separator")}>
+                  <TabsTrigger value="-">{t("slug.hyphen")}</TabsTrigger>
+                  <TabsTrigger value="_">{t("slug.underscore")}</TabsTrigger>
                 </TabsList>
               </Tabs>
               <label className="option-switch" htmlFor="case-slug-keep-case">
-                Keep case
+                {t("slug.keepCase")}
                 <Switch id="case-slug-keep-case" checked={slugKeepCase} onCheckedChange={setSlugKeepCase} />
               </label>
               <label className="option-switch" htmlFor="case-slug-max-length">
-                Max length
+                {t("slug.maxLength")}
                 <Input
                   id="case-slug-max-length"
                   type="number"
                   min={0}
-                  placeholder="None"
+                  placeholder={t("slug.maxPlaceholder")}
                   className="h-7 w-20 text-xs"
                   value={slugMaxLength}
                   onChange={(e) => setSlugMaxLength(e.target.value)}
@@ -139,8 +117,8 @@ export function CaseConverter() {
           </div>
         </EditorPane>
       }
-      status={<span>{lineCount ? `${lineCount.toLocaleString()} ${lineCount === 1 ? "line" : "lines"}` : "Ready"}</span>}
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      status={<span>{lineCount ? t("status.lines", { count: lineCount, n: formatNumber(lineCount) }) : t("status.ready")}</span>}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

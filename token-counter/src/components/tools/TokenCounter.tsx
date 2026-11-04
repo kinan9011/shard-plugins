@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { formatNumber, useT } from "@/lib/i18n";
 import {
-  BASIS_LABELS,
+  basisLabel,
   CONTEXT_PRESETS,
   ESTIMATE_FAMILIES,
   MODEL_NAME_LIMIT,
@@ -17,6 +18,7 @@ import {
   costFor,
   countO200k,
   estimateTokens,
+  familyLabel,
   exportPriceTable,
   formatUsd,
   getTextStats,
@@ -31,24 +33,7 @@ import {
   type TokenBasis,
 } from "@/utils/token-counter";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which counts are exact and which are estimates?",
-    a: "The OpenAI count is exact for GPT-4o and newer models, which use the o200k_base encoding. The tool runs that tokenizer on your device. Claude, Gemini and Llama tokenizers are not public or not bundled, so their counts are estimates and show \"≈ estimate\".",
-  },
-  {
-    q: "How are the estimates made?",
-    a: "Claude is the o200k count × 1.2 (range × 1.0 to × 1.35). Gemini is × 1.0 (range × 0.9 to × 1.15). Llama 3 and later is × 1.1 (range × 1.0 to × 1.25). The rule of thumb is ASCII characters ÷ 4, plus 1 token for each CJK character and 1 token for each 2 other characters. These ratios are averages for English prose and code. Other languages can fall outside the range. Use the provider's own token counter when you need an exact number.",
-  },
-  {
-    q: "Why are model prices not built in?",
-    a: "Prices change often and the app works offline, so built-in prices would go out of date without notice. Add each model and its price per million tokens from the provider's pricing page. The table stays on this device. Use Export JSON to share one table with your team.",
-  },
-  {
-    q: "Is my text sent anywhere?",
-    a: "No. Counting, estimates and costs are calculated on your device. The tool makes no network requests, and the text is not saved. Only the price table is saved, in this app's local storage.",
-  },
-];
+const FAQ_KEYS = ["exact", "estimates", "prices", "privacy"] as const;
 
 const BASIS_OPTIONS: TokenBasis[] = ["openai", "claude", "gemini", "llama", "rule"];
 
@@ -63,7 +48,7 @@ const parsePrice = (text: string) => {
   return Number.isFinite(value) && value >= 0 ? value : Number.NaN;
 };
 
-const n = (value: number) => value.toLocaleString();
+const n = (value: number) => formatNumber(value);
 
 const SELECT_CLASS = "h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary";
 
@@ -76,15 +61,17 @@ function SectionTitle({ id, children }: { id?: string; children: string }) {
 }
 
 function ContextMeter({ used, context }: { used: number; context: number }) {
+  const t = useT();
   const usage = contextUsage(used, context);
   const width = Math.min(100, usage.percent);
-  const percentText = `${usage.percent < 10 && usage.percent > 0 ? usage.percent.toFixed(1) : Math.round(usage.percent)}%`;
-  const valueText = `${n(used)} of ${n(context)} tokens (${percentText})`;
+  const digits = usage.percent < 10 && usage.percent > 0 ? 1 : 0;
+  const percentText = `${formatNumber(usage.percent, { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
+  const valueText = t("context.value", { count: context, used: n(used), total: n(context), percent: percentText });
   return (
     <div className="flex flex-col gap-1.5 px-4 py-2">
       <div
         role="meter"
-        aria-label="Context window used"
+        aria-label={t("context.meter")}
         aria-valuemin={0}
         aria-valuemax={context}
         aria-valuenow={Math.min(used, context)}
@@ -97,9 +84,9 @@ function ContextMeter({ used, context }: { used: number; context: number }) {
         {valueText}
         {" · "}
         {usage.over ? (
-          <span className="font-medium text-destructive">Over the limit by {n(-usage.remaining)} tokens</span>
+          <span className="font-medium text-destructive">{t("context.over", { count: -usage.remaining, formatted: n(-usage.remaining) })}</span>
         ) : (
-          <span className="text-muted-foreground">{n(usage.remaining)} tokens left</span>
+          <span className="text-muted-foreground">{t("context.left", { count: usage.remaining, formatted: n(usage.remaining) })}</span>
         )}
       </p>
     </div>
@@ -107,19 +94,20 @@ function ContextMeter({ used, context }: { used: number; context: number }) {
 }
 
 function TokenView({ result }: { result: O200kResult }) {
+  const t = useT();
   return (
     <>
       {result.truncated && (
         <div className="pane-options text-muted-foreground">
-          Showing the first {n(TOKEN_VIEW_LIMIT)} tokens of {n(result.count)}. The counts above include all tokens.
+          {t("tokenView.truncated", { limit: n(TOKEN_VIEW_LIMIT), total: n(result.count) })}
         </div>
       )}
-      <div className="whitespace-pre-wrap break-all px-4 py-3 font-mono text-xs leading-6" aria-label="Tokens" role="group" data-testid="token-view">
+      <div className="whitespace-pre-wrap break-all px-4 py-3 font-mono text-xs leading-6" aria-label={t("tokenView.label")} role="group" dir="ltr" data-testid="token-view">
         {result.pieces.map((piece, i) => (
           <span
             key={i}
             className={`rounded-sm px-px ${i % 2 === 0 ? "bg-primary/10" : "bg-muted"}`}
-            title={piece.tokens > 1 ? `${piece.tokens} tokens for one character` : undefined}
+            title={piece.tokens > 1 ? t("tokenView.multi", { tokens: piece.tokens }) : undefined}
           >
             {visibleWhitespace(piece.text)}
           </span>
@@ -130,6 +118,7 @@ function TokenView({ result }: { result: O200kResult }) {
 }
 
 export function TokenCounter() {
+  const t = useT();
   const [input, setInput] = useState("");
   const text = useDebouncedValue(input, 250);
   const [showTokens, setShowTokens] = useState(false);
@@ -162,7 +151,7 @@ export function TokenCounter() {
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setCountError("Could not load the tokenizer. Reload the tool and try again.");
+        setCountError("tokenizer");
       });
     return () => controller.abort();
   }, [text, showTokens]);
@@ -187,10 +176,10 @@ export function TokenCounter() {
     const name = draft.name.trim();
     const inputPrice = parsePrice(draft.input);
     const outputPrice = parsePrice(draft.output);
-    if (!name) return setDraftError("Enter a model name.");
-    if (Number.isNaN(inputPrice)) return setDraftError("Enter an input price of 0 or more.");
-    if (Number.isNaN(outputPrice)) return setDraftError("Enter an output price of 0 or more.");
-    if (rows.length >= PRICE_TABLE_LIMIT) return setDraftError(`The table can hold up to ${PRICE_TABLE_LIMIT} models.`);
+    if (!name) return setDraftError(t("draft.needName"));
+    if (Number.isNaN(inputPrice)) return setDraftError(t("draft.needInput"));
+    if (Number.isNaN(outputPrice)) return setDraftError(t("draft.needOutput"));
+    if (rows.length >= PRICE_TABLE_LIMIT) return setDraftError(t("import.tooMany", { max: PRICE_TABLE_LIMIT }));
     updateRows([...rows, { id: newRowId(), name, input: inputPrice, output: outputPrice, basis: draft.basis }]);
     setDraft({ name: "", input: "", output: "", basis: draft.basis });
     setDraftError("");
@@ -223,7 +212,7 @@ export function TokenCounter() {
       )
     : "";
 
-  const countValue = (value: number) => (hasCount ? n(value) : busy ? "Counting…" : "0");
+  const countValue = (value: number) => (hasCount ? n(value) : busy ? t("status.counting") : "0");
   const exported = tablePanel === "export" ? exportPriceTable(rows) : "";
 
   return (
@@ -232,85 +221,85 @@ export function TokenCounter() {
       toolbar={
         <>
           <label className="option-switch" htmlFor="token-show">
-            Show tokens
+            {t("option.showTokens")}
             <Switch id="token-show" checked={showTokens} onCheckedChange={setShowTokens} />
           </label>
-          <CopyButton value={summary} label="Copy counts" />
+          <CopyButton value={summary} label={t("copy.counts")} />
         </>
       }
-      notice={countError ? <div className="workspace-notice" data-tone="error" role="alert">{countError}</div> : undefined}
+      notice={countError ? <div className="workspace-notice" data-tone="error" role="alert">{t("error.tokenizer")}</div> : undefined}
       first={
         <EditorPane
-          title="Text"
+          title={t("pane.text")}
           htmlFor="token-input"
           scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button> : undefined}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button> : undefined}
         >
           <CodeTextarea
             id="token-input"
-            placeholder="Paste a prompt or document to count its tokens"
+            placeholder={t("input.placeholder")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
         </EditorPane>
       }
       second={
-        <EditorPane title="Counts">
+        <EditorPane title={t("pane.counts")}>
           <div className="result-list">
             <div className="result-row">
-              <span className="result-row-label">OpenAI tokens</span>
+              <span className="result-row-label">{t("count.openai")}</span>
               <span className="result-row-value tabular-nums" data-testid="token-count">{countValue(tokens)}</span>
-              <span className="text-2xs text-muted-foreground">Exact, o200k_base</span>
+              <span className="text-2xs text-muted-foreground">{t("count.exact")}</span>
             </div>
             {(
               [
-                ["Characters", stats.characters],
-                ["Words", stats.words],
-                ["Lines", stats.lines],
-                ["UTF-8 bytes", stats.bytes],
+                ["count.characters", stats.characters],
+                ["count.words", stats.words],
+                ["count.lines", stats.lines],
+                ["count.bytes", stats.bytes],
               ] as const
             ).map(([label, value]) => (
               <div key={label} className="result-row">
-                <span className="result-row-label">{label}</span>
+                <span className="result-row-label">{t(label)}</span>
                 <span className="result-row-value tabular-nums">{n(value)}</span>
                 <span />
               </div>
             ))}
 
-            <SectionTitle>Other models</SectionTitle>
+            <SectionTitle>{t("section.other")}</SectionTitle>
             {ESTIMATE_FAMILIES.map((family) => {
               const estimate = estimateTokens(family, tokens, stats);
               const ready = family.id === "rule" || hasCount;
               return (
                 <div key={family.id} className="result-row">
-                  <span className="result-row-label">{family.label}</span>
+                  <span className="result-row-label">{familyLabel(family)}</span>
                   <span className="result-row-value tabular-nums">
-                    {ready ? `≈ ${n(estimate.value)}` : busy ? "Counting…" : "≈ 0"}
+                    {ready ? `≈ ${n(estimate.value)}` : busy ? t("status.counting") : "≈ 0"}
                     {ready && estimate.value > 0 && (
-                      <span className="text-muted-foreground"> ({n(estimate.low)} to {n(estimate.high)})</span>
+                      <span className="text-muted-foreground"> {t("estimate.range", { low: n(estimate.low), high: n(estimate.high) })}</span>
                     )}
                   </span>
-                  <span className="text-2xs text-muted-foreground">≈ estimate</span>
+                  <span className="text-2xs text-muted-foreground">{t("estimate.badge")}</span>
                 </div>
               );
             })}
 
             {showTokens && (
               <>
-                <SectionTitle>Tokens (o200k_base)</SectionTitle>
+                <SectionTitle>{t("section.tokens")}</SectionTitle>
                 {result && result.text === text && result.withPieces ? (
                   result.count > 0 ? <TokenView result={result} /> : null
                 ) : text ? (
-                  <div className="pane-options text-muted-foreground">Counting…</div>
+                  <div className="pane-options text-muted-foreground">{t("status.counting")}</div>
                 ) : (
-                  <div className="pane-options text-muted-foreground">Enter text to see how it splits into tokens.</div>
+                  <div className="pane-options text-muted-foreground">{t("tokenView.enterText")}</div>
                 )}
               </>
             )}
 
-            <SectionTitle>Context window</SectionTitle>
+            <SectionTitle>{t("section.context")}</SectionTitle>
             <div className="pane-options">
-              <label htmlFor="token-context" className="font-medium">Context size</label>
+              <label htmlFor="token-context" className="font-medium">{t("context.size")}</label>
               <Input
                 id="token-context"
                 type="number"
@@ -319,14 +308,14 @@ export function TokenCounter() {
                 value={contextText}
                 onChange={(e) => setContextText(e.target.value)}
               />
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Common context sizes">
+              <div className="flex flex-wrap gap-1" role="group" aria-label={t("context.presets")}>
                 {CONTEXT_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     type="button"
                     className="toolbar-text-button border border-border"
                     aria-pressed={context === preset.value}
-                    aria-label={`${preset.label} context, ${n(preset.value)} tokens`}
+                    aria-label={t("context.presetLabel", { label: preset.label, tokens: n(preset.value) })}
                     onClick={() => setContextText(String(preset.value))}
                   >
                     {preset.label}
@@ -337,13 +326,13 @@ export function TokenCounter() {
             {context > 0 ? (
               <ContextMeter used={tokens + outputTokens} context={context} />
             ) : (
-              <div className="pane-options text-muted-foreground">Enter the model's context size in tokens.</div>
+              <div className="pane-options text-muted-foreground">{t("context.enter")}</div>
             )}
-            <div className="px-4 pb-2 text-2xs text-muted-foreground">Uses the exact OpenAI count plus the output tokens below.</div>
+            <div className="px-4 pb-2 text-2xs text-muted-foreground">{t("context.note")}</div>
 
-            <SectionTitle id="token-cost-title">Cost</SectionTitle>
+            <SectionTitle id="token-cost-title">{t("section.cost")}</SectionTitle>
             <div className="pane-options">
-              <label htmlFor="token-output" className="font-medium">Output tokens</label>
+              <label htmlFor="token-output" className="font-medium">{t("cost.outputTokens")}</label>
               <Input
                 id="token-output"
                 type="number"
@@ -352,25 +341,25 @@ export function TokenCounter() {
                 value={outputText}
                 onChange={(e) => setOutputText(e.target.value)}
               />
-              <span className="text-muted-foreground">Tokens you expect the model to write.</span>
+              <span className="text-muted-foreground">{t("cost.outputHint")}</span>
             </div>
 
             {rows.length === 0 ? (
               <div className="pane-options text-muted-foreground">
-                Add a model and its price per million tokens from the provider's pricing page.
+                {t("cost.empty")}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs" aria-labelledby="token-cost-title">
-                  <thead className="text-left text-muted-foreground">
+                  <thead className="text-start text-muted-foreground">
                     <tr className="border-b border-border/50">
-                      <th scope="col" className="px-4 py-1.5 font-medium">Model</th>
-                      <th scope="col" className="px-2 py-1.5 text-right font-medium">Input / 1M</th>
-                      <th scope="col" className="px-2 py-1.5 text-right font-medium">Output / 1M</th>
-                      <th scope="col" className="px-2 py-1.5 text-right font-medium">Input cost</th>
-                      <th scope="col" className="px-2 py-1.5 text-right font-medium">Output cost</th>
-                      <th scope="col" className="px-2 py-1.5 text-right font-medium">Total</th>
-                      <th scope="col" className="px-2 py-1.5"><span className="sr-only">Actions</span></th>
+                      <th scope="col" className="px-4 py-1.5 font-medium">{t("table.model")}</th>
+                      <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("table.inputPrice")}</th>
+                      <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("table.outputPrice")}</th>
+                      <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("table.inputCost")}</th>
+                      <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("table.outputCost")}</th>
+                      <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("table.total")}</th>
+                      <th scope="col" className="px-2 py-1.5"><span className="sr-only">{t("table.actions")}</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -381,23 +370,23 @@ export function TokenCounter() {
                       const prefix = estimated ? "≈ " : "";
                       return (
                         <tr key={row.id} className="border-b border-border/50 tabular-nums" data-testid="price-row">
-                          <th scope="row" className="px-4 py-1.5 text-left font-normal">
+                          <th scope="row" className="px-4 py-1.5 text-start font-normal">
                             <span className="block font-medium">{row.name}</span>
-                            <span className="block text-2xs text-muted-foreground">{BASIS_LABELS[row.basis]}</span>
+                            <span className="block text-2xs text-muted-foreground">{basisLabel(row.basis)}</span>
                           </th>
-                          <td className="px-2 py-1.5 text-right">{`$${row.input}`}</td>
-                          <td className="px-2 py-1.5 text-right">{`$${row.output}`}</td>
-                          <td className="px-2 py-1.5 text-right">{prefix}{formatUsd(cost.input)}</td>
-                          <td className="px-2 py-1.5 text-right">{formatUsd(cost.output)}</td>
-                          <td className="px-2 py-1.5 text-right font-medium">
-                            {prefix}{formatUsd(cost.total)}
-                            {estimated && <span className="block text-2xs font-normal text-muted-foreground">≈ estimate</span>}
+                          <td className="px-2 py-1.5 text-end"><bdi dir="ltr">{`$${formatNumber(row.input, { maximumFractionDigits: 20, useGrouping: false })}`}</bdi></td>
+                          <td className="px-2 py-1.5 text-end"><bdi dir="ltr">{`$${formatNumber(row.output, { maximumFractionDigits: 20, useGrouping: false })}`}</bdi></td>
+                          <td className="px-2 py-1.5 text-end"><bdi dir="ltr">{prefix}{formatUsd(cost.input)}</bdi></td>
+                          <td className="px-2 py-1.5 text-end"><bdi dir="ltr">{formatUsd(cost.output)}</bdi></td>
+                          <td className="px-2 py-1.5 text-end font-medium">
+                            <bdi dir="ltr">{prefix}{formatUsd(cost.total)}</bdi>
+                            {estimated && <span className="block text-2xs font-normal text-muted-foreground">{t("estimate.badge")}</span>}
                           </td>
-                          <td className="px-2 py-1.5 text-right">
+                          <td className="px-2 py-1.5 text-end">
                             <button
                               type="button"
                               className="toolbar-text-button"
-                              aria-label={`Remove ${row.name}`}
+                              aria-label={t("table.remove", { name: row.name })}
                               onClick={() => updateRows(rows.filter((r) => r.id !== row.id))}
                             >
                               <Trash2 size={14} aria-hidden="true" />
@@ -411,40 +400,40 @@ export function TokenCounter() {
               </div>
             )}
 
-            <form className="pane-options" onSubmit={addRow} aria-label="Add a model price">
-              <label htmlFor="token-price-name" className="sr-only">Model name</label>
+            <form className="pane-options" onSubmit={addRow} aria-label={t("form.label")}>
+              <label htmlFor="token-price-name" className="sr-only">{t("form.name")}</label>
               <Input
                 id="token-price-name"
                 className="h-7 w-40 text-xs"
-                placeholder="Model name"
+                placeholder={t("form.name")}
                 maxLength={MODEL_NAME_LIMIT}
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 autoComplete="off"
               />
-              <label htmlFor="token-price-input" className="sr-only">Input price, US dollars per 1M tokens</label>
+              <label htmlFor="token-price-input" className="sr-only">{t("form.inputLabel")}</label>
               <Input
                 id="token-price-input"
                 type="number"
                 min={0}
                 step="any"
                 className="h-7 w-28 text-xs tabular-nums"
-                placeholder="Input $ / 1M"
+                placeholder={t("form.inputPlaceholder")}
                 value={draft.input}
                 onChange={(e) => setDraft({ ...draft, input: e.target.value })}
               />
-              <label htmlFor="token-price-output" className="sr-only">Output price, US dollars per 1M tokens</label>
+              <label htmlFor="token-price-output" className="sr-only">{t("form.outputLabel")}</label>
               <Input
                 id="token-price-output"
                 type="number"
                 min={0}
                 step="any"
                 className="h-7 w-28 text-xs tabular-nums"
-                placeholder="Output $ / 1M"
+                placeholder={t("form.outputPlaceholder")}
                 value={draft.output}
                 onChange={(e) => setDraft({ ...draft, output: e.target.value })}
               />
-              <label htmlFor="token-price-basis" className="sr-only">Token count to use</label>
+              <label htmlFor="token-price-basis" className="sr-only">{t("form.basis")}</label>
               <select
                 id="token-price-basis"
                 className={SELECT_CLASS}
@@ -452,12 +441,12 @@ export function TokenCounter() {
                 onChange={(e) => setDraft({ ...draft, basis: e.target.value as TokenBasis })}
               >
                 {BASIS_OPTIONS.map((basis) => (
-                  <option key={basis} value={basis}>{BASIS_LABELS[basis]}</option>
+                  <option key={basis} value={basis}>{basisLabel(basis)}</option>
                 ))}
               </select>
               <button type="submit" className="toolbar-text-button border border-border">
                 <Plus size={14} aria-hidden="true" />
-                Add model
+                {t("form.add")}
               </button>
             </form>
             {draftError && <div className="workspace-notice" data-tone="error" role="alert">{draftError}</div>}
@@ -473,7 +462,7 @@ export function TokenCounter() {
                 }}
               >
                 <Upload size={14} aria-hidden="true" />
-                Import JSON
+                {t("table.import")}
               </button>
               <button
                 type="button"
@@ -483,12 +472,12 @@ export function TokenCounter() {
                 onClick={() => setTablePanel(tablePanel === "export" ? null : "export")}
               >
                 <Download size={14} aria-hidden="true" />
-                Export JSON
+                {t("table.export")}
               </button>
             </div>
             {tablePanel === "import" && (
               <div className="flex flex-col gap-2 px-4 pb-3">
-                <label htmlFor="token-import" className="text-xs font-medium">Price table JSON</label>
+                <label htmlFor="token-import" className="text-xs font-medium">{t("table.json")}</label>
                 <CodeTextarea
                   id="token-import"
                   className="min-h-32 rounded-md border border-input"
@@ -499,17 +488,17 @@ export function TokenCounter() {
                 {importError && <div className="workspace-notice" data-tone="error" role="alert">{importError}</div>}
                 <div className="flex gap-2">
                   <button type="button" className="toolbar-text-button border border-border" onClick={runImport} disabled={!importText.trim()}>
-                    Replace table
+                    {t("table.replace")}
                   </button>
-                  <span className="self-center text-2xs text-muted-foreground">Import replaces the current table.</span>
+                  <span className="self-center text-2xs text-muted-foreground">{t("table.importNote")}</span>
                 </div>
               </div>
             )}
             {tablePanel === "export" && (
               <div className="flex flex-col gap-2 px-4 pb-3">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="token-export" className="text-xs font-medium">Price table JSON</label>
-                  <CopyButton value={exported} label="Copy JSON" />
+                  <label htmlFor="token-export" className="text-xs font-medium">{t("table.json")}</label>
+                  <CopyButton value={exported} label={t("copy.json")} />
                 </div>
                 <CodeTextarea id="token-export" className="min-h-32 rounded-md border border-input" value={exported} readOnly />
               </div>
@@ -520,14 +509,14 @@ export function TokenCounter() {
       status={
         text ? (
           <>
-            <span className="tabular-nums">{busy ? "Counting…" : `${n(tokens)} ${tokens === 1 ? "token" : "tokens"} (o200k)`}</span>
-            <span className="tabular-nums">{n(stats.characters)} characters</span>
+            <span className="tabular-nums">{busy ? t("status.counting") : t("status.tokens", { count: tokens, formatted: n(tokens) })}</span>
+            <span className="tabular-nums">{t("status.characters", { count: stats.characters, formatted: n(stats.characters) })}</span>
           </>
         ) : (
-          <span>Ready</span>
+          <span>{t("ui.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />}
     />
   );
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n";
 import {
   transformText,
   type TextTransform as Operation,
   type TransformOptions,
 } from "@/utils/text-transform";
-import { REGEX_TIMEOUT_MS, runRegexInWorker } from "@/utils/regex-runner";
+import { REGEX_TIMEOUT_MS, TIMEOUT_ERROR, runRegexInWorker } from "@/utils/regex-runner";
 import {
   CodeTextarea,
   EditorPane,
@@ -28,6 +29,7 @@ export function TextTransform({
   options: TransformOptions;
   onOptionsChange: (options: TransformOptions) => void;
 }) {
+  const t = useT();
   const { operation, first, second } = options;
   const set = (patch: Partial<TransformOptions>) =>
     onOptionsChange({ ...options, ...patch });
@@ -55,9 +57,7 @@ export function TextTransform({
       a.length > 10000 ||
       (text.length + 1) * perMatch > 2_000_000
     ) {
-      setError(
-        "Input or potential output is too large. Shorten the text, pattern, or replacement (2 million output character limit).",
-      );
+      setError(t("error.regexTooLarge"));
       return;
     }
     let cancelled = false;
@@ -70,13 +70,22 @@ export function TextTransform({
     }).then((result) => {
       // A null result means a newer run replaced this one.
       if (cancelled || !result) return;
-      if ("error" in result) setError(result.error);
+      if ("error" in result) {
+        // The worker answers in English: show its timeout and pattern errors in the app language.
+        setError(
+          result.error === TIMEOUT_ERROR
+            ? t("error.regexTimeout", { seconds: REGEX_TIMEOUT_MS / 1000 })
+            : result.reason !== undefined
+              ? t("error.invalidPattern", { reason: result.reason })
+              : result.error,
+        );
+      }
       else setOutput(result.replaced ?? "");
     });
     return () => {
       cancelled = true;
     };
-  }, [text, operation, a, b]);
+  }, [text, operation, a, b, t]);
   return (
     <ToolWorkspace
       wrapToolbar
@@ -85,8 +94,8 @@ export function TextTransform({
         <>
           {navigation}
           <select
-            className="rounded-md border bg-background px-2 pr-7 py-1 text-sm"
-            aria-label="Transformation"
+            className="rounded-md border bg-background ps-2 pe-7 py-1 text-sm"
+            aria-label={t("transform.label")}
             value={operation}
             onChange={(e) => set({ operation: e.target.value as Operation })}
           >
@@ -102,17 +111,7 @@ export function TextTransform({
               ] as const
             ).map((x) => (
               <option key={x} value={x}>
-                {
-                  {
-                    split: "Split",
-                    join: "Join",
-                    wrap: "Wrap",
-                    replace: "Replace text",
-                    regex: "Regex replace",
-                    sum: "Sum",
-                    product: "Product",
-                  }[x]
-                }
+                {t(`transform.${x}`)}
               </option>
             ))}
           </select>
@@ -125,13 +124,13 @@ export function TextTransform({
               className="max-w-72"
               aria-label={
                 operation === "wrap"
-                  ? "Prefix"
+                  ? t("transform.prefix")
                   : operation === "split" || operation === "join"
-                    ? "Separator"
-                    : "Find"
+                    ? t("transform.separator")
+                    : t("transform.find")
               }
               placeholder={
-                operation === "wrap" ? "Prefix" : "Separator or pattern"
+                operation === "wrap" ? t("transform.prefix") : t("transform.separatorOrPattern")
               }
               value={first}
               onChange={(e) => set({ first: e.target.value })}
@@ -139,8 +138,8 @@ export function TextTransform({
             {["wrap", "replace", "regex"].includes(operation) && (
               <Input
                 className="max-w-72"
-                aria-label={operation === "wrap" ? "Suffix" : "Replacement"}
-                placeholder={operation === "wrap" ? "Suffix" : "Replacement"}
+                aria-label={operation === "wrap" ? t("transform.suffix") : t("transform.replacement")}
+                placeholder={operation === "wrap" ? t("transform.suffix") : t("transform.replacement")}
                 value={second}
                 onChange={(e) => set({ second: e.target.value })}
               />
@@ -156,7 +155,7 @@ export function TextTransform({
         )
       }
       first={
-        <EditorPane title="Input" htmlFor="transform-input">
+        <EditorPane title={t("pane.input")} htmlFor="transform-input">
           <CodeTextarea
             id="transform-input"
             value={input}
@@ -165,23 +164,23 @@ export function TextTransform({
         </EditorPane>
       }
       second={
-        <EditorPane title="Result" actions={<CopyButton value={output} />}>
+        <EditorPane title={t("pane.result")} actions={<CopyButton value={output} />}>
           {output ? (
-            <pre className="p-4 whitespace-pre-wrap break-all font-mono text-sm">
+            <pre dir="ltr" className="p-4 whitespace-pre-wrap break-all font-mono text-sm">
               {output}
             </pre>
           ) : (
-            <PaneEmpty title={error ? "Check your input" : "Transform text"} />
+            <PaneEmpty title={error ? t("empty.checkInput") : t("empty.transform")} />
           )}
         </EditorPane>
       }
       status={
         <span>
           {operation === "sum" || operation === "product"
-            ? "One number per line · decimal results use floating-point arithmetic"
+            ? t("status.numbers")
             : operation === "regex"
-              ? `JavaScript regex · global replacement · ${REGEX_TIMEOUT_MS / 1000} s limit`
-              : "Apply one operation, then copy the result to continue"}
+              ? t("status.regex", { seconds: REGEX_TIMEOUT_MS / 1000 })
+              : t("status.apply")}
         </span>
       }
     />

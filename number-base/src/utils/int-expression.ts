@@ -3,6 +3,7 @@
  * A small tokenizer and a precedence-climbing parser over BigInt. It never uses eval or Function.
  */
 
+import { t } from '@/lib/i18n';
 import { parseNumber, parseRoman } from './number-base';
 
 /** The largest result, in bits, that the evaluator computes. This stops 9 ** 9 ** 9 and 1 << 1e9 from hanging the app. */
@@ -56,14 +57,14 @@ function tokenize(text: string): Token[] {
       const start = i;
       while (i < text.length && /[0-9A-Za-z_]/.test(text[i])) i++;
       if (text[i] === '.') {
-        throw new ExpressionError('Use integers only. Decimal points are not supported.');
+        throw new ExpressionError(t('error.integersOnly'));
       }
       tokens.push({ kind: 'num', text: text.slice(start, i), pos: start });
       continue;
     }
-    if (ch === '.') throw new ExpressionError('Use integers only. Decimal points are not supported.');
+    if (ch === '.') throw new ExpressionError(t('error.integersOnly'));
     const op = OPERATORS.find((candidate) => text.startsWith(candidate, i));
-    if (!op) throw new ExpressionError(`"${ch}" is not a valid operator.`);
+    if (!op) throw new ExpressionError(t('error.badOperator', { op: ch }));
     tokens.push({ kind: 'op', text: op, pos: i });
     i += op.length;
   }
@@ -78,24 +79,24 @@ function bitLength(value: bigint): number {
 
 function checkSize(value: bigint): bigint {
   if (bitLength(value) > MAX_RESULT_BITS) {
-    throw new ExpressionError(`The result is larger than ${MAX_RESULT_BITS} bits. Use smaller numbers.`);
+    throw new ExpressionError(t('error.tooLargeNumbers', { bits: MAX_RESULT_BITS }));
   }
   return value;
 }
 
 function checkShift(count: bigint): number {
   if (count > BigInt(MAX_RESULT_BITS) || count < -BigInt(MAX_RESULT_BITS)) {
-    throw new ExpressionError(`The shift count must be ${MAX_RESULT_BITS} or less.`);
+    throw new ExpressionError(t('error.shiftTooLarge', { bits: MAX_RESULT_BITS }));
   }
   return Number(count);
 }
 
 function power(base: bigint, exponent: bigint): bigint {
-  if (exponent < 0n) throw new ExpressionError('Use an exponent of 0 or more. Negative exponents give fractions.');
+  if (exponent < 0n) throw new ExpressionError(t('error.negativeExponent'));
   if (base === 0n || base === 1n || base === -1n) return base ** exponent;
   // A base of 2 or more has at least (bits - 1) bits per factor, so this is a lower bound on the result size.
   if (BigInt(bitLength(base) - 1) * exponent > BigInt(MAX_RESULT_BITS)) {
-    throw new ExpressionError(`The result is larger than ${MAX_RESULT_BITS} bits. Use a smaller exponent.`);
+    throw new ExpressionError(t('error.tooLargeExponent', { bits: MAX_RESULT_BITS }));
   }
   return base ** exponent;
 }
@@ -110,7 +111,7 @@ function applyBinary(op: string, left: bigint, right: bigint, width: number): bi
       return left * right;
     case '/':
     case '%':
-      if (right === 0n) throw new ExpressionError('Division by zero.');
+      if (right === 0n) throw new ExpressionError(t('error.divisionByZero'));
       // BigInt division truncates toward zero, and the remainder takes the sign of the left side, as in C.
       return op === '/' ? left / right : left % right;
     case '**':
@@ -124,7 +125,7 @@ function applyBinary(op: string, left: bigint, right: bigint, width: number): bi
     case '<<': {
       const count = checkShift(right);
       if (count > 0 && bitLength(left) + count > MAX_RESULT_BITS) {
-        throw new ExpressionError(`The result is larger than ${MAX_RESULT_BITS} bits. Use a smaller shift.`);
+        throw new ExpressionError(t('error.tooLargeShift', { bits: MAX_RESULT_BITS }));
       }
       return left << BigInt(count);
     }
@@ -132,11 +133,11 @@ function applyBinary(op: string, left: bigint, right: bigint, width: number): bi
       return left >> BigInt(checkShift(right));
     case '>>>': {
       // Logical shift: read the left side as an unsigned integer of the selected width, then shift in zeros.
-      if (right < 0n) throw new ExpressionError('Use a shift count of 0 or more with >>>.');
+      if (right < 0n) throw new ExpressionError(t('error.negativeShift'));
       return BigInt.asUintN(width, left) >> BigInt(checkShift(right));
     }
     default:
-      throw new ExpressionError(`"${op}" is not a valid operator.`);
+      throw new ExpressionError(t('error.badOperator', { op }));
   }
 }
 
@@ -153,7 +154,7 @@ class Parser {
     const value = this.expression(1);
     const next = this.peek();
     if (next.kind !== 'end') {
-      throw new ExpressionError(next.kind === 'op' && next.text === ')' ? 'Remove the extra ")".' : `Unexpected "${next.text}".`);
+      throw new ExpressionError(next.kind === 'op' && next.text === ')' ? t('error.extraParen') : t('error.unexpected', { token: next.text }));
     }
     return value;
   }
@@ -190,7 +191,7 @@ class Parser {
       // JavaScript rejects -2 ** 2 because a reader cannot tell if it means (-2) ** 2 or -(2 ** 2).
       const after = this.peek();
       if (after.kind === 'op' && after.text === '**') {
-        throw new ExpressionError(`Add parentheses around the "${token.text}" and its operand, or around the "**".`);
+        throw new ExpressionError(t('error.addParens', { op: token.text }));
       }
       if (token.text === '-') return -operand;
       if (token.text === '~') return ~operand;
@@ -209,11 +210,11 @@ class Parser {
     if (token.kind === 'op' && token.text === '(') {
       const value = this.expression(1);
       const close = this.next();
-      if (close.kind !== 'op' || close.text !== ')') throw new ExpressionError('Add the missing ")".');
+      if (close.kind !== 'op' || close.text !== ')') throw new ExpressionError(t('error.missingParen'));
       return value;
     }
-    if (token.kind === 'end') throw new ExpressionError('The expression is not complete.');
-    throw new ExpressionError(`Unexpected "${token.text}".`);
+    if (token.kind === 'end') throw new ExpressionError(t('error.incomplete'));
+    throw new ExpressionError(t('error.unexpected', { token: token.text }));
   }
 }
 
@@ -223,7 +224,7 @@ class Parser {
  */
 export function evaluateIntExpression(text: string, options: ExpressionOptions = {}): ExpressionResult {
   const { base = 'auto', width = 32 } = options;
-  if (!text.trim()) return { ok: false, error: 'Enter a number.' };
+  if (!text.trim()) return { ok: false, error: t('error.enterNumber') };
   try {
     return { ok: true, value: new Parser(tokenize(text), base, width).parse() };
   } catch (error) {

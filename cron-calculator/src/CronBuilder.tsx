@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Button, Input } from "./ui";
+import { useT } from "./lib/i18n";
 import {
   parseCron,
   readCronInput,
   replaceCronField,
+  cronFieldLabel,
   type CronField,
 } from "./cron";
 import { cronFieldValue, type BuilderMode } from "./cron-builder";
@@ -18,6 +20,8 @@ function Field({
   input: string;
   onChange: (text: string) => void;
 }) {
+  const t = useT();
+  const label = cronFieldLabel(field.name);
   const [mode, setMode] = useState<BuilderMode>("custom");
   const [first, setFirst] = useState(field.text);
   const [second, setSecond] = useState("1");
@@ -29,7 +33,7 @@ function Field({
       const read = readCronInput(next);
       const parsed = parseCron(read.expression, { aws: read.aws });
       if (!parsed.ok)
-        throw new Error("error" in parsed ? parsed.error : "Invalid schedule");
+        throw new Error("error" in parsed ? parsed.error : t("cron.builder.error.invalid"));
       setError("");
       onChange(next);
     } catch (e) {
@@ -39,13 +43,13 @@ function Field({
   return (
     <fieldset className="border-t py-3 space-y-2">
       <legend className="text-sm font-medium">
-        {field.label}{" "}
-        <code className="text-muted-foreground">{field.text}</code>
+        {label}{" "}
+        <code className="text-muted-foreground" dir="ltr">{field.text}</code>
       </legend>
       <div className="flex flex-wrap items-center gap-2">
         <select
-          className="rounded border bg-background px-2 pr-7 py-1 text-sm"
-          aria-label={`${field.label} builder mode`}
+          className="rounded border bg-background px-2 pe-7 py-1 text-sm"
+          aria-label={t("cron.builder.mode", { field: label })}
           value={mode}
           onChange={(e) => {
             const m = e.target.value as BuilderMode;
@@ -54,16 +58,17 @@ function Field({
             setError("");
           }}
         >
-          <option value="custom">Custom (preserve expression)</option>
-          <option value="every">Every value</option>
-          <option value="specific">Specific values</option>
-          <option value="range">Range</option>
-          <option value="interval">Interval from start</option>
+          <option value="custom">{t("cron.builder.custom")}</option>
+          <option value="every">{t("cron.builder.every")}</option>
+          <option value="specific">{t("cron.builder.specific")}</option>
+          <option value="range">{t("cron.builder.range")}</option>
+          <option value="interval">{t("cron.builder.interval")}</option>
         </select>
         {mode !== "every" && (
           <Input
             className="w-36 font-mono"
-            aria-label={`${field.label} ${mode === "range" || mode === "interval" ? "start" : "values"}`}
+            aria-label={t(mode === "range" || mode === "interval" ? "cron.builder.start" : "cron.builder.values", { field: label })}
+            dir="ltr"
             value={first}
             onChange={(e) => setFirst(e.target.value)}
           />
@@ -71,13 +76,14 @@ function Field({
         {(mode === "range" || mode === "interval") && (
           <Input
             className="w-28 font-mono"
-            aria-label={`${field.label} ${mode === "range" ? "end" : "interval"}`}
+            aria-label={t(mode === "range" ? "cron.builder.end" : "cron.builder.step", { field: label })}
+            dir="ltr"
             value={second}
             onChange={(e) => setSecond(e.target.value)}
           />
         )}
         <Button variant="outline" onClick={apply}>
-          Apply {field.label.toLowerCase()}
+          {t(`cron.builder.apply.${field.name}`)}
         </Button>
       </div>
       {error && (
@@ -95,18 +101,17 @@ export function CronBuilder({
   input: string;
   onChange: (text: string) => void;
 }) {
+  const t = useT();
   const read = readCronInput(input);
   const parsed = parseCron(read.expression, { aws: read.aws });
   return (
     <details className="rounded-md border p-4">
       <summary className="cursor-pointer text-sm font-medium">
-        Visual builder
+        {t("cron.builder.title")}
       </summary>
       <div className="pt-4 space-y-3">
         <p className="text-sm text-muted-foreground">
-          Choose a field pattern and apply it. Other fields, time-zone prefixes,
-          and commands stay unchanged. Custom preserves advanced syntax such as
-          L, W and #.
+          {t("cron.builder.hint")}
         </p>
         {parsed.ok ? (
           parsed.schedule.fields.map((field, index) => (
@@ -120,7 +125,7 @@ export function CronBuilder({
           ))
         ) : (
           <p className="text-sm">
-            Enter a valid expression above to use the builder.
+            {t("cron.builder.invalid")}
           </p>
         )}
       </div>

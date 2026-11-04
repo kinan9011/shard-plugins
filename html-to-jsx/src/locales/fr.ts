@@ -1,0 +1,25 @@
+// Strings of this tool. Keys are "<area>.<thing>"; plural families use _one/_other suffixes.
+export default {
+  "option.component": "Encapsuler dans un composant",
+  "option.name": "Nom",
+  "pane.html": "HTML",
+  "pane.jsx": "JSX",
+  "copy.jsx": "Copier le JSX",
+  "empty.title": "Le JSX s’affiche ici",
+  "empty.hint": "Saisissez ou collez du HTML dans l’entrée.",
+  "status.invalidName": "Nom non valide",
+  "status.ready": "Prêt",
+  "status.lines_one": "{n} ligne",
+  "status.lines_other": "{n} lignes",
+  "status.handlers_one": "{n} gestionnaire d’événement nécessite du code",
+  "status.handlers_other": "{n} gestionnaires d’événements nécessitent du code",
+  "error.componentName": "Le nom du composant doit commencer par une majuscule et ne contenir que des lettres, des chiffres, $ ou _.",
+  "faq.noRun.q": "Le HTML est-il exécuté ou chargé pendant la conversion ?",
+  "faq.noRun.a": "Non. Le HTML est analysé dans un document séparé qui n’est jamais affiché. Les scripts ne s’exécutent pas, et les images et autres fichiers ne se chargent pas.",
+  "faq.events.q": "Que deviennent onclick et les autres attributs d’événement ?",
+  "faq.events.a": "Chacun devient une prop React comme `onClick={() => {}}`. Le code d’origine est conservé dans un commentaire à côté. React a besoin d’une fonction : écrivez vous-même le gestionnaire.",
+  "faq.defaultValue.q": "Pourquoi certains champs reçoivent-ils defaultValue ?",
+  "faq.defaultValue.a": "Dans React, `value` et `checked` rendent un champ contrôlé. L’outil utilise `defaultValue` et `defaultChecked` pour que le champ continue de fonctionner sans état.",
+  "faq.whitespace.q": "Comment les espaces sont-ils gérés ?",
+  "faq.whitespace.a": "L’indentation du source est supprimée, comme le fait JSX. Une espace entre des éléments en ligne est conservée sous la forme `{\" \"}`. Le texte dans `<pre>`, `<textarea>`, `<script>` et `<style>` est conservé tel quel dans un template literal."
+};

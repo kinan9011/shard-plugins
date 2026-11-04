@@ -7,6 +7,8 @@
  * estimates derived from the o200k count.
  */
 
+import { formatNumber, t, type TKey } from "@/lib/i18n";
+
 type O200k = typeof import("gpt-tokenizer/encoding/o200k_base");
 
 let encodingPromise: Promise<O200k> | null = null;
@@ -228,7 +230,10 @@ export type TokenBasis = "openai" | "claude" | "gemini" | "llama" | "rule";
 
 export interface EstimateFamily {
   id: Exclude<TokenBasis, "openai">;
+  /** The name, for families whose name is not a product name. */
   label: string;
+  /** Dictionary key of the name, translated instead of `label` when set. */
+  labelKey?: TKey;
   /** Multiplier on the o200k count. Not used by the rule of thumb. */
   factor: number;
   low: number;
@@ -243,17 +248,23 @@ export interface EstimateFamily {
 export const ESTIMATE_FAMILIES: EstimateFamily[] = [
   { id: "claude", label: "Claude", factor: 1.2, low: 1.0, high: 1.35, method: "o200k count × 1.2" },
   { id: "gemini", label: "Gemini", factor: 1.0, low: 0.9, high: 1.15, method: "o200k count × 1.0" },
-  { id: "llama", label: "Llama 3 and later", factor: 1.1, low: 1.0, high: 1.25, method: "o200k count × 1.1" },
-  { id: "rule", label: "Rule of thumb", factor: 1, low: 0.75, high: 1.5, method: "ASCII characters ÷ 4, CJK characters × 1, other characters ÷ 2" },
+  { id: "llama", label: "Llama 3 and later", labelKey: "family.llama", factor: 1.1, low: 1.0, high: 1.25, method: "o200k count × 1.1" },
+  { id: "rule", label: "Rule of thumb", labelKey: "family.rule", factor: 1, low: 0.75, high: 1.5, method: "ASCII characters ÷ 4, CJK characters × 1, other characters ÷ 2" },
 ];
 
-export const BASIS_LABELS: Record<TokenBasis, string> = {
-  openai: "OpenAI o200k (exact)",
-  claude: "Claude (estimate)",
-  gemini: "Gemini (estimate)",
-  llama: "Llama (estimate)",
-  rule: "Rule of thumb (estimate)",
+/** The name of a family, in the current language. */
+export const familyLabel = (family: Pick<EstimateFamily, "label" | "labelKey">): string => (family.labelKey ? t(family.labelKey) : family.label);
+
+const BASIS_LABEL_KEYS: Record<TokenBasis, TKey> = {
+  openai: "basis.openai",
+  claude: "basis.claude",
+  gemini: "basis.gemini",
+  llama: "basis.llama",
+  rule: "basis.rule",
 };
+
+/** What a price row counts tokens with, in the current language. */
+export const basisLabel = (basis: TokenBasis): string => t(BASIS_LABEL_KEYS[basis]);
 
 /** The characters-based rule of thumb: about 4 ASCII characters per token, 1 token per CJK character, 2 characters per token otherwise. */
 export const ruleOfThumbTokens = (stats: Pick<TextStats, "characters" | "cjk" | "otherNonAscii">): number => {
@@ -320,13 +331,14 @@ export const costFor = (row: Pick<PriceRow, "input" | "output">, inputTokens: nu
  * significant digits below $1 (for example $0.000123 becomes "$0.00012").
  */
 export const formatUsd = (value: number): string => {
-  if (!Number.isFinite(value) || value <= 0) return "$0.00";
-  if (value >= 1) return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (value < 0.000001) return "< $0.000001";
+  if (!Number.isFinite(value) || value <= 0) return `$${formatNumber(0, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fixed = (amount: number, digits: number) => `$${formatNumber(amount, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+  if (value >= 1) return fixed(value, 2);
+  if (value < 0.000001) return `< ${fixed(0.000001, 6)}`;
   const rounded = Number(value.toPrecision(2));
-  if (rounded >= 1) return "$1.00";
+  if (rounded >= 1) return fixed(1, 2);
   const decimals = Math.max(2, 1 - Math.floor(Math.log10(rounded)));
-  return `$${rounded.toFixed(decimals)}`;
+  return fixed(rounded, decimals);
 };
 
 /* ------------------------------------------------------------------ */
@@ -358,24 +370,24 @@ export const importPriceTable = (json: string): ImportResult => {
   try {
     data = JSON.parse(json);
   } catch {
-    return { ok: false, error: "The text is not valid JSON." };
+    return { ok: false, error: t("import.invalidJson") };
   }
   const list = Array.isArray(data) ? data : data && typeof data === "object" ? (data as { models?: unknown }).models : undefined;
-  if (!Array.isArray(list)) return { ok: false, error: "Expected a \"models\" array." };
-  if (list.length > PRICE_TABLE_LIMIT) return { ok: false, error: `The table can hold up to ${PRICE_TABLE_LIMIT} models.` };
+  if (!Array.isArray(list)) return { ok: false, error: t("import.expectModels") };
+  if (list.length > PRICE_TABLE_LIMIT) return { ok: false, error: t("import.tooMany", { max: PRICE_TABLE_LIMIT }) };
 
   const rows: PriceRow[] = [];
   for (let i = 0; i < list.length; i++) {
     const entry = list[i] as Record<string, unknown> | null;
-    const where = `Model ${i + 1}`;
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return { ok: false, error: `${where} is not an object.` };
+    const n = i + 1;
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return { ok: false, error: t("import.notObject", { n }) };
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
-    if (!name) return { ok: false, error: `${where} needs a name.` };
-    if (name.length > MODEL_NAME_LIMIT) return { ok: false, error: `${where} has a name longer than ${MODEL_NAME_LIMIT} characters.` };
-    if (!isPrice(entry.input)) return { ok: false, error: `${where} needs an input price of 0 or more.` };
-    if (!isPrice(entry.output)) return { ok: false, error: `${where} needs an output price of 0 or more.` };
+    if (!name) return { ok: false, error: t("import.needName", { n }) };
+    if (name.length > MODEL_NAME_LIMIT) return { ok: false, error: t("import.nameTooLong", { n, max: MODEL_NAME_LIMIT }) };
+    if (!isPrice(entry.input)) return { ok: false, error: t("import.needInput", { n }) };
+    if (!isPrice(entry.output)) return { ok: false, error: t("import.needOutput", { n }) };
     const basis = entry.basis === undefined ? "openai" : entry.basis;
-    if (!BASES.includes(basis as TokenBasis)) return { ok: false, error: `${where} has an unknown basis. Use one of: ${BASES.join(", ")}.` };
+    if (!BASES.includes(basis as TokenBasis)) return { ok: false, error: t("import.badBasis", { n, bases: BASES.join(", ") }) };
     rows.push({ id: newRowId(), name, input: entry.input, output: entry.output, basis: basis as TokenBasis });
   }
   return { ok: true, rows };

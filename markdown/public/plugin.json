@@ -1,7 +1,7 @@
 {
   "id": "markdown",
   "name": "Markdown",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Write Markdown and see a live, sanitized HTML preview.",
   "longDescription": "Write Markdown and see a live preview next to it. The preview is sanitized, so scripts and event handlers in the text are removed. Copy the Markdown or the generated HTML. Images load only when they are embedded (data: URLs); a plugin cannot fetch pictures from the web. Everything happens in the plugin; nothing is uploaded.",
   "category": "Converters",

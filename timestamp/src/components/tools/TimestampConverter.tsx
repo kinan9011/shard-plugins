@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
+import { autoDir, formatNumber, useT, type TKey } from "@/lib/i18n";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   formatInTimeZone,
@@ -20,63 +21,40 @@ import {
   type TimeParseResult,
 } from "@/utils/timestamp";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "What can I type in the input?",
-    a: "Type a Unix timestamp, a date string, or now. Leave the input empty to see the current time. Results update as you type.",
-  },
-  {
-    q: "How does the tool pick seconds or milliseconds?",
-    a: "It counts the digits. Up to 11 digits are seconds, 12 to 14 are milliseconds, 15 to 17 are microseconds, and more are nanoseconds. Add a suffix such as 86400000 ms to set the unit yourself.",
-  },
-  {
-    q: "How do I add or subtract time?",
-    a: "Add offsets after the value, such as now - 1d, now + 3600, or 1705320000 + 1h30m. A number without a unit is seconds. The units are ms, s, m, h, d, and w.",
-  },
-  {
-    q: "Why are months and years not offset units?",
-    a: "Months and years have no fixed length. Use days or weeks to get an exact result.",
-  },
-  {
-    q: "Which time zone does a date string use?",
-    a: "A date with Z, UTC, GMT, or an offset such as +02:00 uses that zone. A date-only ISO string such as 2024-01-15 is UTC midnight. Any other date is your local time.",
-  },
-  {
-    q: "Where do the extra time zones come from?",
-    a: "They come from the time zone data built into the app. The tool makes no network calls. It saves your list on this device.",
-  },
-];
+const FAQ_KEYS = ["input", "unit", "offset", "months", "zone", "zones"] as const;
 
 /** Plain-language note about how the input was read. */
-function describeSource(result: Extract<TimeParseResult, { ok: true }>, localZone: string): string {
+function describeSource(result: Extract<TimeParseResult, { ok: true }>, localZone: string, t: (key: TKey, vars?: Record<string, string | number>) => string): string {
   const base = (() => {
     switch (result.source) {
       case "now":
-        return "Showing the current time.";
+        return t("source.now");
       case "date":
-        if (result.zone === "utc") return "Read as a date in UTC.";
-        if (result.zone === "local") return `Read as a date in local time (${localZone}).`;
-        return "Read as a date with its own time zone.";
+        if (result.zone === "utc") return t("source.dateUtc");
+        if (result.zone === "local") return t("source.dateLocal", { zone: localZone });
+        return t("source.dateExplicit");
       default:
-        return `Read as Unix ${result.source}.`;
+        return t(`source.${result.source}`);
     }
   })();
   if (!result.offsetMs) return base;
   const seconds = result.offsetMs / 1000;
-  return `${base} Offset: ${seconds > 0 ? "+" : ""}${seconds.toLocaleString("en-US")} seconds.`;
+  return `${base} ${t("source.offset", { seconds: formatNumber(seconds, { signDisplay: "exceptZero" }) })}`;
 }
 
 function ResultRow({ label, value }: { label: string; value: string }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-3 rounded-md bg-muted px-3 py-2">
       <dt className="w-36 shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 flex-1 break-all font-mono text-sm">{value}</dd>
-      <CopyButton value={value} ariaLabel={`Copy ${label}`} iconOnly />
+      <dd dir="auto" className="min-w-0 flex-1 break-all font-mono text-sm">{value}</dd>
+      <CopyButton value={value} ariaLabel={t("copy.label", { label })} iconOnly />
     </div>
   );
 }
 
 export function TimestampConverter() {
+  const t = useT();
   const [input, setInput] = useState("");
   const debouncedInput = useDebouncedValue(input);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -108,7 +86,7 @@ export function TimestampConverter() {
     const typed = zoneDraft.trim();
     if (!typed) return;
     if (!isValidTimeZone(typed)) {
-      setZoneError(`Unknown time zone: ${typed}. Use an IANA name such as Asia/Tokyo.`);
+      setZoneError(t("zone.unknown", { zone: typed }));
       return;
     }
     // Use the listed spelling so "asia/tokyo" and "Asia/Tokyo" are the same entry.
@@ -136,15 +114,15 @@ export function TimestampConverter() {
     const { ms } = result;
     const calendar = getCalendarInfo(ms);
     rows = [
-      { label: "Unix seconds", value: String(Math.floor(ms / 1000)) },
-      { label: "Unix milliseconds", value: String(ms) },
-      { label: "ISO 8601 (UTC)", value: new Date(ms).toISOString() },
-      { label: "ISO 8601 (local)", value: formatIsoWithOffset(ms) },
-      { label: "RFC 2822", value: new Date(ms).toUTCString() },
-      { label: "Relative", value: formatRelativeTime(ms, nowMs) },
+      { label: t("row.unixSeconds"), value: String(Math.floor(ms / 1000)) },
+      { label: t("row.unixMilliseconds"), value: String(ms) },
+      { label: t("row.isoUtc"), value: new Date(ms).toISOString() },
+      { label: t("row.isoLocal"), value: formatIsoWithOffset(ms) },
+      { label: t("row.rfc"), value: new Date(ms).toUTCString() },
+      { label: t("row.relative"), value: formatRelativeTime(ms, nowMs) },
       {
-        label: "Calendar (local)",
-        value: `${calendar.weekday}, day ${calendar.dayOfYear} of ${calendar.daysInYear}, ISO week ${calendar.isoWeekYear}-W${String(calendar.isoWeek).padStart(2, "0")}`,
+        label: t("row.calendar"),
+        value: t("row.calendarValue", { weekday: calendar.weekday, day: calendar.dayOfYear, days: calendar.daysInYear, week: `${calendar.isoWeekYear}-W${String(calendar.isoWeek).padStart(2, "0")}` }),
       },
     ];
   }
@@ -153,16 +131,17 @@ export function TimestampConverter() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Timestamp</CardTitle>
-          <CardDescription>Paste a Unix timestamp or a date. Leave the input empty to see the current time.</CardDescription>
+          <CardTitle>{t("card.timestamp")}</CardTitle>
+          <CardDescription>{t("card.timestampHint")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Input
               id="timestamp-input"
               type="text"
-              aria-label="Timestamp or date"
-              placeholder="1705320000, 2024-01-15T12:00:00Z, or now - 1d"
+              aria-label={t("input.label")}
+              placeholder={t("input.placeholder")}
+              dir={autoDir(input)}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               className="font-mono"
@@ -170,7 +149,7 @@ export function TimestampConverter() {
               autoComplete="off"
             />
             {result.ok ? (
-              <p className="text-xs text-muted-foreground" role="status">{describeSource(result, localZone)}</p>
+              <p className="text-xs text-muted-foreground" role="status">{describeSource(result, localZone, t)}</p>
             ) : (
               <div className="workspace-notice" data-tone="error" role="alert">{"error" in result && result.error}</div>
             )}
@@ -188,21 +167,21 @@ export function TimestampConverter() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Time zones</CardTitle>
-          <CardDescription>The same moment in other time zones.</CardDescription>
+          <CardTitle>{t("card.zones")}</CardTitle>
+          <CardDescription>{t("card.zonesHint")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <dl className="space-y-1.5">
-            <ResultRow label={`Local (${localZone})`} value={zoneRow(undefined)} />
+            <ResultRow label={t("row.local", { zone: localZone })} value={zoneRow(undefined)} />
             {zones.map((zone) => (
               <div key={zone} className="flex items-center gap-3 rounded-md bg-muted px-3 py-2">
                 <dt className="w-36 shrink-0 break-all text-xs text-muted-foreground">{zone}</dt>
-                <dd className="min-w-0 flex-1 break-all font-mono text-sm">{zoneRow(zone)}</dd>
-                <CopyButton value={zoneRow(zone)} ariaLabel={`Copy ${zone}`} iconOnly />
+                <dd dir="auto" className="min-w-0 flex-1 break-all font-mono text-sm">{zoneRow(zone)}</dd>
+                <CopyButton value={zoneRow(zone)} ariaLabel={t("copy.label", { label: zone })} iconOnly />
                 <button
                   type="button"
                   className="toolbar-text-button"
-                  aria-label={`Remove ${zone}`}
+                  aria-label={t("zone.remove", { zone })}
                   onClick={() => updateZones(zones.filter((item) => item !== zone))}
                 >
                   <X size={14} />
@@ -213,9 +192,10 @@ export function TimestampConverter() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Input
-                aria-label="Add a time zone"
+                aria-label={t("zone.addLabel")}
                 list="timestamp-zone-options"
-                placeholder="Add a time zone, such as Asia/Tokyo"
+                placeholder={t("zone.addPlaceholder")}
+                dir={autoDir(zoneDraft)}
                 value={zoneDraft}
                 onChange={(event) => {
                   setZoneDraft(event.target.value);
@@ -227,7 +207,7 @@ export function TimestampConverter() {
                 autoComplete="off"
               />
               <button type="button" className="toolbar-text-button" onClick={addZone} disabled={!zoneDraft.trim()}>
-                Add
+                {t("zone.add")}
               </button>
             </div>
             <datalist id="timestamp-zone-options">
@@ -240,7 +220,7 @@ export function TimestampConverter() {
         </CardContent>
       </Card>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />
     </div>
   );
 }

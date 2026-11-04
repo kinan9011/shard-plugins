@@ -4,6 +4,7 @@
  * RFC 8709, and the openssh-key-v1 container from PROTOCOL.key) is written here by hand.
  */
 
+import { t } from "@/lib/i18n";
 import {
   CURVE_OIDS,
   KeyInputError,
@@ -42,7 +43,8 @@ const CURVE_SIZES: Record<Curve, number> = { "P-256": 32, "P-384": 48, "P-521": 
 const SSH_CURVES: Record<Curve, string> = { "P-256": "nistp256", "P-384": "nistp384", "P-521": "nistp521" };
 const CURVE_BY_SSH_NAME: Record<string, Curve> = { nistp256: "P-256", nistp384: "P-384", nistp521: "P-521" };
 
-export const ED25519_UNSUPPORTED = "This system does not support Ed25519 keys. Choose an ECDSA or RSA key, or update the system.";
+/** Shown when this system has no Ed25519 in Web Crypto. */
+export const ed25519Unsupported = () => t("error.ed25519Unsupported");
 
 const isCurve = (crv: unknown): crv is Curve => typeof crv === "string" && crv in CURVE_SIZES;
 
@@ -60,7 +62,7 @@ async function withEd25519Check<T>(isEd25519: boolean, run: () => Promise<T>): P
   try {
     return await run();
   } catch (error) {
-    if (isEd25519) throw new KeyInputError(ED25519_UNSUPPORTED);
+    if (isEd25519) throw new KeyInputError(ed25519Unsupported());
     throw error;
   }
 }
@@ -118,11 +120,11 @@ function bitLength(bytes: Uint8Array): number {
 
 const field = (jwk: Jwk, name: string): Uint8Array => {
   const value = (jwk as Record<string, unknown>)[name];
-  if (typeof value !== "string" || !value) throw new KeyInputError(`The JWK has no "${name}" field.`);
+  if (typeof value !== "string" || !value) throw new KeyInputError(t("error.jwkMissing", { name }));
   try {
     return base64ToBytes(value);
   } catch {
-    throw new KeyInputError(`The JWK "${name}" field is not valid Base64URL.`);
+    throw new KeyInputError(t("error.jwkBase64Url", { name }));
   }
 };
 
@@ -133,18 +135,18 @@ function checkJwk(jwk: Jwk): void {
     field(jwk, "e");
     if (jwk.d !== undefined) for (const name of ["d", "p", "q", "dp", "dq", "qi"]) field(jwk, name);
   } else if (jwk.kty === "EC") {
-    if (!isCurve(jwk.crv)) throw new KeyInputError(`The EC curve "${String(jwk.crv)}" is not supported. Use P-256, P-384 or P-521.`);
+    if (!isCurve(jwk.crv)) throw new KeyInputError(t("error.jwkEcCurve", { curve: String(jwk.crv) }));
     const size = CURVE_SIZES[jwk.crv];
     for (const name of jwk.d !== undefined ? ["x", "y", "d"] : ["x", "y"]) {
-      if (field(jwk, name).length !== size) throw new KeyInputError(`The JWK "${name}" field has the wrong length for ${jwk.crv}.`);
+      if (field(jwk, name).length !== size) throw new KeyInputError(t("error.jwkLength", { name, curve: String(jwk.crv) }));
     }
   } else if (jwk.kty === "OKP") {
-    if (jwk.crv !== "Ed25519") throw new KeyInputError(`The OKP curve "${String(jwk.crv)}" is not supported. Use Ed25519.`);
+    if (jwk.crv !== "Ed25519") throw new KeyInputError(t("error.jwkOkpCurve", { curve: String(jwk.crv) }));
     for (const name of jwk.d !== undefined ? ["x", "d"] : ["x"]) {
-      if (field(jwk, name).length !== 32) throw new KeyInputError(`The JWK "${name}" field must be 32 bytes for Ed25519.`);
+      if (field(jwk, name).length !== 32) throw new KeyInputError(t("error.jwkOkpLength", { name }));
     }
   } else {
-    throw new KeyInputError(`The key type "${String(jwk.kty)}" is not supported. Use RSA, EC or OKP (Ed25519).`);
+    throw new KeyInputError(t("error.jwkType", { kty: String(jwk.kty) }));
   }
 }
 
@@ -227,7 +229,7 @@ const mpint = (bytes: Uint8Array) => {
 /** Left-pads big-endian bytes to `size`. */
 const pad = (bytes: Uint8Array, size: number) => {
   const value = stripZeros(bytes);
-  if (value.length > size) throw new KeyInputError("A key value is too long for its curve.");
+  if (value.length > size) throw new KeyInputError(t("error.valueTooLong"));
   return concat(new Uint8Array(size - value.length), value);
 };
 
@@ -272,7 +274,7 @@ const OPENSSH_MAGIC = utf8("openssh-key-v1\0");
  * so the same key and comment always give the same text. The text ends with a newline.
  */
 export async function openSshPrivateKey(jwk: Jwk, comment = "", checkInt?: number): Promise<string> {
-  if (jwk.d === undefined) throw new KeyInputError("An OpenSSH private key needs a private key.");
+  if (jwk.d === undefined) throw new KeyInputError(t("error.needsPrivate"));
   const publicBlob = sshPublicKeyBlob(jwk);
   let check = checkInt;
   if (check === undefined) {
@@ -320,7 +322,7 @@ class SshReader {
   }
 
   uint32(): number {
-    if (this.offset + 4 > this.bytes.length) throw new KeyInputError("The SSH key data is truncated.");
+    if (this.offset + 4 > this.bytes.length) throw new KeyInputError(t("error.sshTruncated"));
     const b = this.bytes;
     const value = ((b[this.offset] << 24) | (b[this.offset + 1] << 16) | (b[this.offset + 2] << 8) | b[this.offset + 3]) >>> 0;
     this.offset += 4;
@@ -329,7 +331,7 @@ class SshReader {
 
   bytesField(): Uint8Array {
     const length = this.uint32();
-    if (this.offset + length > this.bytes.length) throw new KeyInputError("The SSH key data is truncated.");
+    if (this.offset + length > this.bytes.length) throw new KeyInputError(t("error.sshTruncated"));
     const value = this.bytes.slice(this.offset, this.offset + length);
     this.offset += length;
     return value;
@@ -352,17 +354,17 @@ function readSshPublicFields(type: string, reader: SshReader): Jwk {
   if (type.startsWith("ecdsa-sha2-")) {
     const curve = CURVE_BY_SSH_NAME[reader.text()];
     const point = reader.bytesField();
-    if (!curve || CURVE_BY_SSH_NAME[type.slice(11)] !== curve) throw new KeyInputError(`The SSH key type "${type}" is not supported.`);
+    if (!curve || CURVE_BY_SSH_NAME[type.slice(11)] !== curve) throw new KeyInputError(t("error.sshType", { type }));
     const size = CURVE_SIZES[curve];
-    if (point.length !== 1 + 2 * size || point[0] !== 4) throw new KeyInputError("The ECDSA public key point is not valid.");
+    if (point.length !== 1 + 2 * size || point[0] !== 4) throw new KeyInputError(t("error.ecPoint"));
     return { kty: "EC", crv: curve, x: bytesToBase64Url(point.slice(1, 1 + size)), y: bytesToBase64Url(point.slice(1 + size)) };
   }
   if (type === "ssh-ed25519") {
     const x = reader.bytesField();
-    if (x.length !== 32) throw new KeyInputError("The Ed25519 public key must be 32 bytes.");
+    if (x.length !== 32) throw new KeyInputError(t("error.ed25519PublicLength"));
     return { kty: "OKP", crv: "Ed25519", x: bytesToBase64Url(x) };
   }
-  throw new KeyInputError(`The SSH key type "${type}" is not supported. Use ssh-ed25519, ecdsa-sha2-nistp256/384/521 or ssh-rsa.`);
+  throw new KeyInputError(t("error.sshTypeList", { type }));
 }
 
 const SSH_PUBLIC_PATTERN = /(?:^|\s)(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(?:256|384|521)|ssh-dss|sk-\S+)\s+([A-Za-z0-9+/=]+)(?:[ \t]+([^\r\n]*))?/;
@@ -376,11 +378,11 @@ export function parseSshPublicKey(text: string): { jwk: Jwk; comment: string } |
   try {
     blob = base64ToBytes(base64);
   } catch {
-    throw new KeyInputError("The SSH public key is not valid Base64.");
+    throw new KeyInputError(t("error.sshPublicBase64"));
   }
   const reader = new SshReader(blob);
   const innerType = reader.text();
-  if (innerType !== type) throw new KeyInputError(`The key data is "${innerType}", but the line says "${type}".`);
+  if (innerType !== type) throw new KeyInputError(t("error.sshTypeMismatch", { inner: innerType, type }));
   return { jwk: readSshPublicFields(type, reader), comment: comment.trim() };
 }
 
@@ -395,25 +397,25 @@ const fromBigInt = (value: bigint) => {
 /** Reads an unencrypted OpenSSH private key (-----BEGIN OPENSSH PRIVATE KEY-----). */
 export function parseOpenSshPrivateKey(text: string): { jwk: Jwk; comment: string } {
   const match = /-----BEGIN OPENSSH PRIVATE KEY-----([\s\S]*?)-----END OPENSSH PRIVATE KEY-----/.exec(text);
-  if (!match) throw new KeyInputError("The text is not an OpenSSH private key.");
+  if (!match) throw new KeyInputError(t("error.notOpenSsh"));
   let data: Uint8Array;
   try {
     data = base64ToBytes(match[1].replace(/\s+/g, ""));
   } catch {
-    throw new KeyInputError("The OpenSSH private key is not valid Base64.");
+    throw new KeyInputError(t("error.sshPrivateBase64"));
   }
-  if (!OPENSSH_MAGIC.every((byte, i) => data[i] === byte)) throw new KeyInputError("The OpenSSH private key has an unknown format.");
+  if (!OPENSSH_MAGIC.every((byte, i) => data[i] === byte)) throw new KeyInputError(t("error.sshUnknownFormat"));
   const reader = new SshReader(data.slice(OPENSSH_MAGIC.length));
   const cipher = reader.text();
   reader.text(); // KDF name
   reader.bytesField(); // KDF options
   if (cipher !== "none") {
-    throw new KeyInputError("The OpenSSH private key has a passphrase. Remove it first with ssh-keygen -p, or paste the public key.");
+    throw new KeyInputError(t("error.sshPassphrase"));
   }
-  if (reader.uint32() !== 1) throw new KeyInputError("The file holds more than one key. Paste one key.");
+  if (reader.uint32() !== 1) throw new KeyInputError(t("error.multipleKeys"));
   reader.bytesField(); // public key blob, repeated in the private section
   const section = new SshReader(reader.bytesField());
-  if (section.uint32() !== section.uint32()) throw new KeyInputError("The OpenSSH private key is damaged: the check values differ.");
+  if (section.uint32() !== section.uint32()) throw new KeyInputError(t("error.sshCheck"));
   const type = section.text();
 
   let jwk: Jwk;
@@ -437,10 +439,10 @@ export function parseOpenSshPrivateKey(text: string): { jwk: Jwk; comment: strin
   } else if (type === "ssh-ed25519") {
     jwk = readSshPublicFields(type, section);
     const secret = section.bytesField();
-    if (secret.length !== 64) throw new KeyInputError("The Ed25519 private key must be 64 bytes.");
+    if (secret.length !== 64) throw new KeyInputError(t("error.ed25519PrivateLength"));
     jwk.d = bytesToBase64Url(secret.slice(0, 32));
   } else {
-    throw new KeyInputError(`The SSH key type "${type}" is not supported.`);
+    throw new KeyInputError(t("error.sshType", { type }));
   }
   return { jwk, comment: section.text() };
 }
@@ -458,17 +460,17 @@ function derKeyParams(bytes: Uint8Array, kind: "spki" | "pkcs8"): { jwk: Pick<Jw
     oid = bytes.slice(algorithm[0].offset, algorithm[0].end);
     if (algorithm[1]?.tag === 0x06) curveOid = bytes.slice(algorithm[1].offset, algorithm[1].end);
   } catch {
-    throw new KeyInputError("The key is not valid DER data.");
+    throw new KeyInputError(t("error.derInvalid"));
   }
   const same = (a: ArrayLike<number> | undefined, b: number[]) => a !== undefined && a.length === b.length && b.every((byte, i) => a[i] === byte);
   if (same(oid, OID_RSA)) return { jwk: { kty: "RSA" }, params: { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" } };
   if (same(oid, OID_ED25519)) return { jwk: { kty: "OKP", crv: "Ed25519" }, params: { name: "Ed25519" } };
   if (same(oid, OID_EC)) {
     const curve = (Object.keys(CURVE_SIZES) as Curve[]).find((name) => same(curveOid, CURVE_OIDS[name]));
-    if (!curve) throw new KeyInputError("The EC key uses an unsupported curve. Use P-256, P-384 or P-521.");
+    if (!curve) throw new KeyInputError(t("error.derEcCurve"));
     return { jwk: { kty: "EC", crv: curve }, params: { name: "ECDSA", namedCurve: curve } };
   }
-  throw new KeyInputError("The key type is not supported. Use RSA, ECDSA (P-256, P-384, P-521) or Ed25519.");
+  throw new KeyInputError(t("error.derKeyType"));
 }
 
 async function importDer(bytes: Uint8Array, kind: "spki" | "pkcs8"): Promise<Jwk> {
@@ -479,7 +481,7 @@ async function importDer(bytes: Uint8Array, kind: "spki" | "pkcs8"): Promise<Jwk
       key = await crypto.subtle.importKey(kind, bytes as BufferSource, params, true, [kind === "spki" ? "verify" : "sign"]);
     } catch (error) {
       if (type.kty === "OKP") throw error;
-      throw new KeyInputError("The key data is not valid.");
+      throw new KeyInputError(t("error.keyData"));
     }
     return keyFields((await crypto.subtle.exportKey("jwk", key)) as Jwk, kind === "pkcs8");
   });
@@ -499,7 +501,7 @@ export interface ReadKeyResult {
  */
 export async function readKey(text: string): Promise<ReadKeyResult> {
   const trimmed = text.trim();
-  if (!trimmed) throw new KeyInputError("Paste a key.");
+  if (!trimmed) throw new KeyInputError(t("error.pasteKey"));
   if (trimmed.includes("-----BEGIN OPENSSH PRIVATE KEY-----")) {
     const { jwk, comment } = parseOpenSshPrivateKey(trimmed);
     checkJwk(jwk);
@@ -507,7 +509,7 @@ export async function readKey(text: string): Promise<ReadKeyResult> {
   }
   if (!trimmed.startsWith("{") && !trimmed.includes("-----BEGIN")) {
     const ssh = parseSshPublicKey(trimmed);
-    if (!ssh) throw new KeyInputError("The text is not a key. Paste a PEM, JWK, or OpenSSH key.");
+    if (!ssh) throw new KeyInputError(t("error.notKey"));
     checkJwk(ssh.jwk);
     return { ...ssh, hints: {} };
   }
@@ -518,12 +520,12 @@ export async function readKey(text: string): Promise<ReadKeyResult> {
     case "pkcs8":
       return { jwk: await importDer(parsed.der, parsed.kind), comment: "", hints: {} };
     case "jwks":
-      if (parsed.keys.length !== 1) throw new KeyInputError(`The JWKS has ${parsed.keys.length} keys. Paste one key.`);
+      if (parsed.keys.length !== 1) throw new KeyInputError(t("error.jwksCount", { count: parsed.keys.length }));
       return readJwk(parsed.keys[0]);
     case "jwk":
       return readJwk(parsed.jwk);
     default:
-      throw new KeyInputError("The text is not a key. Paste a PEM, JWK, or OpenSSH key.");
+      throw new KeyInputError(t("error.notKey"));
   }
 }
 
@@ -597,7 +599,7 @@ export async function buildKeyOutputs(input: Jwk, options: KeyOutputOptions = {}
         key = await crypto.subtle.importKey("jwk", privateFields, params, true, ["sign"]);
       } catch (error) {
         if (isEd25519) throw error;
-        throw new KeyInputError("The private key values are not valid.");
+        throw new KeyInputError(t("error.privateValues"));
       }
       return toPem("PRIVATE KEY", await crypto.subtle.exportKey("pkcs8", key));
     });

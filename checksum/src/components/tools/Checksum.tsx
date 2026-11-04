@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { FileUp } from "lucide-react";
+import { formatNumber, useT } from "@/lib/i18n";
 import {
   CRC_PRESETS,
   crc,
@@ -18,6 +19,7 @@ import {
   ToolWorkspace,
 } from "./ToolWorkspace";
 export function Checksum() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [mode, setMode] = useState("crc");
   const [format, setFormat] = useState("text");
@@ -37,12 +39,12 @@ export function Checksum() {
     if (file) return file.bytes;
     try {
       if (text.length > 1000000)
-        throw new Error("Text input is limited to 1 million characters.");
+        throw new Error(t("error.textLimit"));
       return format === "hex" ? decodeHex(text) : new TextEncoder().encode(text);
     } catch (e) {
       return e as Error;
     }
-  }, [mode, file, text, format]);
+  }, [mode, file, text, format, t]);
   const { output, error } = useMemo(() => {
     let output = "",
       error = "";
@@ -53,14 +55,14 @@ export function Checksum() {
         output =
           mode === "validate"
             ? luhnValid(text)
-              ? "Valid Luhn checksum"
-              : "Invalid Luhn checksum"
+              ? t("result.luhnValid")
+              : t("result.luhnInvalid")
             : `${text}${luhnCheckDigit(text)}`;
     } catch (e) {
       error = (e as Error).message;
     }
     return { output, error };
-  }, [bytes, text, mode, preset]);
+  }, [bytes, text, mode, preset, t]);
   const p = CRC_PRESETS[preset];
   return (
     <ToolWorkspace
@@ -69,10 +71,10 @@ export function Checksum() {
       toolbar={
         <>
           <label>
-            Operation{" "}
+            {t("op.label")}{" "}
             <select
-              className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
-              aria-label="Checksum operation"
+              className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm text-foreground"
+              aria-label={t("op.aria")}
               value={mode}
               onChange={(e) => {
                 setMode(e.target.value);
@@ -80,15 +82,15 @@ export function Checksum() {
               }}
             >
               <option value="crc">CRC</option>
-              <option value="validate">Validate Luhn</option>
-              <option value="generate">Append Luhn check digit</option>
+              <option value="validate">{t("op.validate")}</option>
+              <option value="generate">{t("op.generate")}</option>
             </select>
           </label>
           {mode === "crc" && (
             <>
               <select
-                className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
-                aria-label="CRC preset"
+                className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm text-foreground"
+                aria-label={t("preset.aria")}
                 value={preset}
                 onChange={(e) => setPreset(e.target.value as CrcPreset)}
               >
@@ -97,20 +99,20 @@ export function Checksum() {
                 ))}
               </select>
               <select
-                className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
-                aria-label="Input format"
+                className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm text-foreground"
+                aria-label={t("format.aria")}
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
               >
-                <option value="text">UTF-8 text</option>
-                <option value="hex">Hex bytes</option>
+                <option value="text">{t("format.text")}</option>
+                <option value="hex">{t("format.hex")}</option>
               </select>
               <input
                 ref={fileInput}
                 type="file"
                 className="sr-only"
                 tabIndex={-1}
-                aria-label="Checksum file"
+                aria-label={t("file.aria")}
                 onChange={async (e) => {
                   const next = e.target.files?.[0];
                   // Clear the input so choosing the same file again fires a change.
@@ -122,7 +124,7 @@ export function Checksum() {
                   setFile(null);
                   try {
                     if (next.size > 8 * 1024 * 1024)
-                      throw new Error("Files are limited to 8 MiB.");
+                      throw new Error(t("error.fileLimit"));
                     const bytes = await blobSource(next).read(0, next.size);
                     if (id === request.current)
                       setFile({ name: next.name, bytes });
@@ -140,7 +142,7 @@ export function Checksum() {
                 onClick={() => fileInput.current?.click()}
               >
                 <FileUp size={14} aria-hidden="true" />
-                Open file
+                {t("file.open")}
               </button>
             </>
           )}
@@ -155,7 +157,7 @@ export function Checksum() {
       }
       first={
         <EditorPane
-          title="Input"
+          title={t("pane.input")}
           htmlFor="checksum-input"
           actions={
             file && (
@@ -168,14 +170,14 @@ export function Checksum() {
                   setBusy(false);
                 }}
               >
-                Clear file
+                {t("file.clear")}
               </button>
             )
           }
         >
           {mode === "crc" && file ? (
             <p className="p-4">
-              {file.name} · {file.bytes.length.toLocaleString()} bytes
+              {t("file.info", { count: file.bytes.length, name: file.name, size: formatNumber(file.bytes.length) })}
             </p>
           ) : (
             <CodeTextarea
@@ -184,8 +186,8 @@ export function Checksum() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={
                 mode === "crc"
-                  ? "Enter text or hex bytes"
-                  : "Enter digits, preserving leading zeroes"
+                  ? t("placeholder.crc")
+                  : t("placeholder.luhn")
               }
             />
           )}
@@ -193,17 +195,17 @@ export function Checksum() {
       }
       second={
         <EditorPane
-          title="Result"
+          title={t("pane.result")}
           actions={
             <CopyButton value={busy || error || fileError ? "" : output} />
           }
         >
           {busy ? (
-            <PaneEmpty title="Reading file" />
+            <PaneEmpty title={t("state.reading")} />
           ) : error || fileError ? (
-            <PaneEmpty title="Check your input" />
+            <PaneEmpty title={t("state.checkInput")} />
           ) : (
-            <pre className="p-4 whitespace-pre-wrap break-all font-mono">
+            <pre dir={mode === "validate" ? undefined : "ltr"} className="p-4 whitespace-pre-wrap break-all font-mono">
               {output}
             </pre>
           )}
@@ -211,22 +213,22 @@ export function Checksum() {
       }
       help={
         <details className="p-3 text-sm">
-          <summary className="cursor-pointer">
-            CRC parameters and limits
-          </summary>
+          <summary className="cursor-pointer">{t("help.summary")}</summary>
           <p className="pt-2 break-all">
-            Polynomial 0x{p.polynomial.toString(16)}; initial value 0x
-            {p.init.toString(16)}; final XOR 0x{p.xor.toString(16)};
-            input/output reflected: {String(p.reflected)}. Files: up to 8 MiB.
-            Text: up to 1 million characters.
+            {t("help.params", {
+              polynomial: `0x${p.polynomial.toString(16)}`,
+              init: `0x${p.init.toString(16)}`,
+              xor: `0x${p.xor.toString(16)}`,
+              reflected: t(p.reflected ? "help.yes" : "help.no"),
+            })}
           </p>
         </details>
       }
       status={
         <span>
           {mode === "crc"
-            ? `${preset} · ${p.width} bits`
-            : "Luhn checks structure, not whether an account exists"}
+            ? t("status.crc", { preset, width: p.width })
+            : t("status.luhn")}
         </span>
       }
     />

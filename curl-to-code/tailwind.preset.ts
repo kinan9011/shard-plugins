@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 // The Shard design tokens as Tailwind utilities (`bg-background`, `text-muted-foreground`, `rounded-lg`, ...).
 // The colors are CSS variables, which the app sends through the SDK (`theme.vars`): apply them to `:root`
@@ -30,8 +31,8 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
-        // The accent as a fill under white text. A host that does not send it gets --primary.
-        "primary-solid": { DEFAULT: "hsl(var(--primary-solid, var(--primary)))", foreground: "hsl(var(--primary-solid-foreground, var(--primary-foreground)))" },
+        // The accent as a fill under white text. <alpha-value> keeps `bg-primary-solid/90` working; the fallback to --primary is in the base layer below.
+        "primary-solid": { DEFAULT: "hsl(var(--primary-solid) / <alpha-value>)", foreground: "hsl(var(--primary-solid-foreground) / <alpha-value>)" },
         secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
         destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
         success: { DEFAULT: "hsl(var(--success))", foreground: "hsl(var(--success-foreground))" },
@@ -49,4 +50,8 @@ export default {
       },
     },
   },
+  plugins: [
+    // A host that does not send --primary-solid gets --primary; the host's own :root values still win.
+    plugin(({ addBase }) => addBase({ ":root": { "--primary-solid": "var(--primary)", "--primary-solid-foreground": "var(--primary-foreground)" } })),
+  ],
 } satisfies Config;

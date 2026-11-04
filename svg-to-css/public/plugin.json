@@ -1,7 +1,7 @@
 {
   "id": "svg-to-css",
   "name": "SVG to CSS",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Turn an SVG into a small data URI and ready CSS for backgrounds and masks.",
   "category": "Converters",
   "keywords": [

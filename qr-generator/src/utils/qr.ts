@@ -3,6 +3,7 @@
  */
 
 import QRCode from 'qrcode';
+import { t } from '@/lib/i18n';
 
 export interface QrOptions {
   size?: number;
@@ -174,12 +175,12 @@ export function generateQrWithLogo(
  */
 export function validateQrData(data: string): { valid: boolean; error?: string } {
   if (!data) {
-    return { valid: false, error: 'Data cannot be empty' };
+    return { valid: false, error: t('error.emptyData') };
   }
 
   // Check length limit for QR codes
   if (data.length > 2953) {
-    return { valid: false, error: 'Data too long for QR code (max 2953 bytes)' };
+    return { valid: false, error: t('error.dataTooLong', { max: 2953 }) };
   }
 
   return { valid: true };

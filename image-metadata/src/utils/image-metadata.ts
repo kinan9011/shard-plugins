@@ -1,4 +1,5 @@
 import { unzlibSync } from "fflate";
+import { formatList, formatNumber, t, type TKey } from "@/lib/i18n";
 
 /**
  * Reads and removes metadata from JPEG, PNG and WebP files without
@@ -22,6 +23,8 @@ export interface MetadataFinding {
   source: string;
   /** True when cleaning with the given options removes this item. */
   removable: boolean;
+  /** The file always keeps this item (the JFIF header, the orientation), so it does not count as metadata left after cleaning. */
+  kept?: true;
 }
 
 export interface InspectResult {
@@ -53,14 +56,15 @@ export interface CleanResult {
 
 export const DEFAULT_CLEAN_OPTIONS: CleanOptions = { keepColorProfile: true, keepOrientation: true };
 
-export const FINDING_KIND_LABELS: Record<FindingKind, string> = {
-  ai: "AI generation",
-  location: "Location",
-  camera: "Camera and capture",
-  provenance: "Provenance and authorship",
-  text: "Text and comments",
-  "color-profile": "Color profile",
-  other: "Other",
+/** Translation keys of the group headings; translate at render time. */
+export const FINDING_KIND_KEYS: Record<FindingKind, TKey> = {
+  ai: "kind.ai",
+  location: "kind.location",
+  camera: "kind.camera",
+  provenance: "kind.provenance",
+  text: "kind.text",
+  "color-profile": "kind.colorProfile",
+  other: "kind.other",
 };
 
 export const FINDING_KIND_ORDER: FindingKind[] = ["ai", "location", "camera", "provenance", "text", "color-profile", "other"];
@@ -148,7 +152,7 @@ const summarize = (text: string) => {
   return flat.length > SUMMARY_LIMIT ? `${flat.slice(0, SUMMARY_LIMIT - 1)}…` : flat;
 };
 
-const formatSize = (size: number) => (size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`);
+const formatSize = (size: number) => (size < 1024 ? `${size} B` : `${formatNumber(size / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KB`);
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -189,9 +193,10 @@ export function detectImageFormat(bytes: Uint8Array): DetectedFormat {
 /* AI hints                                                            */
 /* ------------------------------------------------------------------ */
 
-const AI_HINTS: Array<[RegExp, string]> = [
-  [/compositeWithTrainedAlgorithmicMedia/i, "Edited with generative AI (IPTC)"],
-  [/trainedAlgorithmicMedia/i, "Created by generative AI (IPTC)"],
+/** A plain string is a product name and stays as it is; `{ key }` is a description that gets translated. */
+const AI_HINTS: Array<[RegExp, string | { key: TKey }]> = [
+  [/compositeWithTrainedAlgorithmicMedia/i, { key: "aiHint.editedIptc" }],
+  [/trainedAlgorithmicMedia/i, { key: "aiHint.createdIptc" }],
   [/midjourney/i, "Midjourney"],
   [/DALL[·\-.\s]?E/i, "DALL·E"],
   [/\bOpenAI\b|\bChatGPT\b|gpt-image/i, "OpenAI"],
@@ -205,7 +210,7 @@ const AI_HINTS: Array<[RegExp, string]> = [
   [/Negative prompt:|\bSampler:\s|\bCFG scale:/i, "Stable Diffusion"],
   [/\bImagen\b|\bGemini\b|SynthID/i, "Google AI"],
   [/\bFLUX(\.1)?\b/, "FLUX"],
-  [/Leonardo\.Ai|\bIdeogram\b|Bing Image Creator|Microsoft Designer|\bGrok\b|\bAurora\b/i, "AI image service"],
+  [/Leonardo\.Ai|\bIdeogram\b|Bing Image Creator|Microsoft Designer|\bGrok\b|\bAurora\b/i, { key: "aiHint.service" }],
   [/\bSora\b/, "OpenAI Sora"],
   [/\bVeo\b/, "Google Veo"],
   [/\bRunway\b|\bGen-[234]\b/, "Runway"],
@@ -213,12 +218,12 @@ const AI_HINTS: Array<[RegExp, string]> = [
   [/\bPika\b/, "Pika"],
   [/Dream Machine|\bLuma AI\b/, "Luma Dream Machine"],
   [/\bHailuo\b|\bMiniMax\b/, "Hailuo"],
-  [/Made with AI|AI[- ]generated|Generated (by|with) AI/i, "AI label"],
+  [/Made with AI|AI[- ]generated|Generated (by|with) AI/i, { key: "aiHint.label" }],
 ];
 
 /** Returns the name of the AI tool or label the text mentions, or null. */
 export function findAiHint(text: string): string | null {
-  for (const [pattern, name] of AI_HINTS) if (pattern.test(text)) return name;
+  for (const [pattern, name] of AI_HINTS) if (pattern.test(text)) return typeof name === "string" ? name : t(name.key);
   return null;
 }
 
@@ -243,8 +248,8 @@ export class Findings {
     this.add(
       {
         kind: hint ? "ai" : fallbackKind,
-        label: hint && fallbackKind !== "ai" ? `${label} (mentions ${hint})` : label,
-        detail: summarize(value) || "(empty)",
+        label: hint && fallbackKind !== "ai" ? t("finding.mentions", { label, hint }) : label,
+        detail: summarize(value) || t("value.empty"),
         raw,
         source,
       },
@@ -355,23 +360,23 @@ class TiffReader {
   }
 }
 
-const IFD0_TEXT: Record<number, [string, FindingKind]> = {
-  0x010e: ["Image description", "text"],
-  0x010f: ["Camera make", "camera"],
-  0x0110: ["Camera model", "camera"],
-  0x0131: ["Software", "other"],
-  0x0132: ["Modified date", "camera"],
-  0x013b: ["Artist", "provenance"],
-  0x8298: ["Copyright", "provenance"],
+const IFD0_TEXT: Record<number, [TKey, FindingKind]> = {
+  0x010e: ["finding.imageDescription", "text"],
+  0x010f: ["finding.cameraMake", "camera"],
+  0x0110: ["finding.cameraModel", "camera"],
+  0x0131: ["finding.software", "other"],
+  0x0132: ["finding.modifiedDate", "camera"],
+  0x013b: ["finding.artist", "provenance"],
+  0x8298: ["finding.copyright", "provenance"],
 };
 
-const EXIF_TEXT: Record<number, [string, FindingKind]> = {
-  0x9003: ["Date taken", "camera"],
-  0xa430: ["Camera owner", "camera"],
-  0xa431: ["Camera serial number", "camera"],
-  0xa434: ["Lens model", "camera"],
-  0xa435: ["Lens serial number", "camera"],
-  0xa420: ["Unique image ID", "camera"],
+const EXIF_TEXT: Record<number, [TKey, FindingKind]> = {
+  0x9003: ["finding.dateTaken", "camera"],
+  0xa430: ["finding.cameraOwner", "camera"],
+  0xa431: ["finding.cameraSerial", "camera"],
+  0xa434: ["finding.lensModel", "camera"],
+  0xa435: ["finding.lensSerial", "camera"],
+  0xa420: ["finding.uniqueId", "camera"],
 };
 
 const gpsCoordinate = (tiff: TiffReader, entry: TiffEntry | undefined, ref: string) => {
@@ -386,7 +391,7 @@ function readExif(tiffBytes: Uint8Array, out: Findings, source: string, options:
   try {
     tiff = new TiffReader(tiffBytes);
   } catch {
-    out.add({ kind: "other", label: "EXIF data", detail: `Unreadable EXIF block, ${formatSize(tiffBytes.length)}`, source });
+    out.add({ kind: "other", label: t("finding.exifData"), detail: t("detail.exifUnreadable", { size: formatSize(tiffBytes.length) }), source });
     return;
   }
   const before = out.items.length;
@@ -400,24 +405,24 @@ function readExif(tiffBytes: Uint8Array, out: Findings, source: string, options:
       const value = tiff.number(entry);
       out.orientation = value;
       out.add(
-        { kind: "other", label: "Orientation", detail: `${value}${value === 1 ? " (normal)" : " (rotated or mirrored)"}`, source },
+        { kind: "other", label: t("finding.orientation"), detail: t(value === 1 ? "detail.orientationNormal" : "detail.orientationRotated", { value }), source, kept: true },
         !options.keepOrientation,
       );
     } else if (IFD0_TEXT[entry.tag]) {
-      const [label, kind] = IFD0_TEXT[entry.tag];
+      const [labelKey, kind] = IFD0_TEXT[entry.tag];
       const value = tiff.string(entry);
-      if (value) out.addText(label, value, source, kind);
+      if (value) out.addText(t(labelKey), value, source, kind);
     }
   }
   if (exifPointer) {
     for (const entry of tiff.entries(exifPointer)) {
       if (entry.tag === 0x9286) {
         const value = tiff.userComment(entry);
-        if (value) out.addText("User comment", value, source);
+        if (value) out.addText(t("finding.userComment"), value, source);
       } else if (EXIF_TEXT[entry.tag]) {
-        const [label, kind] = EXIF_TEXT[entry.tag];
+        const [labelKey, kind] = EXIF_TEXT[entry.tag];
         const value = tiff.string(entry);
-        if (value) out.addText(label, value, source, kind);
+        if (value) out.addText(t(labelKey), value, source, kind);
       }
     }
   }
@@ -428,21 +433,21 @@ function readExif(tiffBytes: Uint8Array, out: Findings, source: string, options:
     const lat = gpsCoordinate(tiff, gps.get(2), latRef);
     const lon = gpsCoordinate(tiff, gps.get(4), lonRef);
     if (lat !== null && lon !== null) {
-      out.add({ kind: "location", label: "GPS position", detail: `${lat.toFixed(6)}, ${lon.toFixed(6)}`, source });
+      out.add({ kind: "location", label: t("finding.gpsPosition"), detail: `${lat.toFixed(6)}, ${lon.toFixed(6)}`, source });
     } else if (gps.size > 0) {
-      out.add({ kind: "location", label: "GPS data", detail: `${gps.size} GPS tags`, source });
+      out.add({ kind: "location", label: t("finding.gpsData"), detail: t("detail.gpsTags", { count: gps.size }), source });
     }
     const alt = gps.get(6);
     if (alt) {
       const below = gps.get(5) && tiff.number(gps.get(5)!) === 1;
-      out.add({ kind: "location", label: "GPS altitude", detail: `${(below ? -1 : 1) * Math.round(tiff.number(alt) * 10) / 10} m`, source });
+      out.add({ kind: "location", label: t("finding.gpsAltitude"), detail: `${(below ? -1 : 1) * Math.round(tiff.number(alt) * 10) / 10} m`, source });
     }
   }
   const extra = ifd0.length - (out.items.length - before);
   if (out.items.length === before) {
-    out.add({ kind: "other", label: "EXIF data", detail: `${ifd0.length} tags, ${formatSize(tiffBytes.length)}`, source });
+    out.add({ kind: "other", label: t("finding.exifData"), detail: t("detail.exifTags", { count: ifd0.length, size: formatSize(tiffBytes.length) }), source });
   } else if (extra > 0) {
-    out.add({ kind: "other", label: "Other EXIF tags", detail: `EXIF block, ${formatSize(tiffBytes.length)}`, source });
+    out.add({ kind: "other", label: t("finding.otherExif"), detail: t("detail.exifBlock", { size: formatSize(tiffBytes.length) }), source });
   }
 }
 
@@ -465,22 +470,22 @@ export function buildOrientationTiff(orientation: number): Uint8Array {
 /* XMP                                                                 */
 /* ------------------------------------------------------------------ */
 
-const DIGITAL_SOURCE_LABELS: Record<string, string> = {
-  trainedAlgorithmicMedia: "Created by generative AI",
-  compositeWithTrainedAlgorithmicMedia: "Edited with generative AI",
-  algorithmicMedia: "Algorithmic media (no training data)",
-  compositeSynthetic: "Composite with synthetic elements",
-  algorithmicallyEnhanced: "Algorithmically enhanced",
-  digitalCapture: "Digital capture",
-  computationalCapture: "Computational capture",
-  negativeFilm: "Scan of negative film",
-  positiveFilm: "Scan of positive film",
-  print: "Scan of print",
-  minorHumanEdits: "Minor human edits",
-  compositeCapture: "Composite of captures",
-  digitalArt: "Digital art",
-  virtualRecording: "Virtual recording",
-  screenCapture: "Screen capture",
+const DIGITAL_SOURCE_KEYS: Record<string, TKey> = {
+  trainedAlgorithmicMedia: "digitalSource.trainedAlgorithmicMedia",
+  compositeWithTrainedAlgorithmicMedia: "digitalSource.compositeWithTrainedAlgorithmicMedia",
+  algorithmicMedia: "digitalSource.algorithmicMedia",
+  compositeSynthetic: "digitalSource.compositeSynthetic",
+  algorithmicallyEnhanced: "digitalSource.algorithmicallyEnhanced",
+  digitalCapture: "digitalSource.digitalCapture",
+  computationalCapture: "digitalSource.computationalCapture",
+  negativeFilm: "digitalSource.negativeFilm",
+  positiveFilm: "digitalSource.positiveFilm",
+  print: "digitalSource.print",
+  minorHumanEdits: "digitalSource.minorHumanEdits",
+  compositeCapture: "digitalSource.compositeCapture",
+  digitalArt: "digitalSource.digitalArt",
+  virtualRecording: "digitalSource.virtualRecording",
+  screenCapture: "digitalSource.screenCapture",
 };
 
 const AI_SOURCE_TYPES = new Set(["trainedAlgorithmicMedia", "compositeWithTrainedAlgorithmicMedia", "algorithmicMedia", "compositeSynthetic"]);
@@ -511,23 +516,23 @@ export function xmpProperty(xml: string, name: string): string | null {
   return null;
 }
 
-const XMP_FIELDS: Array<[string, string, FindingKind]> = [
-  ["photoshop:Credit", "Credit", "provenance"],
-  ["dc:creator", "Creator", "provenance"],
-  ["dc:rights", "Rights", "provenance"],
-  ["xmpRights:WebStatement", "Rights statement", "provenance"],
-  ["xmp:CreatorTool", "Creator tool", "other"],
-  ["dc:title", "Title", "text"],
-  ["dc:description", "Description", "text"],
-  ["exif:UserComment", "User comment", "text"],
-  ["tiff:Make", "Camera make", "camera"],
-  ["tiff:Model", "Camera model", "camera"],
-  ["exifEX:BodySerialNumber", "Camera serial number", "camera"],
-  ["aux:SerialNumber", "Camera serial number", "camera"],
-  ["photoshop:City", "City", "location"],
-  ["photoshop:State", "State or province", "location"],
-  ["photoshop:Country", "Country", "location"],
-  ["Iptc4xmpCore:Location", "Location", "location"],
+const XMP_FIELDS: Array<[string, TKey, FindingKind]> = [
+  ["photoshop:Credit", "finding.credit", "provenance"],
+  ["dc:creator", "finding.creator", "provenance"],
+  ["dc:rights", "finding.rights", "provenance"],
+  ["xmpRights:WebStatement", "finding.rightsStatement", "provenance"],
+  ["xmp:CreatorTool", "finding.creatorTool", "other"],
+  ["dc:title", "finding.title", "text"],
+  ["dc:description", "finding.description", "text"],
+  ["exif:UserComment", "finding.userComment", "text"],
+  ["tiff:Make", "finding.cameraMake", "camera"],
+  ["tiff:Model", "finding.cameraModel", "camera"],
+  ["exifEX:BodySerialNumber", "finding.cameraSerial", "camera"],
+  ["aux:SerialNumber", "finding.cameraSerial", "camera"],
+  ["photoshop:City", "finding.city", "location"],
+  ["photoshop:State", "finding.state", "location"],
+  ["photoshop:Country", "finding.country", "location"],
+  ["Iptc4xmpCore:Location", "finding.location", "location"],
 ];
 
 /** Reads an XMP packet into findings. */
@@ -540,29 +545,29 @@ export function readXmp(xml: string, out: Findings, source: string) {
     aiFound = isAi;
     out.add({
       kind: isAi ? "ai" : "provenance",
-      label: "Digital source type",
-      detail: `${DIGITAL_SOURCE_LABELS[code] ?? code} (${code})`,
+      label: t("finding.digitalSourceType"),
+      detail: `${DIGITAL_SOURCE_KEYS[code] ? t(DIGITAL_SOURCE_KEYS[code]) : code} (${code})`,
       source,
     });
   }
-  for (const [name, label, kind] of XMP_FIELDS) {
+  for (const [name, labelKey, kind] of XMP_FIELDS) {
     const value = xmpProperty(xml, name);
     if (!value) continue;
     const before = out.items.length;
-    out.addText(label, value, source, kind);
+    out.addText(t(labelKey), value, source, kind);
     if (out.items[before].kind === "ai") aiFound = true;
   }
   const lat = xmpProperty(xml, "exif:GPSLatitude");
   const lon = xmpProperty(xml, "exif:GPSLongitude");
-  if (lat || lon) out.add({ kind: "location", label: "GPS position", detail: [lat, lon].filter(Boolean).join(", "), source });
+  if (lat || lon) out.add({ kind: "location", label: t("finding.gpsPosition"), detail: [lat, lon].filter(Boolean).join(", "), source });
   if (/c2pa|contentauth|Content Credentials/i.test(xml)) {
-    out.add({ kind: "provenance", label: "Content Credentials reference", detail: "The XMP packet points to a C2PA manifest", source });
+    out.add({ kind: "provenance", label: t("finding.c2paReference"), detail: t("detail.c2paReference"), source });
   }
   if (!aiFound) {
     const hint = findAiHint(xml);
-    if (hint) out.add({ kind: "ai", label: "AI tool mentioned", detail: hint, source });
+    if (hint) out.add({ kind: "ai", label: t("finding.aiToolMentioned"), detail: hint, source });
   }
-  out.add({ kind: "other", label: "XMP packet", detail: `XML metadata, ${formatSize(xml.length)}`, raw: xml.trim(), source });
+  out.add({ kind: "other", label: t("finding.xmpPacket"), detail: t("detail.xmpPacket", { size: formatSize(xml.length) }), raw: xml.trim(), source });
 }
 
 /* ------------------------------------------------------------------ */
@@ -576,13 +581,14 @@ export function readC2pa(data: Uint8Array, out: Findings, source: string) {
   const hint = findAiHint(text);
   out.add({
     kind: "provenance",
-    label: isC2pa ? "Content Credentials (C2PA)" : "JUMBF metadata box",
-    detail: [isC2pa ? "C2PA manifest present" : "JPEG universal metadata box", generator ? `made by ${generator}` : "", formatSize(data.length)]
-      .filter(Boolean)
-      .join(", "),
+    label: isC2pa ? t("finding.c2pa") : t("finding.jumbf"),
+    detail: formatList(
+      [isC2pa ? t("detail.c2paPresent") : t("detail.jumbfBox"), generator ? t("detail.madeBy", { generator }) : "", formatSize(data.length)].filter(Boolean),
+      "unit",
+    ),
     source,
   });
-  if (hint) out.add({ kind: "ai", label: "AI noted in Content Credentials", detail: hint, source });
+  if (hint) out.add({ kind: "ai", label: t("finding.aiInC2pa"), detail: hint, source });
 }
 
 /** Reads the profile description from an ICC profile, if the bytes hold it. */
@@ -617,23 +623,23 @@ export function iccDescription(profile: Uint8Array): string | null {
 const addIcc = (profile: Uint8Array, out: Findings, source: string, options: CleanOptions) => {
   const name = iccDescription(profile);
   out.add(
-    { kind: "color-profile", label: "ICC color profile", detail: `${name ?? "Embedded profile"}, ${formatSize(profile.length)}`, source },
+    { kind: "color-profile", label: t("finding.iccProfile"), detail: t("detail.nameSize", { name: name ?? t("detail.embeddedProfile"), size: formatSize(profile.length) }), source },
     !options.keepColorProfile,
   );
 };
 
-const IPTC_FIELDS: Record<number, [string, FindingKind]> = {
-  5: ["Title", "text"],
-  25: ["Keywords", "text"],
-  80: ["By-line", "provenance"],
-  90: ["City", "location"],
-  92: ["Sublocation", "location"],
-  95: ["State or province", "location"],
-  101: ["Country", "location"],
-  110: ["Credit", "provenance"],
-  115: ["Source", "provenance"],
-  116: ["Copyright", "provenance"],
-  120: ["Caption", "text"],
+const IPTC_FIELDS: Record<number, [TKey, FindingKind]> = {
+  5: ["finding.title", "text"],
+  25: ["finding.keywords", "text"],
+  80: ["finding.byline", "provenance"],
+  90: ["finding.city", "location"],
+  92: ["finding.sublocation", "location"],
+  95: ["finding.state", "location"],
+  101: ["finding.country", "location"],
+  110: ["finding.credit", "provenance"],
+  115: ["finding.source", "provenance"],
+  116: ["finding.copyright", "provenance"],
+  120: ["finding.caption", "text"],
 };
 
 function readIptc(data: Uint8Array, out: Findings, source: string) {
@@ -649,8 +655,8 @@ function readIptc(data: Uint8Array, out: Findings, source: string) {
     p += 5 + length;
   }
   for (const [dataset, list] of values) {
-    const [label, kind] = IPTC_FIELDS[dataset];
-    out.addText(label, list.join("; "), source, kind);
+    const [labelKey, kind] = IPTC_FIELDS[dataset];
+    out.addText(t(labelKey), list.join("; "), source, kind);
   }
   return values.size;
 }
@@ -672,7 +678,7 @@ function readPhotoshop(segment: Uint8Array, out: Findings, source: string) {
     if (id === 0x0404) found += readIptc(data, out, source);
     p = q + 4 + size + (size % 2);
   }
-  out.add({ kind: "other", label: "Photoshop data", detail: `${resources} resource blocks${found ? ", includes IPTC" : ""}, ${formatSize(segment.length)}`, source });
+  out.add({ kind: "other", label: t("finding.photoshopData"), detail: t(found ? "detail.photoshopIptc" : "detail.photoshop", { count: resources, size: formatSize(segment.length) }), source });
 }
 
 /* ------------------------------------------------------------------ */
@@ -699,7 +705,7 @@ function parseJpeg(bytes: Uint8Array): { segments: JpegSegment[]; tailStart: num
   const segments: JpegSegment[] = [];
   let p = 2;
   while (p < bytes.length) {
-    if (bytes[p] !== 0xff) throw new Error("The JPEG structure is damaged.");
+    if (bytes[p] !== 0xff) throw new Error(t("error.jpegDamaged"));
     let m = p + 1;
     while (m < bytes.length && bytes[m] === 0xff) m++;
     const marker = bytes[m];
@@ -709,10 +715,10 @@ function parseJpeg(bytes: Uint8Array): { segments: JpegSegment[]; tailStart: num
       p = m + 1;
       continue;
     }
-    if (m + 3 > bytes.length) throw new Error("The JPEG file is cut off.");
+    if (m + 3 > bytes.length) throw new Error(t("error.jpegCutOff"));
     const length = readU16BE(bytes, m + 1);
     const end = m + 1 + length;
-    if (length < 2 || end > bytes.length) throw new Error("The JPEG file is cut off.");
+    if (length < 2 || end > bytes.length) throw new Error(t("error.jpegCutOff"));
     segments.push({ marker, start: p, end, data: bytes.subarray(m + 3, end) });
     p = end;
   }
@@ -748,7 +754,7 @@ function inspectJpeg(bytes: Uint8Array, options: CleanOptions, out: Findings) {
     const role = jpegRole(s);
     switch (role) {
       case "jfif":
-        out.add({ kind: "other", label: "JFIF header", detail: "Basic format header. Always kept.", source: "APP0" }, false);
+        out.add({ kind: "other", label: t("finding.jfifHeader"), detail: t("detail.jfifHeader"), source: "APP0", kept: true }, false);
         break;
       case "exif":
         readExif(s.data.subarray(EXIF_ID.length), out, "EXIF", options);
@@ -767,15 +773,15 @@ function inspectJpeg(bytes: Uint8Array, options: CleanOptions, out: Findings) {
         break;
       case "photoshop":
         if (startsWith(s.data, 0, "Photoshop 3.0\0")) readPhotoshop(s.data.subarray(14), out, "IPTC");
-        else out.add({ kind: "other", label: "APP13 data", detail: formatSize(s.data.length), source: "APP13" });
+        else out.add({ kind: "other", label: t("finding.app13"), detail: formatSize(s.data.length), source: "APP13" });
         break;
       case "comment":
-        out.addText("Comment", utf8(s.data).replace(/\0+$/, ""), "JPEG comment");
+        out.addText(t("finding.comment"), utf8(s.data).replace(/\0+$/, ""), "JPEG comment");
         break;
       case "app": {
         const n = s.marker - 0xe0;
         const id = ascii(s.data, 0, 16).split("\0")[0].replace(/[^\x20-\x7e]/g, "");
-        out.add({ kind: "other", label: `APP${n} block`, detail: `${id || "Unnamed"}, ${formatSize(s.data.length)}`, source: `APP${n}` });
+        out.add({ kind: "other", label: t("finding.appBlock", { n }), detail: t("detail.nameSize", { name: id || t("detail.unnamed"), size: formatSize(s.data.length) }), source: `APP${n}` });
         break;
       }
       default:
@@ -846,12 +852,12 @@ function parsePng(bytes: Uint8Array): PngChunk[] {
     const length = readU32BE(bytes, p);
     const type = ascii(bytes, p + 4, 4);
     const end = p + 12 + length;
-    if (end > bytes.length) throw new Error("The PNG file is cut off.");
+    if (end > bytes.length) throw new Error(t("error.pngCutOff"));
     chunks.push({ type, start: p, end, data: bytes.subarray(p + 8, p + 8 + length) });
     p = end;
     if (type === "IEND") break;
   }
-  if (!chunks.length || chunks[0].type !== "IHDR") throw new Error("The PNG structure is damaged.");
+  if (!chunks.length || chunks[0].type !== "IHDR") throw new Error(t("error.pngDamaged"));
   return chunks;
 }
 
@@ -866,16 +872,16 @@ const inflate = (data: Uint8Array) => {
   }
 };
 
-const PNG_AI_KEYS: Record<string, string> = {
-  parameters: "Stable Diffusion parameters",
-  prompt: "ComfyUI prompt",
-  workflow: "ComfyUI workflow",
-  "sd-metadata": "InvokeAI metadata",
-  invokeai_metadata: "InvokeAI metadata",
-  invokeai_graph: "InvokeAI graph",
-  dream: "Dream prompt",
-  generation_data: "Generation data",
-  "Negative Prompt": "Negative prompt",
+const PNG_AI_KEYS: Record<string, TKey> = {
+  parameters: "finding.sdParameters",
+  prompt: "finding.comfyPrompt",
+  workflow: "finding.comfyWorkflow",
+  "sd-metadata": "finding.invokeMetadata",
+  invokeai_metadata: "finding.invokeMetadata",
+  invokeai_graph: "finding.invokeGraph",
+  dream: "finding.dreamPrompt",
+  generation_data: "finding.generationData",
+  "Negative Prompt": "finding.negativePrompt",
 };
 
 const prettyJson = (text: string) => {
@@ -892,10 +898,11 @@ function readPngText(keyword: string, text: string, out: Findings, source: strin
     return;
   }
   const novel = /NovelAI/i.test(software);
-  const aiLabel = PNG_AI_KEYS[keyword] ?? (novel && (keyword === "Comment" || keyword === "Description") ? `NovelAI ${keyword.toLowerCase()}` : null);
-  if (aiLabel) {
+  const aiKey: TKey | null = PNG_AI_KEYS[keyword] ?? (novel && keyword === "Comment" ? "finding.novelAiComment" : novel && keyword === "Description" ? "finding.novelAiDescription" : null);
+  if (aiKey) {
+    const aiLabel = t(aiKey);
     const raw = text.trim().startsWith("{") ? prettyJson(text) : text;
-    out.add({ kind: "ai", label: aiLabel, detail: summarize(text) || "(empty)", raw, source: `${source} "${keyword}"` });
+    out.add({ kind: "ai", label: aiLabel, detail: summarize(text) || t("value.empty"), raw, source: `${source} "${keyword}"` });
     return;
   }
   const kind: FindingKind = keyword === "Author" || keyword === "Copyright" ? "provenance" : keyword === "Software" ? "other" : "text";
@@ -915,7 +922,7 @@ function inspectPng(bytes: Uint8Array, options: CleanOptions, out: Findings) {
       const zero = indexOfByte(data, 0, 0);
       if (zero < 0) continue;
       const inflated = inflate(data.subarray(zero + 2));
-      texts.push([latin1(data.subarray(0, zero)), inflated ? latin1(inflated) : "(could not decompress)", "PNG zTXt"]);
+      texts.push([latin1(data.subarray(0, zero)), inflated ? latin1(inflated) : t("value.undecompressable"), "PNG zTXt"]);
     } else if (type === "iTXt") {
       const zero = indexOfByte(data, 0, 0);
       if (zero < 0 || zero + 3 > data.length) continue;
@@ -925,7 +932,7 @@ function inspectPng(bytes: Uint8Array, options: CleanOptions, out: Findings) {
       if (transEnd < 0) continue;
       const body = data.subarray(transEnd + 1);
       const decoded = compressed ? inflate(body) : body;
-      texts.push([latin1(data.subarray(0, zero)), decoded ? utf8(decoded) : "(could not decompress)", "PNG iTXt"]);
+      texts.push([latin1(data.subarray(0, zero)), decoded ? utf8(decoded) : t("value.undecompressable"), "PNG iTXt"]);
     } else if (type === "eXIf") {
       readExif(data, out, "PNG eXIf", options);
     } else if (type === "caBX") {
@@ -936,17 +943,17 @@ function inspectPng(bytes: Uint8Array, options: CleanOptions, out: Findings) {
       const profile = zero >= 0 ? inflate(data.subarray(zero + 2)) : null;
       const desc = profile ? iccDescription(profile) : null;
       out.add(
-        { kind: "color-profile", label: "ICC color profile", detail: `${desc ?? (name || "Embedded profile")}, ${formatSize(data.length)}`, source: "PNG iCCP" },
+        { kind: "color-profile", label: t("finding.iccProfile"), detail: t("detail.nameSize", { name: desc ?? (name || t("detail.embeddedProfile")), size: formatSize(data.length) }), source: "PNG iCCP" },
         !options.keepColorProfile,
       );
     } else if (PNG_COLOR.has(type)) {
-      out.add({ kind: "color-profile", label: `Color information (${type})`, detail: formatSize(data.length), source: `PNG ${type}` }, !options.keepColorProfile);
+      out.add({ kind: "color-profile", label: t("finding.colorInfo", { type }), detail: formatSize(data.length), source: `PNG ${type}` }, !options.keepColorProfile);
     } else if (type === "tIME") {
       const year = readU16BE(data, 0);
       const pad = (n: number) => String(n).padStart(2, "0");
-      out.add({ kind: "other", label: "Last modified", detail: `${year}-${pad(data[2])}-${pad(data[3])} ${pad(data[4])}:${pad(data[5])}:${pad(data[6])} UTC`, source: "PNG tIME" });
+      out.add({ kind: "other", label: t("finding.lastModified"), detail: `${year}-${pad(data[2])}-${pad(data[3])} ${pad(data[4])}:${pad(data[5])}:${pad(data[6])} UTC`, source: "PNG tIME" });
     } else if (!PNG_KEEP.has(type) && !isCriticalPng(type)) {
-      out.add({ kind: "other", label: `Private chunk ${type}`, detail: formatSize(data.length), source: `PNG ${type}` });
+      out.add({ kind: "other", label: t("finding.privateChunk", { type }), detail: formatSize(data.length), source: `PNG ${type}` });
     }
   }
   const software = texts.find(([k]) => k === "Software")?.[1] ?? "";
@@ -997,12 +1004,12 @@ function parseWebp(bytes: Uint8Array): RiffChunk[] {
     const fourcc = ascii(bytes, p, 4);
     const size = readU32LE(bytes, p + 4);
     const dataEnd = p + 8 + size;
-    if (dataEnd > bytes.length) throw new Error("The WebP file is cut off.");
+    if (dataEnd > bytes.length) throw new Error(t("error.webpCutOff"));
     const end = Math.min(bytes.length, dataEnd + (size % 2));
     chunks.push({ fourcc, start: p, end, data: bytes.subarray(p + 8, dataEnd) });
     p = end;
   }
-  if (!chunks.length) throw new Error("The WebP structure is damaged.");
+  if (!chunks.length) throw new Error(t("error.webpDamaged"));
   return chunks;
 }
 
@@ -1017,7 +1024,7 @@ function inspectWebp(bytes: Uint8Array, options: CleanOptions, out: Findings) {
     else if (c.fourcc === "XMP ") readXmp(utf8(c.data), out, "WebP XMP");
     else if (c.fourcc === "ICCP") addIcc(c.data, out, "WebP ICCP", options);
     else if (c.fourcc === "C2PA") readC2pa(c.data, out, "WebP C2PA");
-    else if (!WEBP_KEEP.has(c.fourcc)) out.add({ kind: "other", label: `Chunk ${c.fourcc.trim()}`, detail: formatSize(c.data.length), source: "WebP" });
+    else if (!WEBP_KEEP.has(c.fourcc)) out.add({ kind: "other", label: t("finding.chunk", { type: c.fourcc.trim() }), detail: formatSize(c.data.length), source: "WebP" });
   }
 }
 
@@ -1063,7 +1070,7 @@ function cleanWebp(bytes: Uint8Array, options: CleanOptions, orientation: number
 const toSupported = (bytes: Uint8Array): MetadataImageFormat => {
   const format = detectImageFormat(bytes);
   if (format === "jpeg" || format === "png" || format === "webp") return format;
-  throw new Error("Only JPEG, PNG and WebP images are supported.");
+  throw new Error(t("error.unsupportedFormat"));
 };
 
 /** Lists the metadata in an image without changing it. */
@@ -1088,7 +1095,7 @@ export function cleanImage(bytes: Uint8Array, options: CleanOptions = DEFAULT_CL
   const before = inspectImage(bytes, options);
   const clean = before.format === "jpeg" ? cleanJpeg : before.format === "png" ? cleanPng : cleanWebp;
   const output = clean(bytes, options, before.orientation);
-  if (detectImageFormat(output) !== before.format) throw new Error("Cleaning produced an invalid file. The original is unchanged.");
+  if (detectImageFormat(output) !== before.format) throw new Error(t("error.cleanInvalid"));
   const after = inspectImage(output, options);
   return {
     bytes: output,
@@ -1123,5 +1130,5 @@ export function scanForMetadataMarkers(bytes: Uint8Array): string[] {
 
 /** Findings that still matter after cleaning: everything except the JFIF header, color data and orientation. */
 export function remainingMetadata(result: InspectResult): MetadataFinding[] {
-  return result.findings.filter((f) => f.kind !== "color-profile" && f.label !== "JFIF header" && f.label !== "Orientation");
+  return result.findings.filter((f) => f.kind !== "color-profile" && !f.kept);
 }

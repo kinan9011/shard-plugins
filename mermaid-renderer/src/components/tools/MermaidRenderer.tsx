@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { saveFile } from "@/lib/desktop";
+import { useT } from "@/lib/i18n";
 import { errorSummary, renderMermaid, svgDataUrl, svgToPng, type MermaidDiagram } from "@/utils/mermaid-render";
 import { MERMAID_TEMPLATES } from "@/utils/mermaid-templates";
 
@@ -15,33 +16,13 @@ const BACKGROUNDS: Record<Theme, string> = { light: "#ffffff", dark: "#333333" }
 
 const ZOOMS = [50, 75, 100, 150, 200];
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which diagram types work?",
-    a: "All types that Mermaid 11 supports, such as flowcharts, sequence, class, state, entity relationship, Gantt, pie, mind map, timeline, and Git graph diagrams. Pick a template to start from an example.",
-  },
-  {
-    q: "Is it safe to render a diagram from someone else?",
-    a: "Yes. The tool uses Mermaid's strict security level, which removes HTML and scripts from labels and turns off click handlers. The diagram shows as an image, so nothing in it can run or load from the network.",
-  },
-  {
-    q: "Why do HTML tags in labels show as text?",
-    a: "Labels are plain SVG text, so HTML formatting does not apply. Plain text labels also let the tool export PNG files.",
-  },
-  {
-    q: "How do I change the colors?",
-    a: "Use the Light and Dark switch, or add a %%{init: {\"theme\": \"forest\"}}%% line at the top of the diagram. Theme variables in that line also work.",
-  },
-  {
-    q: "What size is the PNG?",
-    a: "Twice the diagram size, for sharp text on high-density screens. Very large diagrams are scaled down to 8192 pixels on the longest side.",
-  },
-];
+const FAQ_KEYS = ["types", "safe", "html", "colors", "pngSize"] as const;
 
 const initialTheme = (): Theme =>
   typeof document !== "undefined" && document.documentElement.classList.contains("dark") ? "dark" : "light";
 
 export function MermaidRenderer() {
+  const t = useT();
   const [input, setInput] = useState<string>(MERMAID_TEMPLATES[0].source);
   const [replaced, setReplaced] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
@@ -95,14 +76,15 @@ export function MermaidRenderer() {
         kind === "svg" ? new Blob([diagram.svg], { type: "image/svg+xml" }) : await svgToPng(diagram, 2, BACKGROUNDS[theme]);
       await saveFile(blob, `diagram.${kind}`);
     } catch {
-      setSaveError(`Could not save the ${kind.toUpperCase()} file. Copy the SVG instead.`);
+      setSaveError(t("error.save", { kind: kind.toUpperCase() }));
     }
   };
 
   const notice = error ? (
     <div className="workspace-notice" data-tone="error" role="alert">
-      <pre className="whitespace-pre-wrap font-mono text-xs">{error}</pre>
-      {diagram && <p className="mt-1 text-xs">The preview shows the last diagram that rendered.</p>}
+      <p className="mb-1 text-xs">{t("error.lead")}</p>
+      <pre dir="ltr" className="whitespace-pre-wrap font-mono text-xs">{error}</pre>
+      {diagram && <p className="mt-1 text-xs">{t("error.lastDiagram")}</p>}
     </div>
   ) : saveError ? (
     <div className="workspace-notice" data-tone="error" role="alert">{saveError}</div>
@@ -115,42 +97,42 @@ export function MermaidRenderer() {
       toolbar={
         <>
           <select
-            aria-label="Template"
-            className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
+            aria-label={t("toolbar.template")}
+            className="h-8 rounded-md border border-input bg-background ps-2 pe-7 text-sm text-foreground"
             value=""
             onChange={(event) => applyTemplate(event.target.value)}
           >
             <option value="" disabled>
-              Template…
+              {t("toolbar.templatePlaceholder")}
             </option>
             {MERMAID_TEMPLATES.map((template) => (
               <option key={template.id} value={template.id}>
-                {template.label}
+                {t(`template.${template.id}`)}
               </option>
             ))}
           </select>
           {replaced !== null && (
             <button type="button" className="toolbar-text-button" onClick={() => edit(replaced)}>
-              Undo template
+              {t("toolbar.undoTemplate")}
             </button>
           )}
-          <div className="layout-switch indent-control" role="group" aria-label="Diagram theme">
+          <div className="layout-switch indent-control" role="group" aria-label={t("toolbar.themeAria")}>
             <button type="button" aria-pressed={theme === "light"} onClick={() => setTheme("light")}>
               <Sun size={14} aria-hidden="true" />
-              Light
+              {t("toolbar.light")}
             </button>
             <button type="button" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}>
               <Moon size={14} aria-hidden="true" />
-              Dark
+              {t("toolbar.dark")}
             </button>
           </div>
           <select
-            aria-label="Zoom"
-            className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
+            aria-label={t("toolbar.zoom")}
+            className="h-8 rounded-md border border-input bg-background ps-2 pe-7 text-sm text-foreground"
             value={zoom ?? "fit"}
             onChange={(event) => setZoom(event.target.value === "fit" ? null : Number(event.target.value))}
           >
-            <option value="fit">Fit to pane</option>
+            <option value="fit">{t("toolbar.fit")}</option>
             {ZOOMS.map((value) => (
               <option key={value} value={value}>
                 {value}%
@@ -165,7 +147,7 @@ export function MermaidRenderer() {
           title="Mermaid"
           htmlFor="mermaid-input"
           scroll={false}
-          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => edit("")}>Clear</button> : undefined}
+          actions={input ? <button type="button" className="toolbar-text-button" onClick={() => edit("")}>{t("common.clear")}</button> : undefined}
         >
           <CodeTextarea
             id="mermaid-input"
@@ -178,17 +160,17 @@ export function MermaidRenderer() {
       }
       second={
         <EditorPane
-          title="Diagram"
+          title={t("pane.diagram")}
           scroll={false}
           actions={
             diagram ? (
               <>
-                <CopyButton value={diagram.svg} label="Copy SVG" />
+                <CopyButton value={diagram.svg} label={t("action.copySvg")} />
                 <button type="button" className="toolbar-text-button" onClick={() => save("svg")}>
-                  Save SVG
+                  {t("action.saveSvg")}
                 </button>
                 <button type="button" className="toolbar-text-button" onClick={() => save("png")}>
-                  Save PNG
+                  {t("action.savePng")}
                 </button>
               </>
             ) : undefined
@@ -198,14 +180,14 @@ export function MermaidRenderer() {
             <div className="mermaid-stage" style={{ background: BACKGROUNDS[theme] }} data-fit={zoom === null || undefined}>
               <img
                 src={svgDataUrl(diagram.svg)}
-                alt={`Rendered ${diagram.type} diagram`}
+                alt={t("diagram.alt", { type: diagram.type })}
                 width={zoom === null ? diagram.width : Math.round((diagram.width * zoom) / 100)}
                 height={zoom === null ? diagram.height : Math.round((diagram.height * zoom) / 100)}
                 style={{ opacity: error ? 0.4 : undefined }}
               />
             </div>
           ) : (
-            <PaneEmpty title="The diagram appears here" hint="Type Mermaid text on the left, or pick a template." />
+            <PaneEmpty title={t("empty.title")} hint={t("empty.hint")} />
           )}
         </EditorPane>
       }
@@ -216,11 +198,11 @@ export function MermaidRenderer() {
             <span>
               {diagram.width} × {diagram.height}
             </span>
-            <span>{zoom === null ? "Fit" : `${zoom}%`}</span>
+            <span>{zoom === null ? t("status.fit") : `${zoom}%`}</span>
           </>
         ) : undefined
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />}
     />
   );
 }

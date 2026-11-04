@@ -1,4 +1,5 @@
 import { decodeHex } from "./checksum";
+import { formatNumber, t } from "@/lib/i18n";
 export interface AsnNode {
   offset: number;
   header: number;
@@ -35,48 +36,48 @@ export function decodeAsnInput(
   format: "pem" | "hex" | "base64",
 ): Uint8Array {
   if (input.length > 3000000)
-    throw new Error("Input is limited to 3 million characters.");
+    throw new Error(t("error.inputLimit", { max: formatNumber(3000000) }));
   if (format === "hex") return decodeHex(input);
   let body = input.trim();
   if (format === "pem") {
     const match =
       /^-----BEGIN ([A-Z0-9 ]+)-----([\s\S]+?)-----END \1-----$/.exec(body);
     if (!match)
-      throw new Error("Enter one complete PEM block with matching labels.");
+      throw new Error(t("error.pem"));
     body = match[2];
   }
   body = body.replace(/\s/g, "");
   if (!body || !/^[A-Za-z0-9+/]*={0,2}$/.test(body) || body.length % 4 === 1)
-    throw new Error("Invalid Base64 data.");
+    throw new Error(t("error.base64"));
   try {
     return Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
   } catch {
-    throw new Error("Invalid Base64 data.");
+    throw new Error(t("error.base64"));
   }
 }
 function primitive(tag: number, bytes: Uint8Array): string {
   if (tag === 1) {
     if (bytes.length !== 1)
-      throw new Error("BOOLEAN must contain exactly one byte.");
+      throw new Error(t("error.boolean"));
     return bytes[0] ? "true" : "false";
   }
   if (tag === 2 || tag === 10) {
-    if (!bytes.length) throw new Error("INTEGER cannot be empty.");
-    if (bytes.length > 512) return "Integer too large for decimal preview";
+    if (!bytes.length) throw new Error(t("error.integerEmpty"));
+    if (bytes.length > 512) return t("value.integerTooLarge");
     let n = 0n;
     for (const b of bytes) n = (n << 8n) | BigInt(b);
     if (bytes[0] & 128) n -= 1n << BigInt(bytes.length * 8);
     return n.toString();
   }
   if (tag === 5) {
-    if (bytes.length) throw new Error("NULL must have zero length.");
+    if (bytes.length) throw new Error(t("error.nullLength"));
     return "null";
   }
   if (tag === 6) {
-    if (bytes.length > 4096) throw new Error("OID exceeds 4,096 bytes.");
+    if (bytes.length > 4096) throw new Error(t("error.oidTooLong", { max: formatNumber(4096) }));
     const arcs: bigint[] = [];
     let value = 0n;
-    if (!bytes.length) throw new Error("OID cannot be empty.");
+    if (!bytes.length) throw new Error(t("error.oidEmpty"));
     for (const b of bytes) {
       value = (value << 7n) | BigInt(b & 127);
       if (!(b & 128)) {
@@ -84,7 +85,7 @@ function primitive(tag: number, bytes: Uint8Array): string {
         value = 0n;
       }
     }
-    if (bytes[bytes.length - 1] & 128) throw new Error("Truncated OID.");
+    if (bytes[bytes.length - 1] & 128) throw new Error(t("error.oidTruncated"));
     const first = arcs.shift()!;
     const root = first < 40n ? 0n : first < 80n ? 1n : 2n;
     return [root, first - root * 40n, ...arcs].join(".");
@@ -94,25 +95,25 @@ function primitive(tag: number, bytes: Uint8Array): string {
   // T.61 has no TextDecoder. Latin-1 shows its ASCII range correctly and never fails.
   if (tag === 20) return new TextDecoder("latin1").decode(bytes.slice(0, 4096));
   if (tag === 30) {
-    if (bytes.length % 2) throw new Error("BMPString requires pairs of bytes.");
+    if (bytes.length % 2) throw new Error(t("error.bmpPairs"));
     return new TextDecoder("utf-16be").decode(bytes.slice(0, 4096));
   }
   return "";
 }
 export function parseAsn1(bytes: Uint8Array): AsnNode[] {
-  if (bytes.length > 1000000) throw new Error("ASN.1 data is limited to 1 MB.");
-  if (!bytes.length) throw new Error("Enter ASN.1 data.");
+  if (bytes.length > 1000000) throw new Error(t("error.asnLimit"));
+  if (!bytes.length) throw new Error(t("error.enterAsn"));
   let count = 0;
   function parse(start: number, end: number, depth: number): AsnNode[] {
-    if (depth > 40) throw new Error("Nesting exceeds 40 levels.");
+    if (depth > 40) throw new Error(t("error.nesting", { max: 40 }));
     const nodes: AsnNode[] = [];
     let pos = start;
     const read = () => {
-      if (pos >= end) throw new Error(`Truncated data at byte ${pos}.`);
+      if (pos >= end) throw new Error(t("error.truncated", { position: pos }));
       return bytes[pos++];
     };
     while (pos < end) {
-      if (++count > 10000) throw new Error("More than 10,000 ASN.1 nodes.");
+      if (++count > 10000) throw new Error(t("error.tooManyNodes", { max: formatNumber(10000) }));
       const offset = pos,
         first = read(),
         cls = first >>> 6,
@@ -124,28 +125,24 @@ export function parseAsn1(bytes: Uint8Array): AsnNode[] {
         do {
           b = read();
           tag = tag * 128 + (b & 127);
-          if (tag > 0x7fffffff) throw new Error("Tag number is too large.");
+          if (tag > 0x7fffffff) throw new Error(t("error.tagTooLarge"));
         } while (b & 128);
       }
       let length = read();
       if (length === 128)
-        throw new Error(
-          "Indefinite-length BER is not supported. Use definite-length DER/BER.",
-        );
+        throw new Error(t("error.indefinite"));
       if (length & 128) {
         const size = length & 127;
-        if (size > 4) throw new Error("Length field is too large.");
+        if (size > 4) throw new Error(t("error.lengthTooLarge"));
         length = 0;
         for (let i = 0; i < size; i++) length = length * 256 + read();
       }
       const header = pos - offset,
         stop = pos + length;
       if (stop > end)
-        throw new Error(
-          `Value at byte ${offset} extends beyond its container.`,
-        );
+        throw new Error(t("error.beyond", { offset }));
       if (cls === 0 && tag === 0)
-        throw new Error("Unexpected end-of-content tag.");
+        throw new Error(t("error.endOfContent"));
       const valueBytes = bytes.subarray(pos, stop);
       const hex =
         Array.from(valueBytes.subarray(0, 256), (b) =>

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
+import { useT, type TKey } from "@/lib/i18n";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   RANGE_EXAMPLES,
@@ -22,42 +23,13 @@ import {
 
 const DEFAULT_VERSIONS = ["1.1.9", "1.2.0", "1.4.2", "1.9.0-beta.1", "2.0.0", "2.0.5", "2.1.0"].join("\n");
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Why does the same range mean different things in each package manager?",
-    a: "Each tool has its own rules. A bare `1.2` is `^1.2` in Cargo, `1.2.x` in npm, and exactly 1.2.0 in Composer. Python needs an operator, such as `==1.2`. Pick the package manager first.",
-  },
-  {
-    q: "What do ^ and ~ allow?",
-    a: "A caret allows changes that keep the left-most non-zero number. So `^1.2.3` allows up to 2.0.0, and `^0.3.1` allows up to 0.4.0. In npm and Cargo, `~1.2.3` allows up to 1.3.0. In Composer, `~1.2` allows up to 2.0.0, because the last number given can change.",
-  },
-  {
-    q: "How do I join comparators?",
-    a: "npm: a space means AND, and `||` means OR. Cargo: a comma means AND, and there is no OR. Composer: a space or a comma means AND, and `||` means OR. Python: a comma means AND, and there is no OR.",
-  },
-  {
-    q: "When does a pre-release match?",
-    a: "npm and Cargo match a pre-release such as 1.3.0-beta.1 only when a comparator names a pre-release of 1.3.0. Composer matches it inside the bounds, but installs it only when minimum-stability or a flag such as `@beta` allows it. Python matches it only with `pip --pre`, or when a specifier names a pre-release.",
-  },
-  {
-    q: "What do -0 and -dev mean in the normalized range?",
-    a: "npm writes `<2.0.0-0` to exclude the pre-releases of 2.0.0. Composer adds `-dev`, its lowest stability, so `>=1.2.0.0-dev` includes 1.2.0 pre-releases and `<2.0.0.0-dev` excludes 2.0.0 pre-releases.",
-  },
-  {
-    q: "How are versions ordered?",
-    a: "npm and Cargo follow SemVer 2.0. A pre-release comes before its release, and build metadata does not count. Composer orders dev, alpha, beta, RC, stable, then patch. Python orders dev, a, b, rc, the final release, then post.",
-  },
-  {
-    q: "Which rules does this tool follow?",
-    a: "npm uses the semver package that npm itself uses. Cargo follows the Rust semver crate, and Composer follows composer/semver. Python follows PEP 440 as the packaging library implements it. Branch names such as `dev-main` are not supported.",
-  },
-];
+const FAQ_KEYS = ["dialects", "caretTilde", "joining", "prerelease", "normalized", "ordering", "rules"] as const;
 
-const STATUS_TEXT: Record<NonNullable<VersionCheck["status"]>, { label: string; className: string }> = {
-  match: { label: "Matches", className: "text-success" },
-  miss: { label: "No match", className: "text-muted-foreground" },
-  prerelease: { label: "Pre-release excluded", className: "text-warning" },
-  unstable: { label: "Matches, not stable enough", className: "text-warning" },
+const STATUS_TEXT: Record<NonNullable<VersionCheck["status"]>, { label: TKey; className: string }> = {
+  match: { label: "status.match", className: "text-success" },
+  miss: { label: "status.miss", className: "text-muted-foreground" },
+  prerelease: { label: "status.prerelease", className: "text-warning" },
+  unstable: { label: "status.unstable", className: "text-warning" },
 };
 
 const ORDER_TEXT = { [-1]: "<", 0: "=", 1: ">" } as const;
@@ -65,6 +37,7 @@ const ORDER_TEXT = { [-1]: "<", 0: "=", 1: ">" } as const;
 const isExample = (range: string) => Object.values(RANGE_EXAMPLES).some((examples) => examples.some((example) => example.range === range));
 
 export function SemverCalculator() {
+  const t = useT();
   const [dialect, setDialect] = useState<VersionDialect>("npm");
   const [range, setRange] = useState(RANGE_EXAMPLES.npm[0].range);
   const [versions, setVersions] = useState(DEFAULT_VERSIONS);
@@ -77,9 +50,9 @@ export function SemverCalculator() {
   const leftText = useDebouncedValue(left);
   const rightText = useDebouncedValue(right);
 
-  const result = useMemo(() => evaluateRange(dialect, rangeText, splitVersions(versionsText)), [dialect, rangeText, versionsText]);
-  const comparison = useMemo(() => compareVersions(dialect, leftText, rightText), [dialect, leftText, rightText]);
-  const next = useMemo(() => nextVersions(dialect, leftText, preid), [dialect, leftText, preid]);
+  const result = useMemo(() => evaluateRange(dialect, rangeText, splitVersions(versionsText)), [dialect, rangeText, versionsText, t]);
+  const comparison = useMemo(() => compareVersions(dialect, leftText, rightText), [dialect, leftText, rightText, t]);
+  const next = useMemo(() => nextVersions(dialect, leftText, preid), [dialect, leftText, preid, t]);
   const dialectLabel = VERSION_DIALECTS.find((item) => item.id === dialect)?.label ?? dialect;
 
   const changeDialect = (value: string) => {
@@ -95,13 +68,13 @@ export function SemverCalculator() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ListChecks className="h-5 w-5" />
-            Version Range
+            {t("range.title")}
           </CardTitle>
-          <CardDescription>Check which versions a range allows. Each package manager reads ranges differently, so pick yours first.</CardDescription>
+          <CardDescription>{t("range.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Tabs value={dialect} onValueChange={changeDialect}>
-            <TabsList aria-label="Package manager">
+            <TabsList aria-label={t("range.packageManager")}>
               {VERSION_DIALECTS.map((item) => (
                 <TabsTrigger key={item.id} value={item.id}>
                   {item.label}
@@ -110,29 +83,29 @@ export function SemverCalculator() {
             </TabsList>
           </Tabs>
           <div className="space-y-2">
-            <Label htmlFor="semver-range">Range</Label>
+            <Label htmlFor="semver-range">{t("range.label")}</Label>
             <div className="flex flex-wrap gap-2">
               <Input
                 id="semver-range"
                 type="text"
-                aria-label="Range"
+                aria-label={t("range.label")}
                 aria-invalid={!result.ok}
                 aria-describedby="semver-explanation"
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="e.g., ^1.2 || ~2.0"
+                placeholder={t("range.placeholder")}
                 value={range}
                 onChange={(event) => setRange(event.target.value)}
-                className="min-w-48 flex-1 font-mono"
+                className="min-w-48 flex-1 font-mono" dir="ltr"
               />
               <Select value="" onValueChange={setRange}>
-                <SelectTrigger className="h-8 w-40 shrink-0" aria-label="Examples">
-                  <SelectValue placeholder="Examples" />
+                <SelectTrigger className="h-8 w-40 shrink-0" aria-label={t("range.examples")}>
+                  <SelectValue placeholder={t("range.examples")} />
                 </SelectTrigger>
                 <SelectContent>
                   {RANGE_EXAMPLES[dialect].map((example) => (
                     <SelectItem key={example.range} value={example.range}>
-                      {example.label}
+                      {t(example.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -144,17 +117,17 @@ export function SemverCalculator() {
             {result.ok ? (
               <>
                 <div className="flex items-center gap-2">
-                  <code className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm" aria-label="Normalized range">
+                  <code dir="ltr" className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm" aria-label={t("range.normalized")}>
                     {result.explanation.normalized}
                   </code>
-                  <CopyButton value={result.explanation.normalized} ariaLabel="Copy normalized range" iconOnly />
+                  <CopyButton value={result.explanation.normalized} ariaLabel={t("range.copyNormalized")} iconOnly />
                 </div>
                 <div className="space-y-1">
                   {result.explanation.sentences.map((sentence, index) => (
                     <p key={`${index}-${sentence}`} className="text-base font-medium">
                       {index > 0 ? (
                         <>
-                          <span className="text-muted-foreground">or </span>
+                          <span className="text-muted-foreground">{t("range.or")} </span>
                           {sentence[0].toLowerCase() + sentence.slice(1)}
                         </>
                       ) : (
@@ -180,39 +153,39 @@ export function SemverCalculator() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Versions</CardTitle>
-          <CardDescription>Enter one version per line. Each one is checked against the range as you type.</CardDescription>
+          <CardTitle>{t("versions.title")}</CardTitle>
+          <CardDescription>{t("versions.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <Textarea
-              aria-label="Versions"
+              aria-label={t("versions.title")}
               spellCheck={false}
               autoComplete="off"
               value={versions}
               onChange={(event) => setVersions(event.target.value)}
-              className="min-h-48 font-mono"
+              className="min-h-48 font-mono" dir="ltr"
               placeholder={"1.2.0\n1.4.2\n2.0.0"}
             />
             <div className="space-y-3">
               {result.checks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Add versions to see which ones match.</p>
+                <p className="text-sm text-muted-foreground">{t("versions.empty")}</p>
               ) : (
-                <table className="w-full text-sm" aria-label="Version results">
+                <table className="w-full text-sm" aria-label={t("versions.results")}>
                   <tbody>
                     {result.checks.map((check, index) => {
                       const status = check.status ? STATUS_TEXT[check.status] : undefined;
                       return (
                         <tr key={`${index}-${check.input}`} className="border-b border-border/50 align-top">
-                          <th scope="row" className="py-1.5 pr-3 text-left font-mono font-normal">
+                          <th scope="row" dir="ltr" className="py-1.5 pe-3 text-start font-mono font-normal">
                             {check.input}
                             {check.normalized && check.normalized !== check.input && check.normalized !== `${check.input}.0` && (
                               <span className="block text-xs text-muted-foreground">{check.normalized}</span>
                             )}
                           </th>
                           <td className={`py-1.5 ${check.error ? "text-destructive" : (status?.className ?? "text-muted-foreground")}`}>
-                            {check.error ?? status?.label ?? "Fix the range first"}
-                            {check.highest && <span className="ml-2 rounded bg-success/10 px-1.5 py-0.5 text-xs font-medium text-success">Highest</span>}
+                            {check.error ?? (status ? t(status.label) : t("status.fixRange"))}
+                            {check.highest && <span className="ms-2 rounded bg-success/10 px-1.5 py-0.5 text-xs font-medium text-success">{t("status.highest")}</span>}
                           </td>
                         </tr>
                       );
@@ -224,10 +197,10 @@ export function SemverCalculator() {
                 <p className="text-sm" role="status">
                   {result.highest ? (
                     <>
-                      Highest match: <code className="font-mono font-medium">{result.highest}</code>
+                      {t("versions.highestMatch")} <code dir="ltr" className="font-mono font-medium">{result.highest}</code>
                     </>
                   ) : (
-                    (result.highestNote ?? "No version matches this range.")
+                    (result.highestNote ?? t("versions.noMatch"))
                   )}
                 </p>
               )}
@@ -240,15 +213,15 @@ export function SemverCalculator() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5" />
-            Compare Versions
+            {t("compare.title")}
           </CardTitle>
-          <CardDescription>Order two versions by the {dialectLabel} rules and see the change between them.</CardDescription>
+          <CardDescription>{t("compare.description", { dialect: dialectLabel })}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" dir="ltr">
             <Input
               type="text"
-              aria-label="First version"
+              aria-label={t("compare.first")}
               aria-invalid={"side" in comparison && comparison.side === "left"}
               spellCheck={false}
               autoComplete="off"
@@ -256,12 +229,12 @@ export function SemverCalculator() {
               onChange={(event) => setLeft(event.target.value)}
               className="w-48 font-mono"
             />
-            <span className="w-6 text-center font-mono text-lg font-semibold" aria-label="Order">
+            <span className="w-6 text-center font-mono text-lg font-semibold" aria-label={t("compare.order")}>
               {comparison.ok ? ORDER_TEXT[comparison.order] : "?"}
             </span>
             <Input
               type="text"
-              aria-label="Second version"
+              aria-label={t("compare.second")}
               aria-invalid={"side" in comparison && comparison.side === "right"}
               spellCheck={false}
               autoComplete="off"
@@ -274,10 +247,10 @@ export function SemverCalculator() {
             <div className="space-y-1" role="status">
               <p className="text-base font-medium">
                 {comparison.order === 0
-                  ? `${comparison.left} and ${comparison.right} are the same version.`
-                  : `${comparison.left} is ${comparison.order < 0 ? "older" : "newer"} than ${comparison.right}.`}
+                  ? t("compare.same", { left: comparison.left, right: comparison.right })
+                  : t(comparison.order < 0 ? "compare.older" : "compare.newer", { left: comparison.left, right: comparison.right })}
               </p>
-              {comparison.bump && <p className="text-sm text-muted-foreground">Change between them: {comparison.bump}</p>}
+              {comparison.bump && <p className="text-sm text-muted-foreground">{t("compare.change", { bump: comparison.bump })}</p>}
               {comparison.note && <p className="text-xs text-muted-foreground">{comparison.note}</p>}
             </div>
           ) : (
@@ -289,11 +262,11 @@ export function SemverCalculator() {
           {next.length > 0 && (
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-medium">Next versions after {left.trim()}</h3>
+                <h3 className="text-sm font-medium">{t("next.title", { version: left.trim() })}</h3>
                 {(dialect === "npm" || dialect === "cargo") && (
                   <Input
                     type="text"
-                    aria-label="Pre-release id"
+                    aria-label={t("next.preid")}
                     spellCheck={false}
                     autoComplete="off"
                     placeholder="rc"
@@ -303,12 +276,12 @@ export function SemverCalculator() {
                   />
                 )}
               </div>
-              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-label="Next versions">
+              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-label={t("next.list")}>
                 {next.map((item) => (
                   <li key={item.label} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
                     <span className="text-xs text-muted-foreground">{item.label}</span>
-                    <code className="ml-auto font-mono text-sm">{item.version}</code>
-                    <CopyButton value={item.version} ariaLabel={`Copy ${item.label.toLowerCase()} version`} iconOnly />
+                    <code dir="ltr" className="ms-auto font-mono text-sm">{item.version}</code>
+                    <CopyButton value={item.version} ariaLabel={t("next.copy", { label: item.label.toLowerCase() })} iconOnly />
                   </li>
                 ))}
               </ul>
@@ -317,7 +290,7 @@ export function SemverCalculator() {
         </CardContent>
       </Card>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />
     </div>
   );
 }

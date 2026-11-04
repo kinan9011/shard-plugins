@@ -116,6 +116,7 @@ Most tools that were built into Shard are being moved here. `shared/` is what th
 - `shared/shims/sonner.ts`: `toast` shows the app's toast through `sdk.toast`.
 - `shared/storage-shim.ts`: the frame has no `localStorage`, so `mountTool` installs one that is saved in `sdk.storage` (one key, 1 MB).
 - `shared/bootstrap.tsx`: `mountTool(Tool, { form })` applies the app theme, pauses on `onVisibilityChange` (`useToolActive`) and wraps single-column tools like the app does.
+- `shared/lib/i18n.ts`, `i18n-common.ts`: the app language (see "Language" below).
 - `shared/tool.css`: the tool rules of the app's `index.css` (generated, without the app shell).
 - `shared/template/`: the config files every plugin gets.
 
@@ -126,6 +127,21 @@ self-contained, because the release workflow builds each one alone: `shared/` is
 to refresh a port; it overwrites the folder. Afterwards write the `description` in `public/plugin.json` and run
 `npm install && npm test && npm run build`. Ported plugins keep the tool's old id.
 
+## Language
+
+Every plugin follows the app language: English, German, Arabic, French, Spanish, Chinese, Japanese and Hebrew. The app sends `{ lang, dir }` in the
+handshake and when the user changes the language; `mountTool` (`followHostLocale` in `src/lib/i18n.ts`) applies it and sets `lang` and `dir` on `<html>`,
+because the app does not do that for plugin frames. Any other language, or an app without the locale calls, shows English.
+
+- A plugin's own strings live in `src/locales/{en,de,ar,fr,es,zh,ja,he}.ts`, flat `"area.thing": "text"` keys. `en.ts` is the source of truth (it types `t()`);
+  `tests/locales.test.ts` fails when a language lacks a key, has an extra one, changes a `{placeholder}`, or lacks `_other` for a plural family.
+- `useT()` in components, `import { t }` in utils (call it when the text is needed, never at module scope). `t("files", { count })` picks `files_one`/`files_other`
+  (Arabic needs `_zero`/`_one`/`_two`/`_few`/`_many`/`_other`, Hebrew `_one`/`_two`/`_other`, Japanese and Chinese `_other`). Shared button and panel text is in `shared/lib/i18n-common.ts`.
+- `formatNumber`/`formatDate` keep Latin digits in every language, like the app.
+- Right-to-left: use logical Tailwind classes (`ms-`, `pe-`, `start-`, `text-start`, ...) and `rtl:-scale-x-100` on arrows. Code, hashes and generated output stay `dir="ltr"`.
+- Try a language outside the app with `npm run dev` and `?lang=ar` (or `de`, `he`, `zh-CN`, ...).
+- Not translated: `public/plugin.json` (`name`, `description`, permission reasons), because the app does not read translated manifests yet.
+
 ## Add a plugin
 
 1. Copy the template from the shard repo, `packages/plugin-sdk/template/`, to `<plugin-id>/`.
@@ -133,7 +149,7 @@ to refresh a port; it overwrites the folder. Afterwards write the `description` 
 2. Edit `public/plugin.json`: `id`, `name`, `description`, `category`, `icon` (`lucide:<Name>` or a
    file in `public/`), `runtime` (`web`, `wasm` or `web+wasm`) and `permissions`. Every permission
    needs a `reason` the user will read. Set `name` and `version` in `package.json` as well.
-3. Build the tool in `src/App.tsx`. The template already connects to the host, applies the app's
+3. Build the tool in `src/App.tsx`, with its text in `src/locales/*.ts` (see "Language"). The template already connects to the host, applies the app's
    theme (light, dark and color schemes) and styles with the app's Tailwind tokens, so
    `bg-background`, `text-muted-foreground` and `rounded-lg` look like the rest of the app.
 4. `npm install`, then `npm run dev` for a quick look in a browser. Outside Shard there is no

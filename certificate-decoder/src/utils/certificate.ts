@@ -4,6 +4,8 @@
  *
  * `@peculiar/x509` is loaded on demand so it stays out of the main bundle.
  */
+import { t, type TKey } from "@/lib/i18n";
+
 type X509Module = typeof import("@peculiar/x509");
 type X509Certificate = import("@peculiar/x509").X509Certificate;
 type Pkcs10CertificateRequest = import("@peculiar/x509").Pkcs10CertificateRequest;
@@ -167,26 +169,31 @@ export const formatHexBytes = (hex: string) => {
 const digest = async (algorithm: "SHA-1" | "SHA-256", data: ArrayBuffer) =>
   toHex(await globalThis.crypto.subtle.digest(algorithm, data));
 
-const KEY_USAGE_NAMES: [number, string][] = [
-  [1, "Digital signature"],
-  [2, "Non-repudiation"],
-  [4, "Key encipherment"],
-  [8, "Data encipherment"],
-  [16, "Key agreement"],
-  [32, "Certificate signing"],
-  [64, "CRL signing"],
-  [128, "Encipher only"],
-  [256, "Decipher only"],
+// Names are dictionary keys, translated when a certificate is read.
+const KEY_USAGE_NAMES: [number, TKey][] = [
+  [1, "ku.digitalSignature"],
+  [2, "ku.nonRepudiation"],
+  [4, "ku.keyEncipherment"],
+  [8, "ku.dataEncipherment"],
+  [16, "ku.keyAgreement"],
+  [32, "ku.certSigning"],
+  [64, "ku.crlSigning"],
+  [128, "ku.encipherOnly"],
+  [256, "ku.decipherOnly"],
 ];
 
-const EKU_NAMES: Record<string, string> = {
-  "1.3.6.1.5.5.7.3.1": "TLS server authentication",
-  "1.3.6.1.5.5.7.3.2": "TLS client authentication",
-  "1.3.6.1.5.5.7.3.3": "Code signing",
-  "1.3.6.1.5.5.7.3.4": "Email protection",
-  "1.3.6.1.5.5.7.3.8": "Time stamping",
-  "1.3.6.1.5.5.7.3.9": "OCSP signing",
-  "2.5.29.37.0": "Any extended key usage",
+const EKU_NAMES: Record<string, TKey> = {
+  "1.3.6.1.5.5.7.3.1": "eku.serverAuth",
+  "1.3.6.1.5.5.7.3.2": "eku.clientAuth",
+  "1.3.6.1.5.5.7.3.3": "eku.codeSigning",
+  "1.3.6.1.5.5.7.3.4": "eku.emailProtection",
+  "1.3.6.1.5.5.7.3.8": "eku.timeStamping",
+  "1.3.6.1.5.5.7.3.9": "eku.ocspSigning",
+  "2.5.29.37.0": "eku.any",
+};
+
+// Vendor names with no translation.
+const EKU_VENDOR_NAMES: Record<string, string> = {
   "1.3.6.1.4.1.311.10.3.3": "Microsoft server gated crypto",
   "2.16.840.1.113730.4.1": "Netscape server gated crypto",
 };
@@ -212,11 +219,11 @@ export function describeSignatureAlgorithm(algorithm: Algorithm & { hash?: unkno
   const hash = HASH_LABEL(algorithm.hash);
   switch (algorithm.name) {
     case "RSASSA-PKCS1-v1_5":
-      return hash ? `${hash} with RSA` : "RSA";
+      return hash ? t("sig.rsa", { hash }) : "RSA";
     case "RSA-PSS":
-      return hash ? `RSA-PSS with ${hash}` : "RSA-PSS";
+      return hash ? t("sig.rsaPss", { hash }) : "RSA-PSS";
     case "ECDSA":
-      return hash ? `ECDSA with ${hash}` : "ECDSA";
+      return hash ? t("sig.ecdsa", { hash }) : "ECDSA";
     default:
       return algorithm.name;
   }
@@ -229,7 +236,7 @@ export function describePublicKey(algorithm: Algorithm & { modulusLength?: numbe
     return `${prefix} ${algorithm.modulusLength}`;
   }
   if (algorithm.name === "ECDSA" || algorithm.name === "ECDH") {
-    return `EC ${algorithm.namedCurve ?? "unknown curve"}`;
+    return `EC ${algorithm.namedCurve ?? t("key.unknownCurve")}`;
   }
   return algorithm.name;
 }
@@ -239,27 +246,25 @@ const nameLines = (json: Record<string, string[]>[]) =>
 
 const ONE_DAY = 86_400_000;
 
-const plural = (count: number, unit: string) => `${count} ${unit}${count === 1 ? "" : "s"}`;
-
 /** A distance such as "42 days", "5 hours", or "3 minutes". */
 export function formatDuration(ms: number): string {
   const abs = Math.abs(ms);
-  if (abs >= ONE_DAY) return plural(Math.floor(abs / ONE_DAY), "day");
-  if (abs >= 3_600_000) return plural(Math.floor(abs / 3_600_000), "hour");
-  return plural(Math.max(1, Math.floor(abs / 60_000)), "minute");
+  if (abs >= ONE_DAY) return t("duration.day", { count: Math.floor(abs / ONE_DAY) });
+  if (abs >= 3_600_000) return t("duration.hour", { count: Math.floor(abs / 3_600_000) });
+  return t("duration.minute", { count: Math.max(1, Math.floor(abs / 60_000)) });
 }
 
 /** The validity of a certificate at `now`. Certificates with 30 days or less left are "expiring". */
 export function validityStatus(notBefore: Date, notAfter: Date, now: Date = new Date()): ValidityStatus {
   const time = now.getTime();
   if (time < notBefore.getTime()) {
-    return { state: "not-yet-valid", label: `Not yet valid · starts in ${formatDuration(notBefore.getTime() - time)}` };
+    return { state: "not-yet-valid", label: t("validity.notYet", { duration: formatDuration(notBefore.getTime() - time) }) };
   }
   if (time > notAfter.getTime()) {
-    return { state: "expired", label: `Expired ${formatDuration(time - notAfter.getTime())} ago` };
+    return { state: "expired", label: t("validity.expired", { duration: formatDuration(time - notAfter.getTime()) }) };
   }
   const left = notAfter.getTime() - time;
-  return { state: left <= 30 * ONE_DAY ? "expiring" : "valid", label: `Valid · expires in ${formatDuration(left)}` };
+  return { state: left <= 30 * ONE_DAY ? "expiring" : "valid", label: t("validity.valid", { duration: formatDuration(left) }) };
 }
 
 function readSans(x509: X509Module, extension: Extension | null): SubjectAltName[] {
@@ -269,14 +274,15 @@ function readSans(x509: X509Module, extension: Extension | null): SubjectAltName
 
 function readKeyUsage(x509: X509Module, extension: Extension | null): string[] {
   if (!(extension instanceof x509.KeyUsagesExtension)) return [];
-  return KEY_USAGE_NAMES.filter(([flag]) => extension.usages & flag).map(([, name]) => name);
+  return KEY_USAGE_NAMES.filter(([flag]) => extension.usages & flag).map(([, name]) => t(name));
 }
 
 function readExtendedKeyUsage(x509: X509Module, extension: Extension | null): string[] {
   if (!(extension instanceof x509.ExtendedKeyUsageExtension)) return [];
   return extension.usages.map((usage) => {
     const oid = String(usage);
-    return EKU_NAMES[oid] ? `${EKU_NAMES[oid]} (${oid})` : oid;
+    const name = EKU_NAMES[oid] ? t(EKU_NAMES[oid]) : EKU_VENDOR_NAMES[oid];
+    return name ? `${name} (${oid})` : oid;
   });
 }
 
@@ -393,14 +399,14 @@ async function checkChain(certs: X509Certificate[], parsed: ParsedCertificate[],
   const unchecked = links.find((link) => link.signatureValid === null);
   let message: string;
   if (failed) {
-    const reason = !failed.issuerMatches ? "the issuer does not match the next subject" : "the signature does not verify";
-    message = `Link ${failed.from + 1} → ${failed.to + 1} fails: ${reason}`;
+    const reason = t(!failed.issuerMatches ? "chain.reasonIssuer" : "chain.reasonSignature");
+    message = t("chain.fails", { from: failed.from + 1, to: failed.to + 1, reason });
   } else if (unchecked) {
-    message = `Link ${unchecked.from + 1} → ${unchecked.to + 1} not checked: this signature algorithm is not supported here`;
+    message = t("chain.unchecked", { from: unchecked.from + 1, to: unchecked.to + 1 });
   } else {
-    message = endsAtRoot ? "Chain links verify" : "Chain links verify · the root certificate is not included";
+    message = t(endsAtRoot ? "chain.ok" : "chain.okNoRoot");
   }
-  if (!ordered) message = `${message} · shown in pasted order`;
+  if (!ordered) message = `${message} · ${t("chain.pastedOrder")}`;
   return { ordered, links, ok: !failed && !unchecked, message, endsAtRoot };
 }
 
@@ -417,8 +423,6 @@ const base64ToBytes = (text: string): Uint8Array | null => {
   }
 };
 
-const NOT_PEM = "Paste a PEM certificate (-----BEGIN CERTIFICATE-----) or open a .pem, .crt, .cer, or .der file.";
-
 type RawBlock = { kind: "certificate" | "csr" | "unknown"; bytes: Uint8Array };
 
 function splitInput(input: string, notes: string[]): RawBlock[] {
@@ -433,23 +437,23 @@ function splitInput(input: string, notes: string[]): RawBlock[] {
           ? "csr"
           : null;
       if (!kind) {
-        notes.push(`Skipped a ${label} block. Only certificates and certificate requests are decoded.`);
+        notes.push(t("note.skipped", { label }));
         continue;
       }
       // Drop RFC 1421 headers such as "Proc-Type:" before the base64 body
       const body = match[2].split(/\r?\n/).filter((line) => !line.includes(":")).join("");
       const bytes = base64ToBytes(body);
-      if (!bytes) throw new Error(`The ${label} block is not valid base64.`);
+      if (!bytes) throw new Error(t("error.invalidBase64", { label }));
       blocks.push({ kind, bytes });
     }
     if (blocks.length === 0 && notes.length === 0) {
-      throw new Error("Found a BEGIN line without a matching END line. Paste the whole PEM block.");
+      throw new Error(t("error.noEnd"));
     }
     return blocks;
   }
   const bytes = base64ToBytes(input);
   // DER data always starts with an ASN.1 SEQUENCE
-  if (!bytes || bytes[0] !== 0x30) throw new Error(NOT_PEM);
+  if (!bytes || bytes[0] !== 0x30) throw new Error(t("error.notPem"));
   return [{ kind: "unknown", bytes }];
 }
 
@@ -473,7 +477,7 @@ export async function decodeCertificates(input: string): Promise<CertificatePars
         continue;
       } catch (error) {
         if (block.kind === "certificate") {
-          throw new Error(`Block ${inputIndex} is not a valid X.509 certificate${error instanceof Error ? `: ${error.message}` : "."}`);
+          throw new Error(error instanceof Error ? t("error.certBlockWith", { n: inputIndex, message: error.message }) : t("error.certBlock", { n: inputIndex }));
         }
       }
     }
@@ -481,9 +485,9 @@ export async function decodeCertificates(input: string): Promise<CertificatePars
       requests.push(await readCsr(x509, new x509.Pkcs10CertificateRequest(buffer), inputIndex));
     } catch (error) {
       if (block.kind === "csr") {
-        throw new Error(`Block ${inputIndex} is not a valid certificate request${error instanceof Error ? `: ${error.message}` : "."}`);
+        throw new Error(error instanceof Error ? t("error.csrBlockWith", { n: inputIndex, message: error.message }) : t("error.csrBlock", { n: inputIndex }));
       }
-      throw new Error(NOT_PEM);
+      throw new Error(t("error.notPem"));
     }
   }
 
@@ -510,7 +514,7 @@ const looksLikeText = (bytes: Uint8Array) => {
  */
 export async function certificateFileToText(bytes: Uint8Array): Promise<string> {
   if (looksLikeText(bytes)) return new TextDecoder().decode(bytes);
-  if (bytes[0] !== 0x30) throw new Error("The file is not a PEM or DER certificate.");
+  if (bytes[0] !== 0x30) throw new Error(t("error.notCertFile"));
   const x509 = await loadX509();
   const buffer = exactBuffer(bytes);
   try {
@@ -519,7 +523,7 @@ export async function certificateFileToText(bytes: Uint8Array): Promise<string> 
     try {
       return new x509.Pkcs10CertificateRequest(buffer).toString("pem");
     } catch {
-      throw new Error("The file is not a DER certificate or certificate request.");
+      throw new Error(t("error.notDerFile"));
     }
   }
 }
@@ -533,10 +537,10 @@ export function certificateSummaryJson(result: CertificateParseResult): string {
         ...strip(cert),
         notBefore: cert.notBefore.toISOString(),
         notAfter: cert.notAfter.toISOString(),
-        validity: validityStatus(cert.notBefore, cert.notAfter).label,
+        validity: validityStatus(cert.notBefore, cert.notAfter).state,
       })),
       ...(result.requests.length ? { requests: result.requests.map(strip) } : {}),
-      ...(result.chain ? { chain: { ok: result.chain.ok, message: result.chain.message, links: result.chain.links } } : {}),
+      ...(result.chain ? { chain: { ok: result.chain.ok, ordered: result.chain.ordered, endsAtRoot: result.chain.endsAtRoot, links: result.chain.links } } : {}),
     },
     null,
     2,

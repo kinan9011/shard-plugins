@@ -1,7 +1,7 @@
 {
   "id": "ai-text-cleaner",
   "name": "AI Text Cleaner",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Remove hidden characters, citation markers, and Markdown from AI-written text, and straighten quotes and dashes.",
   "category": "AI Tools",
   "keywords": [

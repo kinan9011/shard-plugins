@@ -1,0 +1,16 @@
+export default {
+  "length.label": "密码长度：{length}",
+  "option.uppercase": "大写字母 (A-Z)",
+  "option.lowercase": "小写字母 (a-z)",
+  "option.numbers": "数字 (0-9)",
+  "option.symbols": "符号 (!@#$...)",
+  "output.label": "生成的密码",
+  "output.copy": "复制密码",
+  "output.regenerate": "生成新密码",
+  "strength.label": "强度",
+  "strength.weak": "弱",
+  "strength.fair": "一般",
+  "strength.good": "良好",
+  "strength.strong": "强",
+  "error.noCharacterType": "请至少选择一种字符类型",
+};

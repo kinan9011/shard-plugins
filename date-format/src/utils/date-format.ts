@@ -5,6 +5,8 @@
 // tokens that only the source dialect knows). Every dialect then emits from that list. When a
 // target has no exact token, the emitter uses the closest one and returns a warning for it.
 
+import { t, type TKey, type TVars } from "@/lib/i18n";
+
 export type Dialect = "go" | "c" | "python" | "ruby" | "java" | "datefns" | "moment" | "php" | "dotnet";
 
 export const DIALECTS: { id: Dialect; label: string }[] = [
@@ -34,50 +36,51 @@ export type FieldId =
   | "zoneAbbr" | "zoneId"
   | "unix" | "unixMs";
 
-export const FIELD_LABELS: Record<FieldId, string> = {
-  year: "Year, 4 digits",
-  year2: "Year, 2 digits",
-  isoWeekYear: "ISO week-numbering year",
-  isoWeek: "ISO week number, 2 digits",
-  quarter: "Quarter (1 to 4)",
-  month: "Month (1 to 12)",
-  month2: "Month, 2 digits",
-  monthShort: "Month name, short (Jan)",
-  monthLong: "Month name (January)",
-  day: "Day of month (1 to 31)",
-  day2: "Day of month, 2 digits",
-  daySpace: "Day of month, padded with a space",
-  daySuffix: "Ordinal suffix (st, nd, rd, th)",
-  dayOfYear: "Day of year (1 to 366)",
-  dayOfYear3: "Day of year, 3 digits",
-  dayOfYearSpace: "Day of year, padded with spaces",
-  dayOfYear0: "Day of year from 0 (0 to 365)",
-  weekdayShort: "Weekday name, short (Mon)",
-  weekdayLong: "Weekday name (Monday)",
-  weekdayIso: "Weekday number, Monday is 1",
-  weekday0: "Weekday number, Sunday is 0",
-  hour: "Hour, 24-hour (0 to 23)",
-  hour2: "Hour, 24-hour, 2 digits",
-  hourSpace: "Hour, 24-hour, padded with a space",
-  hour12: "Hour, 12-hour (1 to 12)",
-  hour12_2: "Hour, 12-hour, 2 digits",
-  hour12Space: "Hour, 12-hour, padded with a space",
-  minute: "Minute (0 to 59)",
-  minute2: "Minute, 2 digits",
-  second: "Second (0 to 59)",
-  second2: "Second, 2 digits",
-  ampm: "AM or PM",
-  ampmLower: "am or pm",
-  offset: "UTC offset (-0700)",
-  offsetColon: "UTC offset (-07:00)",
-  offsetHour: "UTC offset, hours only (-07)",
-  offsetZ: "UTC offset, Z for UTC (-0700)",
-  offsetColonZ: "UTC offset, Z for UTC (-07:00)",
-  offsetHourZ: "UTC offset, Z for UTC (-07)",
-  zoneAbbr: "Time zone abbreviation (MST)",
-  zoneId: "Time zone ID (America/Denver)",
-  unix: "Unix time in seconds",
-  unixMs: "Unix time in milliseconds",
+/** The dictionary key of each field's description. */
+export const FIELD_LABELS: Record<FieldId, TKey> = {
+  year: "field.year",
+  year2: "field.year2",
+  isoWeekYear: "field.isoWeekYear",
+  isoWeek: "field.isoWeek",
+  quarter: "field.quarter",
+  month: "field.month",
+  month2: "field.month2",
+  monthShort: "field.monthShort",
+  monthLong: "field.monthLong",
+  day: "field.day",
+  day2: "field.day2",
+  daySpace: "field.daySpace",
+  daySuffix: "field.daySuffix",
+  dayOfYear: "field.dayOfYear",
+  dayOfYear3: "field.dayOfYear3",
+  dayOfYearSpace: "field.dayOfYearSpace",
+  dayOfYear0: "field.dayOfYear0",
+  weekdayShort: "field.weekdayShort",
+  weekdayLong: "field.weekdayLong",
+  weekdayIso: "field.weekdayIso",
+  weekday0: "field.weekday0",
+  hour: "field.hour",
+  hour2: "field.hour2",
+  hourSpace: "field.hourSpace",
+  hour12: "field.hour12",
+  hour12_2: "field.hour12_2",
+  hour12Space: "field.hour12Space",
+  minute: "field.minute",
+  minute2: "field.minute2",
+  second: "field.second",
+  second2: "field.second2",
+  ampm: "field.ampm",
+  ampmLower: "field.ampmLower",
+  offset: "field.offset",
+  offsetColon: "field.offsetColon",
+  offsetHour: "field.offsetHour",
+  offsetZ: "field.offsetZ",
+  offsetColonZ: "field.offsetColonZ",
+  offsetHourZ: "field.offsetHourZ",
+  zoneAbbr: "field.zoneAbbr",
+  zoneId: "field.zoneId",
+  unix: "field.unix",
+  unixMs: "field.unixMs",
 };
 
 export type Part =
@@ -86,7 +89,7 @@ export type Part =
   /** Fractional seconds. `sep` is the "." or "," before the digits. `trim` drops trailing zeros. */
   | { kind: "fraction"; digits: number; trim: boolean; sep: string; src?: string }
   /** A token only the source dialect has, such as the era or a locale's date format. */
-  | { kind: "raw"; dialect: Dialect; text: string; label: string; src?: string };
+  | { kind: "raw"; dialect: Dialect; text: string; /** Already translated. */ label: string; src?: string };
 
 export interface ParseResult {
   parts: Part[];
@@ -102,11 +105,11 @@ export interface EmitResult {
 export const describePart = (part: Part): string => {
   switch (part.kind) {
     case "literal":
-      return "Text";
+      return t("part.literal");
     case "field":
-      return FIELD_LABELS[part.field];
+      return t(FIELD_LABELS[part.field]);
     case "fraction":
-      return `Fractional seconds, ${part.digits} digit${part.digits === 1 ? "" : "s"}${part.trim ? ", trailing zeros removed" : ""}`;
+      return t(part.trim ? "part.fractionTrim" : "part.fraction", { count: part.digits });
     case "raw":
       return part.label;
   }
@@ -114,6 +117,10 @@ export const describePart = (part: Part): string => {
 
 // ---------------------------------------------------------------------------------------------
 // Parsing helpers
+
+/** The description of a token only its own dialect knows: a dictionary key, translated when the token is read. */
+type RawLabel = { key: TKey; vars?: TVars };
+const raw = (key: TKey, vars?: TVars): RawLabel => ({ key, vars });
 
 class PartList {
   parts: Part[] = [];
@@ -138,8 +145,8 @@ class PartList {
     this.parts.push({ kind: "fraction", digits, trim, sep, src });
   }
 
-  raw(dialect: Dialect, text: string, label: string) {
-    this.parts.push({ kind: "raw", dialect, text, label, src: text });
+  raw(dialect: Dialect, text: string, label: RawLabel) {
+    this.parts.push({ kind: "raw", dialect, text, label: t(label.key, label.vars), src: text });
   }
 
   warn(message: string) {
@@ -177,7 +184,7 @@ const runLength = (s: string, i: number) => {
 // ---------------------------------------------------------------------------------------------
 // Go
 
-const GO_PREFIX_TOKENS: [string, FieldId | null, string?][] = [
+const GO_PREFIX_TOKENS: [string, FieldId | null, RawLabel?][] = [
   ["January", "monthLong"],
   ["Jan", "monthShort"],
   ["Monday", "weekdayLong"],
@@ -196,13 +203,13 @@ const GO_PREFIX_TOKENS: [string, FieldId | null, string?][] = [
   ["_2", "daySpace"],
   ["PM", "ampm"],
   ["pm", "ampmLower"],
-  ["-070000", null, "UTC offset with seconds (-070000)"],
-  ["-07:00:00", null, "UTC offset with seconds (-07:00:00)"],
+  ["-070000", null, raw("raw.offsetSecondsEx", { example: "-070000" })],
+  ["-07:00:00", null, raw("raw.offsetSecondsEx", { example: "-07:00:00" })],
   ["-0700", "offset"],
   ["-07:00", "offsetColon"],
   ["-07", "offsetHour"],
-  ["Z070000", null, "UTC offset with seconds, Z for UTC (Z070000)"],
-  ["Z07:00:00", null, "UTC offset with seconds, Z for UTC (Z07:00:00)"],
+  ["Z070000", null, raw("raw.offsetSecondsZEx", { example: "Z070000" })],
+  ["Z07:00:00", null, raw("raw.offsetSecondsZEx", { example: "Z07:00:00" })],
   ["Z0700", "offsetZ"],
   ["Z07:00", "offsetColonZ"],
   ["Z07", "offsetHourZ"],
@@ -236,7 +243,7 @@ function parseGo(layout: string): ParseResult {
       const n = runLength(layout, i + 1);
       if (!isDigit(layout[i + 1 + n])) {
         const src = layout.slice(i, i + 1 + n);
-        if (n > 9) out.warn(`Go supports at most 9 fractional digits. ${src} prints 9.`);
+        if (n > 9) out.warn(t("warn.goFractionDigits", { src }));
         out.fraction(Math.min(n, 9), layout[i + 1] === "9", src, c);
         i += 1 + n;
         continue;
@@ -297,16 +304,16 @@ const STRFTIME_COMPOSITES: Record<string, string> = {
   r: "%I:%M:%S %p",
 };
 
-const STRFTIME_RAW: Record<string, string> = {
-  c: "Locale date and time",
-  x: "Locale date",
-  X: "Locale time",
-  C: "Century (20)",
-  g: "ISO week-numbering year, 2 digits",
-  U: "Week of year, Sunday first",
-  W: "Week of year, Monday first",
-  "+": "Date and time in date(1) format",
-  v: "Date as 2-Jan-2006 (Ruby)",
+const STRFTIME_RAW: Record<string, RawLabel> = {
+  c: raw("raw.localeDateTime"),
+  x: raw("raw.localeDate"),
+  X: raw("raw.localeTime"),
+  C: raw("raw.century"),
+  g: raw("raw.isoWeekYear2"),
+  U: raw("raw.weekSundayFirst"),
+  W: raw("raw.weekMondayFirst"),
+  "+": raw("raw.dateCommand"),
+  v: raw("raw.rubyDate"),
 };
 
 function parseStrftime(format: string, dialect: Dialect): ParseResult {
@@ -323,12 +330,12 @@ function parseStrftime(format: string, dialect: Dialect): ParseResult {
     const [src, flags, width, colons, conv] = m;
     i += src.length;
     if (!conv) {
-      out.warn("The format ends with a lone %.");
+      out.warn(t("warn.loneSign"));
       out.literal("%", src);
       continue;
     }
     if (flags.includes("^") || flags.includes("#")) {
-      out.warn(`The ${flags.includes("^") ? "^" : "#"} flag in ${src} changes letter case. Other dialects cannot do that, so it was ignored.`);
+      out.warn(t("warn.caseFlag", { flag: flags.includes("^") ? "^" : "#", src }));
     }
     if (conv === "%") {
       out.literal("%", src);
@@ -337,7 +344,7 @@ function parseStrftime(format: string, dialect: Dialect): ParseResult {
     } else if (conv === "z") {
       if (colons === "") out.field("offset", src);
       else if (colons === ":") out.field("offsetColon", src);
-      else out.raw(dialect, src, "UTC offset with seconds (-07:00:00)");
+      else out.raw(dialect, src, raw("raw.offsetSecondsEx", { example: "-07:00:00" }));
     } else if (conv === "f") {
       out.fraction(6, false, src);
     } else if (conv === "L") {
@@ -356,13 +363,13 @@ function parseStrftime(format: string, dialect: Dialect): ParseResult {
       if (flags.includes("-") && entry.minus) field = entry.minus;
       else if (flags.includes("_") && entry.under) field = entry.under;
       else if (flags.includes("0") && entry.zero) field = entry.zero;
-      else if (/[-_0]/.test(flags)) out.warn(`The padding flag in ${src} has no effect on other dialects. It was ignored.`);
-      if (width) out.warn(`The width in ${src} was ignored.`);
+      else if (/[-_0]/.test(flags)) out.warn(t("warn.paddingFlag", { src }));
+      if (width) out.warn(t("warn.widthIgnored", { src }));
       out.field(field, src);
     } else if (STRFTIME_RAW[conv]) {
       out.raw(dialect, src, STRFTIME_RAW[conv]);
     } else {
-      out.warn(`${src} is not a known strftime directive. It was read as text.`);
+      out.warn(t("warn.unknownDirective", { src }));
       out.literal(src);
     }
   }
@@ -372,86 +379,88 @@ function parseStrftime(format: string, dialect: Dialect): ParseResult {
 // ---------------------------------------------------------------------------------------------
 // Java DateTimeFormatter and date-fns: Unicode-style letters, quoted text in '...'
 
-type LetterRule = (count: number) => FieldId | { fraction: number } | { raw: string } | null;
+type LetterRule = (count: number) => FieldId | { fraction: number } | { raw: RawLabel } | null;
+/** A letter rule result that is a raw token with this description. */
+const rawOf = (key: TKey, vars?: TVars) => ({ raw: raw(key, vars) });
 
 const nameOrNumber = (count: number, num: FieldId, num2: FieldId) => (count === 1 ? num : count === 2 ? num2 : null);
-const monthRule: LetterRule = (n) => (n === 1 ? "month" : n === 2 ? "month2" : n === 3 ? "monthShort" : n === 4 ? "monthLong" : { raw: "Month, narrow (J)" });
-const textWeekday: LetterRule = (n) => (n <= 3 ? "weekdayShort" : n === 4 ? "weekdayLong" : { raw: "Weekday name, narrow" });
+const monthRule: LetterRule = (n) => (n === 1 ? "month" : n === 2 ? "month2" : n === 3 ? "monthShort" : n === 4 ? "monthLong" : rawOf("raw.monthNarrow"));
+const textWeekday: LetterRule = (n) => (n <= 3 ? "weekdayShort" : n === 4 ? "weekdayLong" : rawOf("raw.weekdayNarrow"));
 
 const JAVA_LETTERS: Record<string, LetterRule> = {
-  G: () => ({ raw: "Era (AD)" }),
+  G: () => (rawOf("raw.era")),
   u: (n) => (n === 2 ? "year2" : "year"),
   y: (n) => (n === 2 ? "year2" : "year"),
-  Y: (n) => (n === 2 ? { raw: "Week-based year, 2 digits" } : "isoWeekYear"),
-  Q: (n) => (n === 1 ? "quarter" : { raw: n === 2 ? "Quarter, 2 digits (01)" : "Quarter as text (Q1)" }),
-  q: (n) => (n === 1 ? "quarter" : { raw: n === 2 ? "Quarter, 2 digits (01)" : "Quarter as text (Q1)" }),
+  Y: (n) => (n === 2 ? rawOf("raw.weekBasedYear2") : "isoWeekYear"),
+  Q: (n) => (n === 1 ? "quarter" : rawOf(n === 2 ? "raw.quarter2" : "raw.quarterText")),
+  q: (n) => (n === 1 ? "quarter" : rawOf(n === 2 ? "raw.quarter2" : "raw.quarterText")),
   M: monthRule,
   L: monthRule,
   w: (n) => (n <= 2 ? "isoWeek" : null),
-  W: () => ({ raw: "Week of month" }),
+  W: () => (rawOf("raw.weekOfMonth")),
   E: textWeekday,
   e: (n) => (n <= 2 ? "weekdayIso" : textWeekday(n - 1)),
   c: (n) => (n === 1 ? "weekdayIso" : textWeekday(n - 1)),
-  F: () => ({ raw: "Aligned week of month" }),
+  F: () => (rawOf("raw.alignedWeekOfMonth")),
   d: (n) => nameOrNumber(n, "day", "day2"),
-  D: (n) => (n === 1 ? "dayOfYear" : n === 3 ? "dayOfYear3" : n === 2 ? { raw: "Day of year, at least 2 digits" } : null),
+  D: (n) => (n === 1 ? "dayOfYear" : n === 3 ? "dayOfYear3" : n === 2 ? rawOf("raw.dayOfYear2") : null),
   a: (n) => (n === 1 ? "ampm" : null),
-  B: () => ({ raw: "Day period (in the morning)" }),
+  B: () => (rawOf("raw.dayPeriod")),
   h: (n) => nameOrNumber(n, "hour12", "hour12_2"),
-  K: (n) => (n <= 2 ? { raw: "Hour, 12-hour (0 to 11)" } : null),
-  k: (n) => (n <= 2 ? { raw: "Hour, 24-hour (1 to 24)" } : null),
+  K: (n) => (n <= 2 ? rawOf("raw.hour12From0") : null),
+  k: (n) => (n <= 2 ? rawOf("raw.hour24From1") : null),
   H: (n) => nameOrNumber(n, "hour", "hour2"),
   m: (n) => nameOrNumber(n, "minute", "minute2"),
   s: (n) => nameOrNumber(n, "second", "second2"),
   S: (n) => (n <= 9 ? { fraction: n } : null),
-  A: () => ({ raw: "Milliseconds of day" }),
-  n: () => ({ raw: "Nanoseconds of second" }),
-  N: () => ({ raw: "Nanoseconds of day" }),
+  A: () => (rawOf("raw.msOfDay")),
+  n: () => (rawOf("raw.nanoOfSecond")),
+  N: () => (rawOf("raw.nanoOfDay")),
   V: (n) => (n === 2 ? "zoneId" : null),
-  v: () => ({ raw: "Generic time zone name" }),
-  z: (n) => (n <= 3 ? "zoneAbbr" : n === 4 ? { raw: "Time zone name (Mountain Standard Time)" } : null),
-  O: () => ({ raw: "Localized offset (GMT-7)" }),
-  X: (n) => (n === 1 ? "offsetHourZ" : n === 2 ? "offsetZ" : n === 3 ? "offsetColonZ" : n <= 5 ? { raw: "UTC offset with seconds, Z for UTC" } : null),
-  x: (n) => (n === 1 ? "offsetHour" : n === 2 ? "offset" : n === 3 ? "offsetColon" : n <= 5 ? { raw: "UTC offset with seconds" } : null),
-  Z: (n) => (n <= 3 ? "offset" : n === 4 ? { raw: "Localized offset (GMT-07:00)" } : n === 5 ? "offsetColonZ" : null),
+  v: () => (rawOf("raw.zoneGeneric")),
+  z: (n) => (n <= 3 ? "zoneAbbr" : n === 4 ? rawOf("raw.zoneName") : null),
+  O: () => (rawOf("raw.offsetLocalizedShort")),
+  X: (n) => (n === 1 ? "offsetHourZ" : n === 2 ? "offsetZ" : n === 3 ? "offsetColonZ" : n <= 5 ? rawOf("raw.offsetSecondsZ") : null),
+  x: (n) => (n === 1 ? "offsetHour" : n === 2 ? "offset" : n === 3 ? "offsetColon" : n <= 5 ? rawOf("raw.offsetSeconds") : null),
+  Z: (n) => (n <= 3 ? "offset" : n === 4 ? rawOf("raw.offsetLocalizedLong") : n === 5 ? "offsetColonZ" : null),
 };
 
 const DATEFNS_LETTERS: Record<string, LetterRule> = {
-  G: () => ({ raw: "Era (AD)" }),
+  G: () => (rawOf("raw.era")),
   y: (n) => (n === 2 ? "year2" : "year"),
-  Y: () => ({ raw: "Local week-numbering year" }),
-  R: (n) => (n === 2 ? { raw: "ISO week-numbering year, 2 digits" } : "isoWeekYear"),
-  u: () => ({ raw: "Extended year" }),
-  Q: (n) => (n === 1 ? "quarter" : { raw: n === 2 ? "Quarter, 2 digits (01)" : "Quarter as text (Q1)" }),
-  q: (n) => (n === 1 ? "quarter" : { raw: n === 2 ? "Quarter, 2 digits (01)" : "Quarter as text (Q1)" }),
+  Y: () => (rawOf("raw.localWeekYear")),
+  R: (n) => (n === 2 ? rawOf("raw.isoWeekYear2") : "isoWeekYear"),
+  u: () => (rawOf("raw.extendedYear")),
+  Q: (n) => (n === 1 ? "quarter" : rawOf(n === 2 ? "raw.quarter2" : "raw.quarterText")),
+  q: (n) => (n === 1 ? "quarter" : rawOf(n === 2 ? "raw.quarter2" : "raw.quarterText")),
   M: monthRule,
   L: monthRule,
-  w: () => ({ raw: "Local week of year" }),
+  w: () => (rawOf("raw.localWeek")),
   I: (n) => (n <= 2 ? "isoWeek" : null),
   d: (n) => nameOrNumber(n, "day", "day2"),
-  D: (n) => (n === 1 ? "dayOfYear" : n === 3 ? "dayOfYear3" : n === 2 ? { raw: "Day of year, at least 2 digits" } : null),
+  D: (n) => (n === 1 ? "dayOfYear" : n === 3 ? "dayOfYear3" : n === 2 ? rawOf("raw.dayOfYear2") : null),
   E: textWeekday,
-  i: (n) => (n === 1 ? "weekdayIso" : n === 2 ? { raw: "ISO weekday, 2 digits" } : textWeekday(n - 1)),
-  e: (n) => (n <= 2 ? { raw: "Local weekday number" } : textWeekday(n - 1)),
-  c: (n) => (n <= 2 ? { raw: "Local weekday number" } : textWeekday(n - 1)),
-  a: (n) => (n <= 2 ? "ampm" : n === 3 ? "ampmLower" : { raw: "AM or PM, long (a.m.)" }),
-  b: () => ({ raw: "AM, PM, noon, or midnight" }),
-  B: () => ({ raw: "Day period (in the morning)" }),
+  i: (n) => (n === 1 ? "weekdayIso" : n === 2 ? rawOf("raw.isoWeekday2") : textWeekday(n - 1)),
+  e: (n) => (n <= 2 ? rawOf("raw.localWeekday") : textWeekday(n - 1)),
+  c: (n) => (n <= 2 ? rawOf("raw.localWeekday") : textWeekday(n - 1)),
+  a: (n) => (n <= 2 ? "ampm" : n === 3 ? "ampmLower" : rawOf("raw.ampmLong")),
+  b: () => (rawOf("raw.ampmNoon")),
+  B: () => (rawOf("raw.dayPeriod")),
   h: (n) => nameOrNumber(n, "hour12", "hour12_2"),
-  K: (n) => (n <= 2 ? { raw: "Hour, 12-hour (0 to 11)" } : null),
-  k: (n) => (n <= 2 ? { raw: "Hour, 24-hour (1 to 24)" } : null),
+  K: (n) => (n <= 2 ? rawOf("raw.hour12From0") : null),
+  k: (n) => (n <= 2 ? rawOf("raw.hour24From1") : null),
   H: (n) => nameOrNumber(n, "hour", "hour2"),
   m: (n) => nameOrNumber(n, "minute", "minute2"),
   s: (n) => nameOrNumber(n, "second", "second2"),
   S: (n) => ({ fraction: n }),
-  X: (n) => (n === 1 ? "offsetHourZ" : n === 2 ? "offsetZ" : n === 3 ? "offsetColonZ" : { raw: "UTC offset with seconds, Z for UTC" }),
-  x: (n) => (n === 1 ? "offsetHour" : n === 2 ? "offset" : n === 3 ? "offsetColon" : { raw: "UTC offset with seconds" }),
-  O: () => ({ raw: "Localized offset (GMT-7)" }),
-  z: (n) => (n <= 3 ? "zoneAbbr" : { raw: "Localized offset (GMT-07:00)" }),
+  X: (n) => (n === 1 ? "offsetHourZ" : n === 2 ? "offsetZ" : n === 3 ? "offsetColonZ" : rawOf("raw.offsetSecondsZ")),
+  x: (n) => (n === 1 ? "offsetHour" : n === 2 ? "offset" : n === 3 ? "offsetColon" : rawOf("raw.offsetSeconds")),
+  O: () => (rawOf("raw.offsetLocalizedShort")),
+  z: (n) => (n <= 3 ? "zoneAbbr" : rawOf("raw.offsetLocalizedLong")),
   t: () => "unix",
   T: () => "unixMs",
-  P: () => ({ raw: "Locale date" }),
-  p: () => ({ raw: "Locale time" }),
+  P: () => (rawOf("raw.localeDate")),
+  p: () => (rawOf("raw.localeTime")),
 };
 
 // Letters that accept an "o" suffix in date-fns: 1st, 2nd, and so on.
@@ -483,19 +492,19 @@ function parseUnicode(format: string, dialect: "java" | "datefns"): ParseResult 
         }
         text += format[j++];
       }
-      if (j >= format.length) out.warn("A quote is not closed. The rest of the format was read as text.");
+      if (j >= format.length) out.warn(t("warn.quoteNotClosed"));
       out.literal(text, format.slice(i, j + 1));
       i = j + 1;
       continue;
     }
     if (dialect === "java" && (c === "[" || c === "]")) {
-      out.warn("Optional sections in [ ] only affect parsing. The brackets were removed.");
+      out.warn(t("warn.javaBrackets"));
       out.literal("", c);
       i++;
       continue;
     }
     if (dialect === "java" && (c === "{" || c === "}" || c === "#")) {
-      out.warn(`Java reserves ${c}. Quote it as '${c}'.`);
+      out.warn(t("warn.javaReserved", { char: c }));
       out.literal(c);
       i++;
       continue;
@@ -515,7 +524,7 @@ function parseUnicode(format: string, dialect: "java" | "datefns"): ParseResult 
       const spaced: Record<string, FieldId> = { d: "daySpace", H: "hourSpace", h: "hour12Space", D: "dayOfYearSpace" };
       const width = letter === "D" ? 3 : 2;
       if (n === 1 && padded[letter] && pads === width) out.field(spaced[letter], src);
-      else out.raw("java", src, "Padded with spaces");
+      else out.raw("java", src, raw("raw.padded"));
       i += pads + n;
       continue;
     }
@@ -529,21 +538,21 @@ function parseUnicode(format: string, dialect: "java" | "datefns"): ParseResult 
         out.field("day", src);
         out.field("daySuffix", "");
       } else {
-        out.raw("datefns", src, "Ordinal number (1st)");
+        out.raw("datefns", src, raw("raw.ordinal"));
       }
       continue;
     }
     const rule = letters[c] as (typeof letters)[string] | undefined; // a letter without a rule is undefined at run time
     const result = rule ? rule(n) : null;
-    if (dialect === "datefns" && (src === "YY" || src === "YYYY")) out.warn(`date-fns throws on ${src} unless you pass useAdditionalWeekYearTokens: true. For the calendar year, use ${src.toLowerCase()}.`);
-    if (dialect === "datefns" && (src === "D" || src === "DD")) out.warn(`date-fns throws on ${src} unless you pass useAdditionalDayOfYearTokens: true. For the day of month, use ${src.toLowerCase()}.`);
+    if (dialect === "datefns" && (src === "YY" || src === "YYYY")) out.warn(t("warn.datefnsWeekYear", { src, suggest: src.toLowerCase() }));
+    if (dialect === "datefns" && (src === "D" || src === "DD")) out.warn(t("warn.datefnsDayOfYearParse", { src, suggest: src.toLowerCase() }));
     if (result === null) {
       out.warn(
         rule
-          ? `${name} does not accept ${src} (too many letters).`
+          ? t("warn.tooManyLetters", { name, src })
           : dialect === "java"
-            ? `Java rejects the unquoted letter ${c}. Quote text as '${src}'.`
-            : `date-fns throws on the unquoted letter ${c}. Quote text as '${src}'.`,
+            ? t("warn.javaUnquoted", { char: c, src })
+            : t("warn.datefnsUnquoted", { char: c, src }),
       );
       out.literal(src);
     } else if (typeof result === "string") {
@@ -560,47 +569,47 @@ function parseUnicode(format: string, dialect: "java" | "datefns"): ParseResult 
 // ---------------------------------------------------------------------------------------------
 // Moment.js and Day.js: tokens as in moment's formattingTokens, text in [...]
 
-const MOMENT_TOKENS: [string, FieldId | { raw: string } | { fraction: number } | "Do"][] = [
-  ["YYYYYY", { raw: "Year, 6 digits with sign" }],
+const MOMENT_TOKENS: [string, FieldId | { raw: RawLabel } | { fraction: number } | "Do"][] = [
+  ["YYYYYY", rawOf("raw.year6")],
   ["YYYY", "year"],
   ["YY", "year2"],
   ["GGGG", "isoWeekYear"],
-  ["GG", { raw: "ISO week-numbering year, 2 digits" }],
-  ["gggg", { raw: "Local week-numbering year" }],
-  ["gg", { raw: "Local week-numbering year, 2 digits" }],
+  ["GG", rawOf("raw.isoWeekYear2")],
+  ["gggg", rawOf("raw.localWeekYear")],
+  ["gg", rawOf("raw.localWeekYear2")],
   ["MMMM", "monthLong"],
   ["MMM", "monthShort"],
   ["MM", "month2"],
-  ["Mo", { raw: "Month, ordinal (1st)" }],
+  ["Mo", rawOf("raw.monthOrdinal")],
   ["M", "month"],
-  ["Qo", { raw: "Quarter, ordinal (1st)" }],
+  ["Qo", rawOf("raw.quarterOrdinal")],
   ["Q", "quarter"],
-  ["DDDDo", { raw: "Day of year, ordinal" }],
+  ["DDDDo", rawOf("raw.dayOfYearOrdinal")],
   ["DDDD", "dayOfYear3"],
-  ["DDDo", { raw: "Day of year, ordinal" }],
+  ["DDDo", rawOf("raw.dayOfYearOrdinal")],
   ["DDD", "dayOfYear"],
   ["Do", "Do"],
   ["DD", "day2"],
   ["D", "day"],
   ["dddd", "weekdayLong"],
   ["ddd", "weekdayShort"],
-  ["dd", { raw: "Weekday name, 2 letters (Mo)" }],
-  ["do", { raw: "Weekday number, ordinal" }],
+  ["dd", rawOf("raw.weekday2Letters")],
+  ["do", rawOf("raw.weekdayOrdinal")],
   ["d", "weekday0"],
   ["E", "weekdayIso"],
-  ["e", { raw: "Local weekday number" }],
+  ["e", rawOf("raw.localWeekday")],
   ["WW", "isoWeek"],
-  ["Wo", { raw: "ISO week, ordinal" }],
+  ["Wo", rawOf("raw.isoWeekOrdinal")],
   ["W", "isoWeek"],
-  ["ww", { raw: "Local week of year" }],
-  ["wo", { raw: "Local week, ordinal" }],
-  ["w", { raw: "Local week of year" }],
+  ["ww", rawOf("raw.localWeek")],
+  ["wo", rawOf("raw.localWeekOrdinal")],
+  ["w", rawOf("raw.localWeek")],
   ["HH", "hour2"],
   ["H", "hour"],
   ["hh", "hour12_2"],
   ["h", "hour12"],
-  ["kk", { raw: "Hour, 24-hour (1 to 24), 2 digits" }],
-  ["k", { raw: "Hour, 24-hour (1 to 24)" }],
+  ["kk", rawOf("raw.hour24From1_2")],
+  ["k", rawOf("raw.hour24From1")],
   ["mm", "minute2"],
   ["m", "minute"],
   ["ss", "second2"],
@@ -613,8 +622,8 @@ const MOMENT_TOKENS: [string, FieldId | { raw: string } | { fraction: number } |
   ["z", "zoneAbbr"],
   ["X", "unix"],
   ["x", "unixMs"],
-  ["N", { raw: "Era (AD)" }],
-  ["y", { raw: "Era year" }],
+  ["N", rawOf("raw.era")],
+  ["y", rawOf("raw.eraYear")],
 ];
 
 function parseMoment(format: string): ParseResult {
@@ -674,14 +683,14 @@ const PHP_FIELDS: Record<string, FieldId> = {
   e: "zoneId", O: "offset", P: "offsetColon", p: "offsetColonZ", T: "zoneAbbr", U: "unix",
 };
 
-const PHP_RAW: Record<string, string> = {
-  t: "Days in the month",
-  L: "Leap year (1 or 0)",
-  X: "Year with sign, at least 4 digits",
-  x: "Year, at least 4 digits, sign when needed",
-  B: "Swatch Internet time",
-  I: "Daylight saving time (1 or 0)",
-  Z: "UTC offset in seconds",
+const PHP_RAW: Record<string, RawLabel> = {
+  t: raw("raw.daysInMonth"),
+  L: raw("raw.leapYear"),
+  X: raw("raw.yearSigned"),
+  x: raw("raw.yearSignedWhenNeeded"),
+  B: raw("raw.swatch"),
+  I: raw("raw.dst"),
+  Z: raw("raw.offsetInSeconds"),
 };
 
 const PHP_COMPOSITES: Record<string, string> = { c: "Y-m-d\\TH:i:sP", r: "D, d M Y H:i:s O" };
@@ -718,8 +727,8 @@ function parsePhp(format: string): ParseResult {
 function parseDotnet(format: string, whole = true): ParseResult {
   const out = new PartList();
   if (whole && format.length === 1 && isLetter(format)) {
-    out.warn(`A single letter such as ${format} is a .NET standard format, not a custom one. Write %${format} for the custom specifier.`);
-    out.raw("dotnet", format, "Standard format string");
+    out.warn(t("warn.dotnetStandard", { format }));
+    out.raw("dotnet", format, raw("raw.dotnetStandard"));
     return out.done();
   }
   let i = 0;
@@ -732,7 +741,7 @@ function parseDotnet(format: string, whole = true): ParseResult {
         if (format[j] === "\\" && j + 1 < format.length) j++;
         text += format[j++];
       }
-      if (j >= format.length) out.warn("A quote is not closed. The rest of the format was read as text.");
+      if (j >= format.length) out.warn(t("warn.quoteNotClosed"));
       out.literal(text, format.slice(i, j + 1));
       i = j + 1;
       continue;
@@ -770,15 +779,15 @@ function parseDotnet(format: string, whole = true): ParseResult {
       case "K": field = "offsetColonZ"; break;
       case "f":
       case "F":
-        if (n > 7) out.warn(".NET supports at most 7 fractional digits.");
+        if (n > 7) out.warn(t("warn.dotnetFraction7"));
         out.fraction(Math.min(n, 7), c === "F", src);
         continue;
     }
     if (field) out.field(field, src);
-    else if (c === "y") out.raw("dotnet", src, "Year, 2 digits without padding");
-    else if (c === "t") out.raw("dotnet", src, "First letter of AM or PM");
-    else if (c === "z") out.raw("dotnet", src, "UTC offset, hours without padding (-7)");
-    else out.raw("dotnet", src, "Era (A.D.)");
+    else if (c === "y") out.raw("dotnet", src, raw("raw.year2NoPad"));
+    else if (c === "t") out.raw("dotnet", src, raw("raw.ampmFirstLetter"));
+    else if (c === "z") out.raw("dotnet", src, raw("raw.offsetHourNoPad"));
+    else out.raw("dotnet", src, raw("raw.eraDotnet"));
   }
   return out.done();
 }
@@ -846,82 +855,89 @@ export function detectDialect(format: string): Dialect {
 // Emitting
 
 /** A token table entry: the closest token, and a warning when it is not exact. */
-type Mapping = string | { t: string | null; w: string };
+type Mapping = string | { t: string | null; w: () => string };
 
-const goNoToken = (what: string, code: string): Mapping => ({ t: null, w: `Go has no ${what} layout value. Use ${code} in code.` });
+/** A warning of a mapping, translated when it is emitted, not when the module loads. */
+const msg = (key: TKey, vars?: TVars) => () => t(key, vars);
+const nounKey = (what: TKey) => t(what);
+
+const goNoToken = (what: TKey, code: string): Mapping => ({ t: null, w: () => t("warn.goNoToken", { what: nounKey(what), code }) });
 
 const GO_MAP: Record<FieldId, Mapping> = {
   year: "2006", year2: "06",
-  isoWeekYear: goNoToken("ISO week-numbering year", "t.ISOWeek()"),
-  isoWeek: goNoToken("ISO week", "t.ISOWeek()"),
-  quarter: goNoToken("quarter", "(t.Month()+2)/3"),
+  isoWeekYear: goNoToken("noun.isoWeekYear", "t.ISOWeek()"),
+  isoWeek: goNoToken("noun.isoWeek", "t.ISOWeek()"),
+  quarter: goNoToken("noun.quarter", "(t.Month()+2)/3"),
   month: "1", month2: "01", monthShort: "Jan", monthLong: "January",
   day: "2", day2: "02", daySpace: "_2",
-  daySuffix: goNoToken("ordinal suffix", "a helper function"),
-  dayOfYear: { t: "002", w: "Go has no unpadded day of year. Used 002 (3 digits, Go 1.20 or later)." },
-  dayOfYear3: { t: "002", w: "002 needs Go 1.20 or later. Older versions: use t.YearDay()." },
-  dayOfYearSpace: { t: "__2", w: "__2 needs Go 1.20 or later. Older versions: use t.YearDay()." },
-  dayOfYear0: { t: "002", w: "Go counts the day of year from 1, not 0. 002 needs Go 1.20 or later." },
+  daySuffix: goNoToken("noun.ordinalSuffix", "a helper function"),
+  dayOfYear: { t: "002", w: msg("warn.goDayOfYear") },
+  dayOfYear3: { t: "002", w: msg("warn.goDayOfYear3") },
+  dayOfYearSpace: { t: "__2", w: msg("warn.goDayOfYearSpace") },
+  dayOfYear0: { t: "002", w: msg("warn.goDayOfYear0") },
   weekdayShort: "Mon", weekdayLong: "Monday",
-  weekdayIso: goNoToken("weekday number", "int(t.Weekday())"),
-  weekday0: goNoToken("weekday number", "int(t.Weekday())"),
-  hour: { t: "15", w: "Go has no unpadded 24-hour hour. Used 15 (2 digits)." },
+  weekdayIso: goNoToken("noun.weekdayNumber", "int(t.Weekday())"),
+  weekday0: goNoToken("noun.weekdayNumber", "int(t.Weekday())"),
+  hour: { t: "15", w: msg("warn.goHour") },
   hour2: "15",
-  hourSpace: { t: "15", w: "Go has no space-padded hour. Used 15 (2 digits)." },
+  hourSpace: { t: "15", w: msg("warn.goHourSpace") },
   hour12: "3", hour12_2: "03",
-  hour12Space: { t: "3", w: "Go has no space-padded hour. Used 3 (no padding)." },
+  hour12Space: { t: "3", w: msg("warn.goHour12Space") },
   minute: "4", minute2: "04", second: "5", second2: "05",
   ampm: "PM", ampmLower: "pm",
   offset: "-0700", offsetColon: "-07:00", offsetHour: "-07",
   offsetZ: "Z0700", offsetColonZ: "Z07:00", offsetHourZ: "Z07",
   zoneAbbr: "MST",
-  zoneId: goNoToken("time zone ID", "t.Location().String()"),
-  unix: goNoToken("Unix time", "t.Unix()"),
-  unixMs: goNoToken("Unix time", "t.UnixMilli()"),
+  zoneId: goNoToken("noun.zoneId", "t.Location().String()"),
+  unix: goNoToken("noun.unixTime", "t.Unix()"),
+  unixMs: goNoToken("noun.unixTime", "t.UnixMilli()"),
 };
 
 /** Notes for strftime extensions that are not in C99, per dialect. */
-const strftimeExtension = (dialect: "c" | "python" | "ruby", token: string, what = "a GNU and BSD extension"): Mapping => {
+const strftimeExtension = (dialect: "c" | "python" | "ruby", token: string): Mapping => {
   if (dialect === "ruby") return token;
-  if (dialect === "python") return { t: token, w: `Python passes ${token} to the C library. It works on Linux and macOS, not on Windows.` };
-  return { t: token, w: `${token} is ${what}. Windows does not support it.` };
+  if (dialect === "python") return { t: token, w: msg("warn.strftimePython", { token }) };
+  return { t: token, w: msg("warn.strftimeExt", { token }) };
 };
 
 function strftimeMap(dialect: "c" | "python" | "ruby"): Record<FieldId, Mapping> {
   const ext = (token: string) => strftimeExtension(dialect, token);
-  const noToken = (what: string): Mapping => ({ t: null, w: `strftime has no ${what} directive. It was left out.` });
+  const noToken = (what: TKey): Mapping => ({ t: null, w: () => t("warn.strftimeNoToken", { what: nounKey(what) }) });
   const offsetColon: Mapping =
     dialect === "ruby" ? "%:z"
-    : dialect === "python" ? { t: "%:z", w: "%:z needs Python 3.12 or later. Older versions only have %z (-0700)." }
-    : { t: "%z", w: "C strftime has no colon offset. Used %z (-0700). GNU date supports %:z." };
+    : dialect === "python" ? { t: "%:z", w: msg("warn.pythonColonOffset") }
+    : { t: "%z", w: msg("warn.cNoColonOffset") };
   const colonToken = typeof offsetColon === "string" ? offsetColon : offsetColon.t!;
-  const zWarning = (token: string) => `strftime prints +0000 for UTC, never Z. Used ${token}.`;
+  const zWarning = (token: string) => () => t("warn.strftimeZ", { token });
   return {
-    year: "%Y", year2: "%y", isoWeekYear: "%G", isoWeek: "%V", quarter: noToken("quarter"),
+    year: "%Y", year2: "%y", isoWeekYear: "%G", isoWeek: "%V", quarter: noToken("noun.quarter"),
     month: ext("%-m"), month2: "%m", monthShort: "%b", monthLong: "%B",
-    day: ext("%-d"), day2: "%d", daySpace: "%e", daySuffix: noToken("ordinal suffix"),
+    day: ext("%-d"), day2: "%d", daySpace: "%e", daySuffix: noToken("noun.ordinalSuffix"),
     dayOfYear: ext("%-j"), dayOfYear3: "%j", dayOfYearSpace: ext("%_j"),
-    dayOfYear0: { t: "%j", w: "strftime counts the day of year from 1, not 0." },
+    dayOfYear0: { t: "%j", w: msg("warn.strftimeDayOfYear0") },
     weekdayShort: "%a", weekdayLong: "%A", weekdayIso: "%u", weekday0: "%w",
     hour: ext("%-H"), hour2: "%H", hourSpace: ext("%k"), hour12: ext("%-I"), hour12_2: "%I", hour12Space: ext("%l"),
     minute: ext("%-M"), minute2: "%M", second: ext("%-S"), second2: "%S",
     ampm: "%p",
-    ampmLower: dialect === "ruby" ? "%P" : { t: "%P", w: "%P is a glibc extension. macOS and Windows do not support it." },
+    ampmLower: dialect === "ruby" ? "%P" : { t: "%P", w: msg("warn.strftimeLowerP") },
     offset: "%z",
     offsetColon,
-    offsetHour: { t: "%z", w: "strftime has no hours-only offset. Used %z (-0700)." },
+    offsetHour: { t: "%z", w: msg("warn.strftimeOffsetHour") },
     offsetZ: { t: "%z", w: zWarning("%z") },
-    offsetColonZ: { t: colonToken, w: typeof offsetColon === "string" ? zWarning(colonToken) : `${offsetColon.w} ${zWarning(colonToken)}` },
+    offsetColonZ: {
+      t: colonToken,
+      w: typeof offsetColon === "string" ? zWarning(colonToken) : () => t("warn.join", { first: offsetColon.w(), second: zWarning(colonToken)() }),
+    },
     offsetHourZ: { t: "%z", w: zWarning("%z") },
     zoneAbbr: "%Z",
-    zoneId: { t: "%Z", w: "strftime has no time zone ID directive. Used %Z (abbreviation)." },
+    zoneId: { t: "%Z", w: msg("warn.strftimeZoneId") },
     unix: ext("%s"),
-    unixMs: dialect === "ruby" ? "%Q" : { t: "%s", w: "strftime has no millisecond timestamp. Used %s (seconds)." },
+    unixMs: dialect === "ruby" ? "%Q" : { t: "%s", w: msg("warn.strftimeUnixMs") },
   };
 }
 
-const JAVA_WEEK_NOTE = "Java YYYY and ww follow the locale's week rules. They match ISO weeks in locales such as Locale.UK. For exact ISO weeks, use IsoFields.";
-const JAVA_PAD_NOTE = "The p pad modifier is Java only. Swift and ICU do not support it.";
+const JAVA_WEEK_NOTE = msg("warn.javaWeek");
+const JAVA_PAD_NOTE = msg("warn.javaPad");
 
 const JAVA_MAP: Record<FieldId, Mapping> = {
   year: "yyyy", year2: "yy",
@@ -929,64 +945,64 @@ const JAVA_MAP: Record<FieldId, Mapping> = {
   quarter: "Q",
   month: "M", month2: "MM", monthShort: "MMM", monthLong: "MMMM",
   day: "d", day2: "dd", daySpace: { t: "ppd", w: JAVA_PAD_NOTE },
-  daySuffix: { t: null, w: "Java patterns have no ordinal suffix. It was left out." },
+  daySuffix: { t: null, w: msg("warn.javaNoOrdinal") },
   dayOfYear: "D", dayOfYear3: "DDD", dayOfYearSpace: { t: "pppD", w: JAVA_PAD_NOTE },
-  dayOfYear0: { t: "D", w: "Java counts the day of year from 1, not 0." },
+  dayOfYear0: { t: "D", w: msg("warn.javaDayOfYear0") },
   weekdayShort: "EEE", weekdayLong: "EEEE",
-  weekdayIso: { t: "e", w: "e depends on the locale. Monday is 1 only where weeks start on Monday." },
-  weekday0: { t: "e", w: "Java has no Sunday-is-0 weekday number. e is 1 to 7 and depends on the locale." },
+  weekdayIso: { t: "e", w: msg("warn.javaWeekdayIso") },
+  weekday0: { t: "e", w: msg("warn.javaWeekday0") },
   hour: "H", hour2: "HH", hourSpace: { t: "ppH", w: JAVA_PAD_NOTE },
   hour12: "h", hour12_2: "hh", hour12Space: { t: "pph", w: JAVA_PAD_NOTE },
   minute: "m", minute2: "mm", second: "s", second2: "ss",
-  ampm: "a", ampmLower: { t: "a", w: "Java prints AM and PM in uppercase. Lowercase the result in code." },
+  ampm: "a", ampmLower: { t: "a", w: msg("warn.javaAmpmLower") },
   offset: "xx", offsetColon: "xxx", offsetHour: "x", offsetZ: "XX", offsetColonZ: "XXX", offsetHourZ: "X",
   zoneAbbr: "z", zoneId: "VV",
-  unix: { t: null, w: "Java patterns have no Unix time letter. Use toEpochSecond() in code." },
-  unixMs: { t: null, w: "Java patterns have no Unix time letter. Use toInstant().toEpochMilli() in code." },
+  unix: { t: null, w: msg("warn.javaNoUnix") },
+  unixMs: { t: null, w: msg("warn.javaNoUnixMs") },
 };
 
 const DATEFNS_MAP: Record<FieldId, Mapping> = {
   year: "yyyy", year2: "yy", isoWeekYear: "RRRR", isoWeek: "II", quarter: "Q",
   month: "M", month2: "MM", monthShort: "MMM", monthLong: "MMMM",
-  day: "d", day2: "dd", daySpace: { t: "d", w: "date-fns has no space-padded day. Used d." },
-  daySuffix: { t: null, w: "date-fns has an ordinal suffix only as part of do. It was left out." },
-  dayOfYear: { t: "D", w: "date-fns throws on D unless you pass useAdditionalDayOfYearTokens: true." },
+  day: "d", day2: "dd", daySpace: { t: "d", w: msg("warn.datefnsDaySpace") },
+  daySuffix: { t: null, w: msg("warn.datefnsNoOrdinal") },
+  dayOfYear: { t: "D", w: msg("warn.datefnsDayOfYear") },
   dayOfYear3: "DDD",
-  dayOfYearSpace: { t: "DDD", w: "date-fns has no space-padded day of year. Used DDD (3 digits)." },
-  dayOfYear0: { t: "DDD", w: "date-fns counts the day of year from 1, not 0." },
+  dayOfYearSpace: { t: "DDD", w: msg("warn.datefnsDayOfYearSpace") },
+  dayOfYear0: { t: "DDD", w: msg("warn.datefnsDayOfYear0") },
   weekdayShort: "EEE", weekdayLong: "EEEE", weekdayIso: "i",
-  weekday0: { t: "i", w: "date-fns has no Sunday-is-0 weekday number. Used i (Monday is 1, Sunday is 7)." },
-  hour: "H", hour2: "HH", hourSpace: { t: "H", w: "date-fns has no space-padded hour. Used H." },
-  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: "date-fns has no space-padded hour. Used h." },
+  weekday0: { t: "i", w: msg("warn.datefnsWeekday0") },
+  hour: "H", hour2: "HH", hourSpace: { t: "H", w: msg("warn.datefnsHourSpace") },
+  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: msg("warn.datefnsHour12Space") },
   minute: "m", minute2: "mm", second: "s", second2: "ss",
   ampm: "a", ampmLower: "aaa",
   offset: "xx", offsetColon: "xxx", offsetHour: "x", offsetZ: "XX", offsetColonZ: "XXX", offsetHourZ: "X",
-  zoneAbbr: { t: "zzz", w: "date-fns prints GMT-7 for zzz. For names such as MST, use formatInTimeZone from date-fns-tz." },
-  zoneId: { t: null, w: "date-fns has no time zone ID token. Use Intl.DateTimeFormat().resolvedOptions().timeZone." },
+  zoneAbbr: { t: "zzz", w: msg("warn.datefnsZoneAbbr") },
+  zoneId: { t: null, w: msg("warn.datefnsNoZoneId") },
   unix: "t", unixMs: "T",
 };
 
-const MOMENT_Z_NOTE = "Moment.js and Day.js print +00:00 for UTC, never Z.";
+const MOMENT_Z_NOTE = msg("warn.momentZ");
 
 const MOMENT_MAP: Record<FieldId, Mapping> = {
   year: "YYYY", year2: "YY", isoWeekYear: "GGGG", isoWeek: "WW", quarter: "Q",
   month: "M", month2: "MM", monthShort: "MMM", monthLong: "MMMM",
-  day: "D", day2: "DD", daySpace: { t: "D", w: "Moment.js has no space-padded day. Used D." },
-  daySuffix: { t: null, w: "Moment.js has an ordinal suffix only as part of Do. It was left out." },
+  day: "D", day2: "DD", daySpace: { t: "D", w: msg("warn.momentDaySpace") },
+  daySuffix: { t: null, w: msg("warn.momentNoOrdinal") },
   dayOfYear: "DDD", dayOfYear3: "DDDD",
-  dayOfYearSpace: { t: "DDDD", w: "Moment.js has no space-padded day of year. Used DDDD (3 digits)." },
-  dayOfYear0: { t: "DDD", w: "Moment.js counts the day of year from 1, not 0." },
+  dayOfYearSpace: { t: "DDDD", w: msg("warn.momentDayOfYearSpace") },
+  dayOfYear0: { t: "DDD", w: msg("warn.momentDayOfYear0") },
   weekdayShort: "ddd", weekdayLong: "dddd", weekdayIso: "E", weekday0: "d",
-  hour: "H", hour2: "HH", hourSpace: { t: "H", w: "Moment.js has no space-padded hour. Used H." },
-  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: "Moment.js has no space-padded hour. Used h." },
+  hour: "H", hour2: "HH", hourSpace: { t: "H", w: msg("warn.momentHourSpace") },
+  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: msg("warn.momentHour12Space") },
   minute: "m", minute2: "mm", second: "s", second2: "ss",
   ampm: "A", ampmLower: "a",
   offset: "ZZ", offsetColon: "Z",
-  offsetHour: { t: "Z", w: "Moment.js has no hours-only offset. Used Z (-07:00)." },
+  offsetHour: { t: "Z", w: msg("warn.momentOffsetHour") },
   offsetZ: { t: "ZZ", w: MOMENT_Z_NOTE }, offsetColonZ: { t: "Z", w: MOMENT_Z_NOTE },
-  offsetHourZ: { t: "Z", w: `Moment.js has no hours-only offset. Used Z (-07:00). ${MOMENT_Z_NOTE}` },
-  zoneAbbr: { t: "z", w: "z needs moment-timezone. Day.js needs the timezone and advancedFormat plugins." },
-  zoneId: { t: null, w: "Moment.js has no time zone ID token. Use moment.tz.guess() in code." },
+  offsetHourZ: { t: "Z", w: () => t("warn.join", { first: t("warn.momentOffsetHour"), second: MOMENT_Z_NOTE() }) },
+  zoneAbbr: { t: "z", w: msg("warn.momentZoneAbbr") },
+  zoneId: { t: null, w: msg("warn.momentNoZoneId") },
   unix: "X", unixMs: "x",
 };
 
@@ -994,60 +1010,61 @@ const MOMENT_MAP: Record<FieldId, Mapping> = {
 const DAYJS_CORE = new Set(["YY", "YYYY", "M", "MM", "MMM", "MMMM", "D", "DD", "d", "dd", "ddd", "dddd", "H", "HH", "h", "hh", "m", "mm", "s", "ss", "SSS", "Z", "ZZ", "A", "a"]);
 const DAYJS_ADVANCED = new Set(["Q", "Do", "k", "kk", "X", "x", "w", "ww", "W", "WW", "gggg", "GGGG", "z", "zzz"]);
 
-const PHP_DAY_OF_YEAR_NOTE = "PHP z counts the day of year from 0 (January 1 is 0). Add 1 in code.";
+const PHP_DAY_OF_YEAR_NOTE = msg("warn.phpDayOfYear");
+const PHP_DAY_OF_YEAR_PADDED = () => t("warn.join", { first: t("warn.phpDayOfYear"), second: t("warn.phpZNoPad") });
 
 const PHP_MAP: Record<FieldId, Mapping> = {
   year: "Y", year2: "y", isoWeekYear: "o", isoWeek: "W",
-  quarter: { t: null, w: "PHP date() has no quarter character. Use ceil(date('n') / 3) in code." },
+  quarter: { t: null, w: msg("warn.phpNoQuarter") },
   month: "n", month2: "m", monthShort: "M", monthLong: "F",
-  day: "j", day2: "d", daySpace: { t: "j", w: "PHP has no space-padded day. Used j." }, daySuffix: "S",
-  dayOfYear: { t: "z", w: PHP_DAY_OF_YEAR_NOTE }, dayOfYear3: { t: "z", w: `${PHP_DAY_OF_YEAR_NOTE} z has no padding.` },
-  dayOfYearSpace: { t: "z", w: `${PHP_DAY_OF_YEAR_NOTE} z has no padding.` }, dayOfYear0: "z",
+  day: "j", day2: "d", daySpace: { t: "j", w: msg("warn.phpDaySpace") }, daySuffix: "S",
+  dayOfYear: { t: "z", w: PHP_DAY_OF_YEAR_NOTE }, dayOfYear3: { t: "z", w: PHP_DAY_OF_YEAR_PADDED },
+  dayOfYearSpace: { t: "z", w: PHP_DAY_OF_YEAR_PADDED }, dayOfYear0: "z",
   weekdayShort: "D", weekdayLong: "l", weekdayIso: "N", weekday0: "w",
-  hour: "G", hour2: "H", hourSpace: { t: "G", w: "PHP has no space-padded hour. Used G." },
-  hour12: "g", hour12_2: "h", hour12Space: { t: "g", w: "PHP has no space-padded hour. Used g." },
-  minute: { t: "i", w: "PHP has no unpadded minute. Used i (2 digits)." }, minute2: "i",
-  second: { t: "s", w: "PHP has no unpadded second. Used s (2 digits)." }, second2: "s",
+  hour: "G", hour2: "H", hourSpace: { t: "G", w: msg("warn.phpHourSpace") },
+  hour12: "g", hour12_2: "h", hour12Space: { t: "g", w: msg("warn.phpHour12Space") },
+  minute: { t: "i", w: msg("warn.phpMinute") }, minute2: "i",
+  second: { t: "s", w: msg("warn.phpSecond") }, second2: "s",
   ampm: "A", ampmLower: "a",
   offset: "O", offsetColon: "P",
-  offsetHour: { t: "O", w: "PHP has no hours-only offset. Used O (-0700)." },
-  offsetZ: { t: "O", w: "PHP prints +0000 for UTC with O. Only p prints Z, and it has a colon." },
-  offsetColonZ: { t: "p", w: "p needs PHP 8.0 or later. Older versions: use P (prints +00:00)." },
-  offsetHourZ: { t: "O", w: "PHP has no hours-only offset. Used O (-0700)." },
+  offsetHour: { t: "O", w: msg("warn.phpOffsetHour") },
+  offsetZ: { t: "O", w: msg("warn.phpOffsetZ") },
+  offsetColonZ: { t: "p", w: msg("warn.phpOffsetColonZ") },
+  offsetHourZ: { t: "O", w: msg("warn.phpOffsetHour") },
   zoneAbbr: "T", zoneId: "e", unix: "U",
-  unixMs: { t: "Uv", w: "PHP has no millisecond timestamp. Uv prints the seconds and then the milliseconds. date() prints 000 for v, so use DateTime::format()." },
+  unixMs: { t: "Uv", w: msg("warn.phpUnixMs") },
 };
 
-const dotnetNoToken = (what: string, code: string): Mapping => ({ t: null, w: `.NET has no ${what} specifier. Use ${code} in code.` });
+const dotnetNoToken = (what: TKey, code: string): Mapping => ({ t: null, w: () => t("warn.dotnetNoToken", { what: nounKey(what), code }) });
 
 const DOTNET_MAP: Record<FieldId, Mapping> = {
   year: "yyyy", year2: "yy",
-  isoWeekYear: dotnetNoToken("ISO week-numbering year", "ISOWeek.GetYear()"),
-  isoWeek: dotnetNoToken("ISO week", "ISOWeek.GetWeekOfYear()"),
-  quarter: dotnetNoToken("quarter", "(date.Month + 2) / 3"),
+  isoWeekYear: dotnetNoToken("noun.isoWeekYear", "ISOWeek.GetYear()"),
+  isoWeek: dotnetNoToken("noun.isoWeek", "ISOWeek.GetWeekOfYear()"),
+  quarter: dotnetNoToken("noun.quarter", "(date.Month + 2) / 3"),
   month: "M", month2: "MM", monthShort: "MMM", monthLong: "MMMM",
-  day: "d", day2: "dd", daySpace: { t: "d", w: ".NET has no space-padded day. Used d." },
-  daySuffix: dotnetNoToken("ordinal suffix", "a helper method"),
-  dayOfYear: dotnetNoToken("day of year", "date.DayOfYear"),
-  dayOfYear3: dotnetNoToken("day of year", "date.DayOfYear.ToString(\"D3\")"),
-  dayOfYearSpace: dotnetNoToken("day of year", "date.DayOfYear"),
-  dayOfYear0: dotnetNoToken("day of year", "date.DayOfYear - 1"),
+  day: "d", day2: "dd", daySpace: { t: "d", w: msg("warn.dotnetDaySpace") },
+  daySuffix: dotnetNoToken("noun.ordinalSuffix", "a helper method"),
+  dayOfYear: dotnetNoToken("noun.dayOfYear", "date.DayOfYear"),
+  dayOfYear3: dotnetNoToken("noun.dayOfYear", "date.DayOfYear.ToString(\"D3\")"),
+  dayOfYearSpace: dotnetNoToken("noun.dayOfYear", "date.DayOfYear"),
+  dayOfYear0: dotnetNoToken("noun.dayOfYear", "date.DayOfYear - 1"),
   weekdayShort: "ddd", weekdayLong: "dddd",
-  weekdayIso: dotnetNoToken("weekday number", "(int)date.DayOfWeek"),
-  weekday0: dotnetNoToken("weekday number", "(int)date.DayOfWeek"),
-  hour: "H", hour2: "HH", hourSpace: { t: "H", w: ".NET has no space-padded hour. Used H." },
-  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: ".NET has no space-padded hour. Used h." },
+  weekdayIso: dotnetNoToken("noun.weekdayNumber", "(int)date.DayOfWeek"),
+  weekday0: dotnetNoToken("noun.weekdayNumber", "(int)date.DayOfWeek"),
+  hour: "H", hour2: "HH", hourSpace: { t: "H", w: msg("warn.dotnetHourSpace") },
+  hour12: "h", hour12_2: "hh", hour12Space: { t: "h", w: msg("warn.dotnetHour12Space") },
   minute: "m", minute2: "mm", second: "s", second2: "ss",
-  ampm: "tt", ampmLower: { t: "tt", w: ".NET prints AM and PM in uppercase. Lowercase the result in code." },
-  offset: { t: "zzz", w: ".NET has no offset without a colon. Used zzz (-07:00)." },
+  ampm: "tt", ampmLower: { t: "tt", w: msg("warn.dotnetAmpmLower") },
+  offset: { t: "zzz", w: msg("warn.dotnetOffset") },
   offsetColon: "zzz", offsetHour: "zz",
-  offsetZ: { t: "K", w: "K prints Z only for DateTimeKind.Utc values, and its offset has a colon." },
-  offsetColonZ: { t: "K", w: "K prints Z only for DateTimeKind.Utc values. For DateTimeOffset it prints the offset." },
-  offsetHourZ: { t: "zz", w: ".NET zz never prints Z. Used zz (-07)." },
-  zoneAbbr: dotnetNoToken("time zone abbreviation", "TimeZoneInfo"),
-  zoneId: dotnetNoToken("time zone ID", "TimeZoneInfo.Local.Id"),
-  unix: dotnetNoToken("Unix time", "DateTimeOffset.ToUnixTimeSeconds()"),
-  unixMs: dotnetNoToken("Unix time", "DateTimeOffset.ToUnixTimeMilliseconds()"),
+  offsetZ: { t: "K", w: msg("warn.dotnetOffsetZ") },
+  offsetColonZ: { t: "K", w: msg("warn.dotnetOffsetColonZ") },
+  offsetHourZ: { t: "zz", w: msg("warn.dotnetOffsetHourZ") },
+  zoneAbbr: dotnetNoToken("noun.zoneAbbr", "TimeZoneInfo"),
+  zoneId: dotnetNoToken("noun.zoneId", "TimeZoneInfo.Local.Id"),
+  unix: dotnetNoToken("noun.unixTime", "DateTimeOffset.ToUnixTimeSeconds()"),
+  unixMs: dotnetNoToken("noun.unixTime", "DateTimeOffset.ToUnixTimeMilliseconds()"),
 };
 
 const FIELD_MAPS: Record<Dialect, Record<FieldId, Mapping>> = {
@@ -1070,15 +1087,15 @@ export const tokenFor = (field: FieldId, dialect: Dialect): string | null => {
 
 function emitFraction(part: Extract<Part, { kind: "fraction" }>, dialect: Dialect, warn: (w: string) => void): string | null {
   const { digits: n, trim } = part;
-  const fixed = (name: string, token: string) => trim && warn(`${name} has no fraction that drops trailing zeros. Used ${token} (fixed digits).`);
+  const fixed = (name: string, token: string) => trim && warn(t("warn.fractionTrim", { name, token }));
   switch (dialect) {
     case "go":
       return (trim ? "9" : "0").repeat(n);
     case "c":
-      warn("C strftime has no fractional seconds. They were left out. GNU date supports %N.");
+      warn(t("warn.cNoFraction"));
       return null;
     case "python":
-      if (n !== 6) warn(`Python %f always prints 6 digits (microseconds), not ${n}.`);
+      if (n !== 6) warn(t("warn.pythonFraction", { digits: n }));
       fixed("Python", "%f");
       return "%f";
     case "ruby": {
@@ -1095,13 +1112,13 @@ function emitFraction(part: Extract<Part, { kind: "fraction" }>, dialect: Dialec
     }
     case "php": {
       const token = n <= 3 ? "v" : "u";
-      if (n !== 3 && n !== 6) warn(`PHP prints 3 (v) or 6 (u) fractional digits, not ${n}. Used ${token}.`);
+      if (n !== 3 && n !== 6) warn(t("warn.phpFraction", { digits: n, token }));
       fixed("PHP", token);
-      warn(`date() always prints zeros for ${token}. Use DateTime::format() instead.`);
+      warn(t("warn.phpFractionZeros", { token }));
       return token;
     }
     case "dotnet":
-      if (n > 7) warn(".NET supports at most 7 fractional digits.");
+      if (n > 7) warn(t("warn.dotnetFraction7"));
       return (trim ? "F" : "f").repeat(Math.min(n, 7));
   }
 }
@@ -1138,12 +1155,12 @@ function emitLiteral(text: string, dialect: Dialect, warn: (w: string) => void):
       return quoteRuns(text, (c) => isLetter(c) || special.includes(c), quote);
     }
     case "moment":
-      if (/[[\]]/.test(text)) warn("Moment.js and Day.js cannot print [ or ] reliably. Check the result.");
+      if (/[[\]]/.test(text)) warn(t("warn.momentBrackets"));
       return quoteRuns(text, isLetter, (run) => `[${run}]`);
     case "php":
       return text.replace(/[A-Za-z\\]/g, (c) => `\\${c}`);
     case "dotnet":
-      if (text.includes("/")) warn(".NET replaces / with the culture's date separator. Pass CultureInfo.InvariantCulture for fixed output.");
+      if (text.includes("/")) warn(t("warn.dotnetSlash"));
       return quoteRuns(text, isLetter, (run) => `'${run}'`, (c) => ("'\"\\%".includes(c) ? `\\${c}` : c));
   }
 }
@@ -1174,7 +1191,7 @@ export function emitFormat(parts: Part[], dialect: Dialect): EmitResult {
       if (part.dialect === dialect || (["c", "python", "ruby"].includes(part.dialect) && ["c", "python", "ruby"].includes(dialect))) {
         push(part.text, true);
       } else {
-        warn(`${DIALECT_LABELS[dialect]} has no equivalent for ${part.text} (${part.label}). It was left out.`);
+        warn(t("warn.noEquivalent", { name: DIALECT_LABELS[dialect], token: part.text, label: part.label }));
       }
       lastDay = null;
       continue;
@@ -1183,7 +1200,7 @@ export function emitFormat(parts: Part[], dialect: Dialect): EmitResult {
       const token = emitFraction(part, dialect, warn);
       if (token !== null) {
         if (dialect === "go") {
-          if (!part.sep) warn("Go prints fractional seconds only after a dot or comma. Added a dot.");
+          if (!part.sep) warn(t("warn.goDot"));
           push(`${part.sep || "."}${token}`, true);
         } else {
           if (part.sep) push(emitLiteral(part.sep, dialect, warn), false);
@@ -1196,14 +1213,14 @@ export function emitFormat(parts: Part[], dialect: Dialect): EmitResult {
     // Moment.js and date-fns write the ordinal suffix as one token with the day: Do and do.
     if (part.field === "daySuffix" && (dialect === "moment" || dialect === "datefns") && lastDay !== null) {
       const token = dialect === "moment" ? "Do" : "do";
-      if (pieces[lastDay].text !== (dialect === "moment" ? "D" : "d")) warn(`${token} does not pad the day with a zero.`);
+      if (pieces[lastDay].text !== (dialect === "moment" ? "D" : "d")) warn(t("warn.ordinalNoPad", { token }));
       pieces[lastDay] = { text: token, token: true };
       lastDay = null;
       continue;
     }
     const mapping = map[part.field];
     const token = typeof mapping === "string" ? mapping : mapping.t;
-    if (typeof mapping !== "string") warn(mapping.w);
+    if (typeof mapping !== "string") warn(mapping.w());
     if (token !== null) push(token, true);
     lastDay = token !== null && (part.field === "day" || part.field === "day2" || part.field === "daySpace") ? pieces.length - 1 : null;
   }
@@ -1213,10 +1230,10 @@ export function emitFormat(parts: Part[], dialect: Dialect): EmitResult {
 
   if (dialect === "moment") {
     const tokens = pieces.filter((p) => p.token).map((p) => p.text);
-    const plugin = tokens.filter((t) => DAYJS_ADVANCED.has(t));
-    const missing = tokens.filter((t) => !DAYJS_CORE.has(t) && !DAYJS_ADVANCED.has(t));
-    if (plugin.length) warn(`Day.js needs the AdvancedFormat plugin for ${[...new Set(plugin)].join(", ")}.`);
-    if (missing.length) warn(`Day.js does not support ${[...new Set(missing)].join(", ")}. Moment.js does.`);
+    const plugin = tokens.filter((tok) => DAYJS_ADVANCED.has(tok));
+    const missing = tokens.filter((tok) => !DAYJS_CORE.has(tok) && !DAYJS_ADVANCED.has(tok));
+    if (plugin.length) warn(t("warn.dayjsPlugin", { tokens: [...new Set(plugin)].join(", ") }));
+    if (missing.length) warn(t("warn.dayjsUnsupported", { tokens: [...new Set(missing)].join(", ") }));
   }
 
   // Read the result back. A difference means literal text merged into a token.
@@ -1226,8 +1243,8 @@ export function emitFormat(parts: Part[], dialect: Dialect): EmitResult {
   if (expected.join(" ") !== actual.join(" ")) {
     warn(
       dialect === "go"
-        ? "Go layouts have no escape syntax. Literal text that looks like a layout value (such as 1, 2, Jan, or Mon) is read as a value. Check the result."
-        : "Some text sits next to a token and is read as part of it. Check the result.",
+        ? t("warn.goNoEscape")
+        : t("warn.merged"),
     );
   }
   return { format, warnings };
@@ -1305,7 +1322,7 @@ const ordinalSuffix = (n: number) => {
   return ["th", "st", "nd", "rd"][n % 10] ?? "th";
 };
 
-/** Renders parsed parts for a date, in English. */
+/** Renders parsed parts for a date. The output is what the target libraries print by default, so month and weekday names stay English. */
 export function renderParts(parts: Part[], date: Date, options: RenderOptions = {}): string {
   const f = dateFields(date, !!options.utc);
   const h12 = f.h % 12 || 12;

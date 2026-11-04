@@ -1,3 +1,5 @@
+import { t, type TKey } from "@/lib/i18n";
+
 /**
  * Secret and PII redaction: find API keys, tokens, passwords, and personal
  * data in text and mask them before the text is shared with an AI assistant.
@@ -33,8 +35,10 @@ export type DetectorGroup = "keys" | "credentials" | "personal" | "heuristic";
 
 export interface DetectorInfo {
   id: DetectorId;
-  /** Name shown next to the toggle and in the findings list. */
-  label: string;
+  /** Translation key of the name shown next to the toggle and in the findings list. */
+  labelKey: TKey;
+  /** The name in the current language. Read at render time, so it follows a language change. */
+  readonly label: string;
   /** Short type name used in `[REDACTED:tag]` labels. */
   tag: string;
   /** Prefix of consistent placeholders, for example EMAIL in `<EMAIL_1>`. */
@@ -45,28 +49,35 @@ export interface DetectorInfo {
   priority: number;
 }
 
-export const DETECTORS: DetectorInfo[] = [
-  { id: "private-key", label: "Private key blocks", tag: "private-key", prefix: "PRIVATE_KEY", group: "keys", defaultOn: true, priority: 100 },
-  { id: "aws-access-key", label: "AWS access key IDs", tag: "aws-access-key", prefix: "AWS_KEY", group: "keys", defaultOn: true, priority: 90 },
-  { id: "aws-secret-key", label: "AWS secret keys", tag: "aws-secret-key", prefix: "AWS_SECRET", group: "keys", defaultOn: true, priority: 88 },
-  { id: "github-token", label: "GitHub tokens", tag: "github-token", prefix: "GITHUB_TOKEN", group: "keys", defaultOn: true, priority: 90 },
-  { id: "anthropic-key", label: "Anthropic keys", tag: "anthropic-key", prefix: "ANTHROPIC_KEY", group: "keys", defaultOn: true, priority: 92 },
-  { id: "openai-key", label: "OpenAI keys", tag: "openai-key", prefix: "OPENAI_KEY", group: "keys", defaultOn: true, priority: 90 },
-  { id: "google-api-key", label: "Google API keys", tag: "google-api-key", prefix: "GOOGLE_KEY", group: "keys", defaultOn: true, priority: 90 },
-  { id: "stripe-key", label: "Stripe keys", tag: "stripe-key", prefix: "STRIPE_KEY", group: "keys", defaultOn: true, priority: 90 },
-  { id: "slack-token", label: "Slack tokens", tag: "slack-token", prefix: "SLACK_TOKEN", group: "keys", defaultOn: true, priority: 90 },
-  { id: "slack-webhook", label: "Slack webhooks", tag: "slack-webhook", prefix: "SLACK_WEBHOOK", group: "keys", defaultOn: true, priority: 90 },
-  { id: "jwt", label: "JWTs", tag: "jwt", prefix: "JWT", group: "credentials", defaultOn: true, priority: 85 },
-  { id: "bearer-token", label: "Authorization headers", tag: "bearer-token", prefix: "TOKEN", group: "credentials", defaultOn: true, priority: 75 },
-  { id: "connection-password", label: "Connection string passwords", tag: "password", prefix: "PASSWORD", group: "credentials", defaultOn: true, priority: 70 },
-  { id: "secret-assignment", label: "Password and secret values", tag: "secret", prefix: "SECRET", group: "credentials", defaultOn: true, priority: 60 },
-  { id: "credit-card", label: "Card numbers", tag: "credit-card", prefix: "CARD", group: "personal", defaultOn: true, priority: 50 },
-  { id: "email", label: "Email addresses", tag: "email", prefix: "EMAIL", group: "personal", defaultOn: true, priority: 45 },
-  { id: "ssn", label: "US Social Security numbers", tag: "ssn", prefix: "SSN", group: "personal", defaultOn: false, priority: 40 },
-  { id: "ip-address", label: "IP addresses", tag: "ip-address", prefix: "IP", group: "personal", defaultOn: true, priority: 35 },
-  { id: "phone", label: "Phone numbers", tag: "phone", prefix: "PHONE", group: "personal", defaultOn: false, priority: 30 },
-  { id: "high-entropy", label: "High-entropy strings", tag: "high-entropy", prefix: "SECRET", group: "heuristic", defaultOn: false, priority: 10 },
+const DETECTOR_LIST: Omit<DetectorInfo, "label">[] = [
+  { id: "private-key", labelKey: "detector.privateKey", tag: "private-key", prefix: "PRIVATE_KEY", group: "keys", defaultOn: true, priority: 100 },
+  { id: "aws-access-key", labelKey: "detector.awsAccessKey", tag: "aws-access-key", prefix: "AWS_KEY", group: "keys", defaultOn: true, priority: 90 },
+  { id: "aws-secret-key", labelKey: "detector.awsSecretKey", tag: "aws-secret-key", prefix: "AWS_SECRET", group: "keys", defaultOn: true, priority: 88 },
+  { id: "github-token", labelKey: "detector.githubToken", tag: "github-token", prefix: "GITHUB_TOKEN", group: "keys", defaultOn: true, priority: 90 },
+  { id: "anthropic-key", labelKey: "detector.anthropicKey", tag: "anthropic-key", prefix: "ANTHROPIC_KEY", group: "keys", defaultOn: true, priority: 92 },
+  { id: "openai-key", labelKey: "detector.openaiKey", tag: "openai-key", prefix: "OPENAI_KEY", group: "keys", defaultOn: true, priority: 90 },
+  { id: "google-api-key", labelKey: "detector.googleApiKey", tag: "google-api-key", prefix: "GOOGLE_KEY", group: "keys", defaultOn: true, priority: 90 },
+  { id: "stripe-key", labelKey: "detector.stripeKey", tag: "stripe-key", prefix: "STRIPE_KEY", group: "keys", defaultOn: true, priority: 90 },
+  { id: "slack-token", labelKey: "detector.slackToken", tag: "slack-token", prefix: "SLACK_TOKEN", group: "keys", defaultOn: true, priority: 90 },
+  { id: "slack-webhook", labelKey: "detector.slackWebhook", tag: "slack-webhook", prefix: "SLACK_WEBHOOK", group: "keys", defaultOn: true, priority: 90 },
+  { id: "jwt", labelKey: "detector.jwt", tag: "jwt", prefix: "JWT", group: "credentials", defaultOn: true, priority: 85 },
+  { id: "bearer-token", labelKey: "detector.bearerToken", tag: "bearer-token", prefix: "TOKEN", group: "credentials", defaultOn: true, priority: 75 },
+  { id: "connection-password", labelKey: "detector.connectionPassword", tag: "password", prefix: "PASSWORD", group: "credentials", defaultOn: true, priority: 70 },
+  { id: "secret-assignment", labelKey: "detector.secretAssignment", tag: "secret", prefix: "SECRET", group: "credentials", defaultOn: true, priority: 60 },
+  { id: "credit-card", labelKey: "detector.creditCard", tag: "credit-card", prefix: "CARD", group: "personal", defaultOn: true, priority: 50 },
+  { id: "email", labelKey: "detector.email", tag: "email", prefix: "EMAIL", group: "personal", defaultOn: true, priority: 45 },
+  { id: "ssn", labelKey: "detector.ssn", tag: "ssn", prefix: "SSN", group: "personal", defaultOn: false, priority: 40 },
+  { id: "ip-address", labelKey: "detector.ipAddress", tag: "ip-address", prefix: "IP", group: "personal", defaultOn: true, priority: 35 },
+  { id: "phone", labelKey: "detector.phone", tag: "phone", prefix: "PHONE", group: "personal", defaultOn: false, priority: 30 },
+  { id: "high-entropy", labelKey: "detector.highEntropy", tag: "high-entropy", prefix: "SECRET", group: "heuristic", defaultOn: false, priority: 10 },
 ];
+
+export const DETECTORS: DetectorInfo[] = DETECTOR_LIST.map((d) => ({
+  ...d,
+  get label() {
+    return t(d.labelKey);
+  },
+}));
 
 const DETECTOR_BY_ID = new Map(DETECTORS.map((d) => [d.id, d]));
 

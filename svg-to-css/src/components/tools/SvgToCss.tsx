@@ -2,30 +2,14 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, ImageOff } from "lucide-react";
 import { toast } from "@/shims/sonner";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CopyButton } from "@/components/tools/CopyButton";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
+import { formatList, useT } from "@/lib/i18n";
 import { formatBytes } from "@/utils/format-bytes";
 import { byteLength, convertSvg, type SvgResult } from "@/utils/svg-to-css";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which data URI should I use?",
-    a: "Use the URL-encoded one in CSS. It is usually smaller than Base64, and it compresses better with gzip. Use Base64 where a tool only accepts Base64.",
-  },
-  {
-    q: "How does the mask snippet tint an icon?",
-    a: "The SVG becomes a mask, and `background-color: currentColor` fills it. The icon takes the text color, so you can change it with `color` or on hover.",
-  },
-  {
-    q: "What does the tool remove?",
-    a: "The XML prolog, comments, `<metadata>`, editor data from Inkscape, Sodipodi, Illustrator, and Sketch, and source indentation. It also removes `<script>` elements, `on*` attributes, and `javascript:` links.",
-  },
-  {
-    q: "Why was a namespace added?",
-    a: "SVG copied from HTML often has no `xmlns`. A browser shows an SVG image only when the root element has the SVG namespace, so the tool adds it.",
-  },
-];
+const FAQ_KEYS = ["dataUri", "mask", "removed", "namespace"] as const;
 
 const PLACEHOLDER = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">\n  <path d="M12 2 2 22h20L12 2z" fill="#0ea5e9"/>\n</svg>';
 
@@ -34,35 +18,36 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 type Output = { key: string; label: string; value: string };
 
 export function SvgToCss() {
+  const t = useT();
   const [input, setInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const text = useDebouncedValue(input);
 
-  const result = useMemo<SvgResult | null>(() => (text.trim() ? convertSvg(text) : null), [text]);
+  const result = useMemo<SvgResult | null>(() => (text.trim() ? convertSvg(text) : null), [text, t]);
   const conversion = result && "svg" in result ? result : null;
   const error = result && "error" in result ? result.error : "";
 
   const openFile = async (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
-      toast.error(`The file is ${formatBytes(file.size)}. Open an SVG of 5 MB or less.`);
+      toast.error(t("toast.tooLarge", { size: formatBytes(file.size) }));
       return;
     }
     try {
       setInput(await file.text());
     } catch {
-      toast.error("Could not read the file.");
+      toast.error(t("toast.readFailed"));
     }
   };
 
   const outputs: Output[] = conversion
     ? [
-        { key: "mini", label: "URL-encoded data URI", value: conversion.miniDataUri },
-        { key: "base64", label: "Base64 data URI", value: conversion.base64DataUri },
-        { key: "background", label: "CSS background", value: conversion.backgroundCss },
-        { key: "mask", label: "CSS mask (tintable icon)", value: conversion.maskCss },
-        { key: "img", label: "HTML img tag", value: conversion.imgTag },
-        { key: "svg", label: "Optimized SVG", value: conversion.svg },
+        { key: "mini", label: t("output.mini"), value: conversion.miniDataUri },
+        { key: "base64", label: t("output.base64"), value: conversion.base64DataUri },
+        { key: "background", label: t("output.background"), value: conversion.backgroundCss },
+        { key: "mask", label: t("output.mask"), value: conversion.maskCss },
+        { key: "img", label: t("output.img"), value: conversion.imgTag },
+        { key: "svg", label: t("output.svg"), value: conversion.svg },
       ]
     : [];
 
@@ -83,12 +68,14 @@ export function SvgToCss() {
 
   const removed = conversion ? conversion.scripts + conversion.handlers : 0;
   const warning = conversion && removed > 0
-    ? `The SVG contained ${[
-        conversion.scripts ? `${conversion.scripts} ${conversion.scripts === 1 ? "script" : "scripts"}` : "",
-        conversion.handlers ? `${conversion.handlers} event ${conversion.handlers === 1 ? "handler or javascript: link" : "handlers or javascript: links"}` : "",
-      ]
-        .filter(Boolean)
-        .join(" and ")}. The outputs do not include them.`
+    ? t("warning.removed", {
+        items: formatList(
+          [
+            conversion.scripts ? t("warning.scripts", { count: conversion.scripts }) : "",
+            conversion.handlers ? t("warning.handlers", { count: conversion.handlers }) : "",
+          ].filter(Boolean),
+        ),
+      })
     : "";
 
   const inputBytes = byteLength(text);
@@ -107,7 +94,7 @@ export function SvgToCss() {
       }
       first={
         <EditorPane
-          title="SVG"
+          title={t("pane.svg")}
           htmlFor="svg-to-css-input"
           scroll={false}
           actions={
@@ -126,9 +113,9 @@ export function SvgToCss() {
               />
               <button type="button" className="toolbar-text-button" onClick={() => fileInputRef.current?.click()}>
                 <FileUp size={14} aria-hidden="true" />
-                Open file
+                {t("action.openFile")}
               </button>
-              {input && <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>Clear</button>}
+              {input && <button type="button" className="toolbar-text-button" onClick={() => setInput("")}>{t("common.clear")}</button>}
             </>
           }
         >
@@ -136,20 +123,20 @@ export function SvgToCss() {
         </EditorPane>
       }
       second={
-        <EditorPane title="Data URI and CSS">
+        <EditorPane title={t("pane.output")}>
           {conversion ? (
             <div className="result-list" ref={listRef}>
               <div className="flex items-center gap-4 border-b border-border px-4 py-3">
                 <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-md border border-border bg-muted p-2">
-                  <img src={conversion.miniDataUri} alt="Preview of the SVG" className="max-h-full max-w-full" />
+                  <img src={conversion.miniDataUri} alt={t("preview.alt")} className="max-h-full max-w-full" />
                 </div>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-                  <dt className="text-muted-foreground">Input</dt>
+                  <dt className="text-muted-foreground">{t("info.input")}</dt>
                   <dd>{formatBytes(inputBytes)}</dd>
-                  <dt className="text-muted-foreground">Optimized</dt>
+                  <dt className="text-muted-foreground">{t("info.optimized")}</dt>
                   <dd>{formatBytes(byteLength(conversion.svg))}</dd>
-                  <dt className="text-muted-foreground">Size</dt>
-                  <dd>{conversion.width && conversion.height ? `${conversion.width} × ${conversion.height}` : "Not set"}</dd>
+                  <dt className="text-muted-foreground">{t("info.size")}</dt>
+                  <dd>{conversion.width && conversion.height ? `${conversion.width} × ${conversion.height}` : t("info.notSet")}</dd>
                 </dl>
               </div>
               {outputs.map(({ key, label, value }) => (
@@ -161,38 +148,39 @@ export function SvgToCss() {
                   <textarea
                     id={`svg-to-css-${key}`}
                     className="result-row-value code-textarea"
+                    dir="ltr"
                     value={value}
                     readOnly
                     rows={1}
                     ref={fitHeight}
                   />
-                  <CopyButton value={value} iconOnly label={`Copy ${label}`} />
+                  <CopyButton value={value} iconOnly label={t("copy.label", { label })} />
                 </div>
               ))}
             </div>
           ) : (
             <PaneEmpty
               icon={error ? <ImageOff size={20} aria-hidden="true" /> : undefined}
-              title={error ? "Fix the SVG to see the outputs" : "Data URIs and CSS appear here"}
-              hint={error ? undefined : "Paste SVG markup or open an .svg file."}
+              title={error ? t("empty.error") : t("empty.title")}
+              hint={error ? undefined : t("empty.hint")}
             />
           )}
         </EditorPane>
       }
       status={
         error ? (
-          <span className="text-destructive">Invalid SVG</span>
+          <span className="text-destructive">{t("status.invalid")}</span>
         ) : conversion ? (
           <>
-            <span>{formatBytes(inputBytes)} in</span>
-            <span>{formatBytes(byteLength(conversion.miniDataUri))} URL-encoded</span>
-            <span>{formatBytes(byteLength(conversion.base64DataUri))} Base64</span>
+            <span>{t("status.in", { size: formatBytes(inputBytes) })}</span>
+            <span>{t("status.mini", { size: formatBytes(byteLength(conversion.miniDataUri)) })}</span>
+            <span>{t("status.base64", { size: formatBytes(byteLength(conversion.base64DataUri)) })}</span>
           </>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={FAQ_KEYS.map((k) => ({ q: t(`faq.${k}.q`), a: t(`faq.${k}.a`) }))} />}
     />
   );
 }

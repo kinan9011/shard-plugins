@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, ShieldCheck, ShieldX, Loader2 } from "lucide-react";
 import { toast } from "@/shims/sonner";
+import { useT, type TKey } from "@/lib/i18n";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import {
   hashBcrypt,
   verifyBcrypt,
@@ -17,35 +18,17 @@ import {
   BCRYPT_DEFAULT_ROUNDS,
 } from "@/utils/bcrypt";
 
-// Moved outside component — pure function, no need to recreate on every render
-const getRoundLabel = (r: number) => {
-  if (r <= 6) return { label: "Very Fast (less secure)", color: "text-destructive" };
-  if (r <= 9) return { label: "Fast", color: "text-warning" };
-  if (r <= 12) return { label: "Balanced (recommended)", color: "text-success" };
-  return { label: "Slow (high security)", color: "text-info" };
+const getRoundLabel = (r: number): { label: TKey; color: string } => {
+  if (r <= 6) return { label: "rounds.veryFast", color: "text-destructive" };
+  if (r <= 9) return { label: "rounds.fast", color: "text-warning" };
+  if (r <= 12) return { label: "rounds.balanced", color: "text-success" };
+  return { label: "rounds.slow", color: "text-info" };
 };
 
-// Moved outside component — static data, no need to recreate on every render
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "What is bcrypt?",
-    a: "Bcrypt is a password hashing function designed to be computationally intensive. It's commonly used for securely storing passwords in databases.",
-  },
-  {
-    q: "How many rounds should I use?",
-    a: "12 rounds is the recommended minimum for production use. More rounds increase security but also processing time. Choose based on your security requirements.",
-  },
-  {
-    q: "Is this tool secure?",
-    a: "All processing happens in your browser using the bcryptjs library. No data is sent to any servers or stored anywhere.",
-  },
-  {
-    q: "Can I use this in production?",
-    a: "This tool is primarily for testing and learning. For production use, implement bcrypt directly in your application using a trusted library.",
-  },
-];
+const FAQ_KEYS = ["what", "rounds", "secure", "production"] as const;
 
 export function BcryptGenerator() {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<"hash" | "verify">("hash");
 
   // Hash tab state
@@ -68,7 +51,7 @@ export function BcryptGenerator() {
       const result = await hashBcrypt(plainText, rounds);
       setHashOutput(result);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to generate hash.");
+      toast.error((err as Error).message || t("toast.hashFailed"));
     } finally {
       setHashing(false);
     }
@@ -83,7 +66,7 @@ export function BcryptGenerator() {
       const match = await verifyBcrypt(verifyPlainText, verifyHash);
       setVerifyResult(match);
     } catch (err) {
-      toast.error((err as Error).message || "Verification failed.");
+      toast.error((err as Error).message || t("toast.verifyFailed"));
       setVerifyResult(null);
     } finally {
       setVerifying(false);
@@ -92,18 +75,19 @@ export function BcryptGenerator() {
 
 
   const roundInfo = getRoundLabel(rounds);
+  const faqItems = FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }));
 
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "hash" | "verify")} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="hash">
-            <Lock className="w-4 h-4 mr-2" />
-            Hash Password
+            <Lock className="w-4 h-4 me-2" />
+            {t("tab.hash")}
           </TabsTrigger>
           <TabsTrigger value="verify">
-            <ShieldCheck className="w-4 h-4 mr-2" />
-            Verify Hash
+            <ShieldCheck className="w-4 h-4 me-2" />
+            {t("tab.verify")}
           </TabsTrigger>
         </TabsList>
 
@@ -111,12 +95,12 @@ export function BcryptGenerator() {
         <TabsContent value="hash" className="space-y-5 mt-5">
           {/* Plain text input */}
           <div className="space-y-2">
-            <Label>Plain Text / Password</Label>
+            <Label>{t("field.plain")}</Label>
             <Input
               type="password"
               value={plainText}
               onChange={(e) => setPlainText(e.target.value)}
-              placeholder="Enter password or text to hash..."
+              placeholder={t("hash.placeholder")}
               onKeyDown={(e) => e.key === "Enter" && !hashing && handleHash()}
             />
           </div>
@@ -124,8 +108,8 @@ export function BcryptGenerator() {
           {/* Rounds selector */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Salt Rounds (Cost Factor): {rounds}</Label>
-              <span className={`text-xs font-medium ${roundInfo.color}`}>{roundInfo.label}</span>
+              <Label>{t("rounds.label", { rounds })}</Label>
+              <span className={`text-xs font-medium ${roundInfo.color}`}>{t(roundInfo.label)}</span>
             </div>
             <input
               type="range"
@@ -136,15 +120,14 @@ export function BcryptGenerator() {
               className="w-full accent-primary"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{BCRYPT_MIN_ROUNDS} (fastest)</span>
-              <span>{BCRYPT_MAX_ROUNDS} (slowest)</span>
+              <span>{t("rounds.fastest", { rounds: BCRYPT_MIN_ROUNDS })}</span>
+              <span>{t("rounds.slowest", { rounds: BCRYPT_MAX_ROUNDS })}</span>
             </div>
           </div>
 
           {/* Info box */}
           <div className="text-xs text-muted-foreground bg-muted rounded-md p-3 leading-relaxed">
-            Each additional round doubles the computation time. Round 12 (~250ms) is recommended for most
-            applications. Rounds above 14 may take many seconds.
+            {t("hash.info")}
           </div>
 
           {/* Hash button */}
@@ -152,12 +135,12 @@ export function BcryptGenerator() {
             {hashing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Hashing (round {rounds})…
+                {t("status.hashing", { rounds })}
               </>
             ) : (
               <>
                 <Lock className="w-4 h-4" />
-                Generate Bcrypt Hash
+                {t("action.generate")}
               </>
             )}
           </Button>
@@ -166,12 +149,13 @@ export function BcryptGenerator() {
           {hashOutput && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Bcrypt Hash</Label>
-                <CopyButton value={hashOutput} label="Copy" />
+                <Label>{t("field.hash")}</Label>
+                <CopyButton value={hashOutput} label={t("common.copy")} />
               </div>
               <textarea
                 value={hashOutput}
                 readOnly
+                dir="ltr"
                 className="w-full h-20 p-3 rounded-md border bg-muted font-mono text-sm resize-none focus:outline-none"
               />
             </div>
@@ -182,27 +166,28 @@ export function BcryptGenerator() {
         <TabsContent value="verify" className="space-y-5 mt-5">
           {/* Plain text */}
           <div className="space-y-2">
-            <Label>Plain Text / Password</Label>
+            <Label>{t("field.plain")}</Label>
             <Input
               type="password"
               value={verifyPlainText}
               onChange={(e) => { setVerifyPlainText(e.target.value); setVerifyResult(null); }}
-              placeholder="Enter the original plain text..."
+              placeholder={t("verify.placeholder.plain")}
             />
           </div>
 
           {/* Bcrypt hash */}
           <div className="space-y-2">
-            <Label>Bcrypt Hash</Label>
+            <Label>{t("field.hash")}</Label>
             <textarea
               value={verifyHash}
               onChange={(e) => { setVerifyHash(e.target.value.trim()); setVerifyResult(null); setDetectedRounds(null); }}
-              placeholder="Paste the bcrypt hash here (e.g. $2b$12$…)"
+              placeholder={t("verify.placeholder.hash")}
+              dir={verifyHash ? "ltr" : undefined}
               className="w-full h-20 p-3 rounded-md border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
             />
             {verifyHash && !isValidBcryptHash(verifyHash) && (
               <p className="text-xs text-destructive">
-                This doesn't look like a valid bcrypt hash. It should start with $2a$, $2b$, or $2y$ and be 60 characters long.
+                {t("verify.invalidHint")}
               </p>
             )}
           </div>
@@ -216,12 +201,12 @@ export function BcryptGenerator() {
             {verifying ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Verifying…
+                {t("status.verifying")}
               </>
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                Verify Hash
+                {t("action.verify")}
               </>
             )}
           </Button>
@@ -242,11 +227,11 @@ export function BcryptGenerator() {
               )}
               <div>
                 <p className="font-semibold text-sm">
-                  {verifyResult ? "✓ Match — the hash matches the plain text." : "✗ No Match — the hash does not match the plain text."}
+                  {verifyResult ? t("result.match") : t("result.noMatch")}
                 </p>
                 {detectedRounds !== null && (
                   <p className="text-xs mt-0.5 opacity-75">
-                    Hash cost factor: {detectedRounds} rounds
+                    {t("result.rounds", { count: detectedRounds })}
                   </p>
                 )}
               </div>
@@ -255,7 +240,7 @@ export function BcryptGenerator() {
         </TabsContent>
       </Tabs>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={faqItems} />
     </div>
   );
 }

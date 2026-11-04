@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { followHostLocale } from "./lib/i18n";
 import { connect, type Theme } from "./shard-sdk";
 import "./index.css";
 
@@ -13,14 +14,19 @@ function applyTheme(theme: Theme) {
   root.style.colorScheme = theme.isDark ? "dark" : "light";
 }
 
-createRoot(document.getElementById("root")!).render(<App sdk={sdk} />);
+async function start() {
+  await followHostLocale(sdk); // the first paint is already in the app language
+  createRoot(document.getElementById("root")!).render(<App sdk={sdk} />);
 
-sdk
-  .ready()
-  .then(({ theme }) => {
-    applyTheme(theme);
-    sdk.theme.onChange(applyTheme);
-  })
-  .catch(() => {
-    // Opened outside the app (npm run dev): the tool works, copying does not.
-  });
+  sdk
+    .ready()
+    .then(({ theme }) => {
+      applyTheme(theme);
+      sdk.theme.onChange(applyTheme);
+    })
+    .catch(() => {
+      // Opened outside the app (npm run dev): the tool works, copying does not.
+    });
+}
+
+void start();

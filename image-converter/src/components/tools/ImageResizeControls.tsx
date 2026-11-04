@@ -1,3 +1,4 @@
+import { useT } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +18,7 @@ const CUSTOM = "custom";
 
 /** Resize settings for the Image Converter: method, preset, size, and the pixel options. */
 export function ImageResizeControls({ id, value, onChange, source }: ImageResizeControlsProps) {
+  const t = useT();
   const set = (patch: Partial<ResizeSettings>) => onChange({ ...value, ...patch });
   const custom = Boolean(source) && value.width !== null && value.height !== null;
   const shownWidth = custom ? value.width! : source ? Math.round((source.width * value.percent) / 100) : 0;
@@ -53,35 +55,35 @@ export function ImageResizeControls({ id, value, onChange, source }: ImageResize
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label htmlFor={`${id}-resize`}>Resize</Label>
+        <Label htmlFor={`${id}-resize`}>{t("resize.label")}</Label>
         <Switch id={`${id}-resize`} checked={value.enabled} onCheckedChange={(enabled) => set({ enabled })} />
       </div>
       {value.enabled ? (
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Method</Label>
+            <Label>{t("resize.method")}</Label>
             <Select value={value.method} onValueChange={(method) => set({ method: method as ResizeMethod })}>
-              <SelectTrigger aria-label="Resize method">
+              <SelectTrigger aria-label={t("resize.methodAria")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {RESIZE_METHODS.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {item.label}
+                    {t(`resizeMethod.${item.id}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Preset</Label>
+            <Label>{t("resize.preset")}</Label>
             <Select
               value={custom ? CUSTOM : String(value.percent)}
               onValueChange={(preset) => {
                 if (preset !== CUSTOM) set({ percent: Number(preset), width: null, height: null });
               }}
             >
-              <SelectTrigger aria-label="Resize preset">
+              <SelectTrigger aria-label={t("resize.presetAria")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -90,14 +92,14 @@ export function ImageResizeControls({ id, value, onChange, source }: ImageResize
                     {percent}%
                   </SelectItem>
                 ))}
-                {custom ? <SelectItem value={CUSTOM}>Custom size</SelectItem> : null}
+                {custom ? <SelectItem value={CUSTOM}>{t("resize.custom")}</SelectItem> : null}
               </SelectContent>
             </Select>
           </div>
           {source ? (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label htmlFor={`${id}-width`}>Width</Label>
+                <Label htmlFor={`${id}-width`}>{t("resize.width")}</Label>
                 <Input
                   id={`${id}-width`}
                   type="number"
@@ -108,7 +110,7 @@ export function ImageResizeControls({ id, value, onChange, source }: ImageResize
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`${id}-height`}>Height</Label>
+                <Label htmlFor={`${id}-height`}>{t("resize.height")}</Label>
                 <Input
                   id={`${id}-height`}
                   type="number"
@@ -120,9 +122,9 @@ export function ImageResizeControls({ id, value, onChange, source }: ImageResize
               </div>
             </div>
           ) : null}
-          {source ? checkbox("keepAspect", "Maintain aspect ratio") : null}
-          {checkbox("premultiply", "Premultiply alpha channel")}
-          {checkbox("linearRgb", "Linear RGB")}
+          {source ? checkbox("keepAspect", t("resize.keepAspect")) : null}
+          {checkbox("premultiply", t("resize.premultiply"))}
+          {checkbox("linearRgb", t("resize.linearRgb"))}
         </div>
       ) : null}
     </div>

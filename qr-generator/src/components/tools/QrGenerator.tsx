@@ -8,10 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/tools/CopyButton";
-import { ToolFaqSection, type ToolFaqItem } from "@/components/tools/ToolFaq";
+import { ToolFaqSection } from "@/components/tools/ToolFaq";
 import { CodeTextarea, EditorPane, PaneEmpty, ToolWorkspace } from "@/components/tools/ToolWorkspace";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { saveFile } from "@/lib/desktop";
+import { t as tNow, useT } from "@/lib/i18n";
 import {
   QR_QUIET_ZONE,
   buildQrSvg,
@@ -38,52 +39,14 @@ import {
   type WifiSecurity,
 } from "@/utils/qr-payload";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "Which content types can I encode?",
-    a: "Text or URL, Wi-Fi network, contact (vCard 3.0), email (mailto), phone (tel), SMS (SMSTO), location (geo) and calendar event (iCalendar). Each form writes the payload text, which the tool shows under the form.",
-  },
-  {
-    q: "Which error correction level should I use?",
-    a: "Auto uses level M, which recovers about 15% of a damaged code. With a logo, Auto uses level H, which recovers about 30%. If the content does not fit, Auto drops one level. A lower level gives a smaller, simpler code.",
-  },
-  {
-    q: "Will a code with a logo still scan?",
-    a: "Yes, at level H or Q. The logo covers a square in the center of about a fifth of the width. That hides about 5% of the modules, well inside what level H recovers. Test the code with a phone before you print it.",
-  },
-  {
-    q: "How are special characters in a Wi-Fi name or password handled?",
-    a: "The tool escapes \\ ; , : and \" with a backslash, as the Wi-Fi QR format requires. Phones then read the exact name and password.",
-  },
-  {
-    q: "Which time zone does an event use?",
-    a: "The event uses floating local time. A phone shows it at the same clock time in any time zone. All-day events use dates only.",
-  },
-  {
-    q: "Should I save a PNG or an SVG?",
-    a: "Save an SVG for print, such as posters and flyers. It stays sharp at any size. Save a PNG for slides, chat and web pages. The PNG uses the size you choose.",
-  },
-  {
-    q: "Is my content sent anywhere?",
-    a: "No. The code is generated on this device.",
-  },
-];
+const FAQ_KEYS = ["types", "level", "logoScan", "wifiEscape", "timeZone", "format", "privacy"] as const;
 
 type Template = "text" | "wifi" | "contact" | "email" | "phone" | "sms" | "location" | "event";
 
-const TEMPLATES: Array<{ value: Template; label: string; title: string; hint: string }> = [
-  { value: "text", label: "Text", title: "Text or URL", hint: "Enter text or a URL." },
-  { value: "wifi", label: "Wi-Fi", title: "Wi-Fi network", hint: "Enter the network name." },
-  { value: "contact", label: "Contact", title: "Contact", hint: "Enter a name or an organization." },
-  { value: "email", label: "Email", title: "Email", hint: "Enter an email address." },
-  { value: "phone", label: "Phone", title: "Phone number", hint: "Enter a phone number." },
-  { value: "sms", label: "SMS", title: "SMS", hint: "Enter a phone number." },
-  { value: "location", label: "Location", title: "Location", hint: "Enter the latitude and longitude." },
-  { value: "event", label: "Event", title: "Calendar event", hint: "Enter a title and a start time." },
-];
+const TEMPLATES: Template[] = ["text", "wifi", "contact", "email", "phone", "sms", "location", "event"];
 
 const LEVEL_OPTIONS: Array<{ value: QrErrorCorrectionChoice; label: string }> = [
-  { value: "auto", label: "Auto" },
+  { value: "auto", label: "" },
   { value: "L", label: "L · 7%" },
   { value: "M", label: "M · 15%" },
   { value: "Q", label: "Q · 25%" },
@@ -152,6 +115,7 @@ function Field({ id, label, wide, children }: { id: string; label: string; wide?
 const inputProps = { className: "h-8 text-sm", autoComplete: "off", spellCheck: false } as const;
 
 export function QrGenerator() {
+  const t = useT();
   const [template, setTemplate] = useState<Template>("text");
   const [text, setText] = useState("");
   const [wifi, setWifi] = useState<WifiFields>({ ssid: "", password: "", security: "WPA", hidden: false });
@@ -171,7 +135,9 @@ export function QrGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const current = TEMPLATES.find((item) => item.value === template) ?? TEMPLATES[0];
+  const templateTitle = t(`template.${template}.title`);
+  const templateHint = t(`template.${template}.hint`);
+  const faqItems = FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }));
 
   const result: PayloadResult = useMemo(() => {
     switch (template) {
@@ -184,7 +150,7 @@ export function QrGenerator() {
       case "event": return buildEventPayload(event);
       default: return { payload: text };
     }
-  }, [template, text, wifi, contact, email, phone, sms, geo, event]);
+  }, [template, text, wifi, contact, email, phone, sms, geo, event, t]);
 
   const payload = useDebouncedValue(result.payload);
   const hasLogo = Boolean(logo);
@@ -216,7 +182,7 @@ export function QrGenerator() {
     image.onerror = () => {
       if (!active) return;
       setLogo(null);
-      setLogoError("This image cannot be used as a logo. Choose a PNG, JPEG or SVG file.");
+      setLogoError(tNow("error.logoUnusable"));
     };
     image.src = logo.dataUrl;
     return () => {
@@ -227,14 +193,14 @@ export function QrGenerator() {
   const chooseLogo = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setLogoError("Choose an image file for the logo, such as a PNG or SVG.");
+      setLogoError(t("error.logoNotImage"));
       return;
     }
     try {
       setLogo({ name: file.name, dataUrl: await readDataUrl(file) });
       setLogoError("");
     } catch {
-      setLogoError("Could not read the logo file.");
+      setLogoError(t("error.logoRead"));
     }
   };
 
@@ -245,14 +211,14 @@ export function QrGenerator() {
     try {
       blob = await canvasToPng(canvas);
     } catch {
-      toast.error("Unable to create the QR code image.");
+      toast.error(t("toast.imageFailed"));
       return;
     }
     try {
-      if (await saveFile(blob, `qr-code-${Date.now()}.png`)) toast.success("QR code saved.");
+      if (await saveFile(blob, `qr-code-${Date.now()}.png`)) toast.success(t("toast.saved"));
     } catch (error) {
       console.error("Failed to save QR code:", error);
-      toast.error("Unable to save the QR code.");
+      toast.error(t("toast.saveFailed"));
     }
   };
 
@@ -260,10 +226,10 @@ export function QrGenerator() {
     if (!qr) return;
     const svg = buildQrSvg(qr.matrix, { size, logo: logo?.dataUrl });
     try {
-      if (await saveFile(new Blob([svg], { type: "image/svg+xml" }), `qr-code-${Date.now()}.svg`)) toast.success("QR code saved.");
+      if (await saveFile(new Blob([svg], { type: "image/svg+xml" }), `qr-code-${Date.now()}.svg`)) toast.success(t("toast.saved"));
     } catch (error) {
       console.error("Failed to save QR code:", error);
-      toast.error("Unable to save the QR code.");
+      toast.error(t("toast.saveFailed"));
     }
   };
 
@@ -287,25 +253,25 @@ export function QrGenerator() {
       case "wifi":
         return (
           <>
-            <Field id="qr-wifi-ssid" label="Network name (SSID)">
+            <Field id="qr-wifi-ssid" label={t("field.ssid")}>
               <Input id="qr-wifi-ssid" {...inputProps} value={wifi.ssid} onChange={(e) => wifiField("ssid", e.target.value)} />
             </Field>
-            <Field id="qr-wifi-security" label="Security">
-              <select id="qr-wifi-security" className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm" value={wifi.security}
+            <Field id="qr-wifi-security" label={t("field.security")}>
+              <select id="qr-wifi-security" className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm" value={wifi.security}
                 onChange={(e) => setWifi((state) => ({ ...state, security: e.target.value as WifiSecurity }))}>
-                <option value="WPA">WPA, WPA2 or WPA3</option>
+                <option value="WPA">{t("security.wpa")}</option>
                 <option value="WEP">WEP</option>
-                <option value="nopass">None (open network)</option>
+                <option value="nopass">{t("security.none")}</option>
               </select>
             </Field>
             {wifi.security !== "nopass" && (
-              <Field id="qr-wifi-password" label="Password">
+              <Field id="qr-wifi-password" label={t("field.password")}>
                 <Input id="qr-wifi-password" {...inputProps} value={wifi.password} onChange={(e) => wifiField("password", e.target.value)} />
               </Field>
             )}
             <div className="flex items-end pb-1.5">
               <label className="option-switch" htmlFor="qr-wifi-hidden">
-                Hidden network
+                {t("option.hidden")}
                 <Switch id="qr-wifi-hidden" checked={wifi.hidden} onCheckedChange={(hidden) => setWifi((state) => ({ ...state, hidden }))} />
               </label>
             </div>
@@ -314,29 +280,29 @@ export function QrGenerator() {
       case "contact":
         return (
           <>
-            {contactInput("firstName", "First name")}
-            {contactInput("lastName", "Last name")}
-            {contactInput("organization", "Organization")}
-            {contactInput("title", "Job title")}
-            {contactInput("phone", "Phone", "tel")}
-            {contactInput("email", "Email", "email")}
-            {contactInput("website", "Website", "url", true)}
-            {contactInput("address", "Address", "text", true)}
-            {contactInput("note", "Note", "text", true)}
+            {contactInput("firstName", t("field.firstName"))}
+            {contactInput("lastName", t("field.lastName"))}
+            {contactInput("organization", t("field.organization"))}
+            {contactInput("title", t("field.jobTitle"))}
+            {contactInput("phone", t("field.phone"), "tel")}
+            {contactInput("email", t("field.email"), "email")}
+            {contactInput("website", t("field.website"), "url", true)}
+            {contactInput("address", t("field.address"), "text", true)}
+            {contactInput("note", t("field.note"), "text", true)}
           </>
         );
       case "email":
         return (
           <>
-            <Field id="qr-email-to" label="To" wide>
-              <Input id="qr-email-to" type="email" multiple {...inputProps} placeholder="name@example.com" value={email.to}
+            <Field id="qr-email-to" label={t("field.to")} wide>
+              <Input id="qr-email-to" type="email" multiple dir="ltr" {...inputProps} placeholder="name@example.com" value={email.to}
                 onChange={(e) => setEmail((state) => ({ ...state, to: e.target.value }))} />
             </Field>
-            <Field id="qr-email-subject" label="Subject" wide>
+            <Field id="qr-email-subject" label={t("field.subject")} wide>
               <Input id="qr-email-subject" {...inputProps} value={email.subject}
                 onChange={(e) => setEmail((state) => ({ ...state, subject: e.target.value }))} />
             </Field>
-            <Field id="qr-email-body" label="Body" wide>
+            <Field id="qr-email-body" label={t("field.body")} wide>
               <Textarea id="qr-email-body" className="text-sm" value={email.body}
                 onChange={(e) => setEmail((state) => ({ ...state, body: e.target.value }))} />
             </Field>
@@ -344,18 +310,18 @@ export function QrGenerator() {
         );
       case "phone":
         return (
-          <Field id="qr-phone" label="Phone number">
-            <Input id="qr-phone" type="tel" {...inputProps} placeholder="+1 555 0100" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Field id="qr-phone" label={t("field.phoneNumber")}>
+            <Input id="qr-phone" type="tel" dir="ltr" {...inputProps} placeholder="+1 555 0100" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
         );
       case "sms":
         return (
           <>
-            <Field id="qr-sms-number" label="Phone number">
-              <Input id="qr-sms-number" type="tel" {...inputProps} placeholder="+1 555 0100" value={sms.number}
+            <Field id="qr-sms-number" label={t("field.phoneNumber")}>
+              <Input id="qr-sms-number" type="tel" dir="ltr" {...inputProps} placeholder="+1 555 0100" value={sms.number}
                 onChange={(e) => setSms((state) => ({ ...state, number: e.target.value }))} />
             </Field>
-            <Field id="qr-sms-message" label="Message" wide>
+            <Field id="qr-sms-message" label={t("field.message")} wide>
               <Textarea id="qr-sms-message" className="text-sm" value={sms.message}
                 onChange={(e) => setSms((state) => ({ ...state, message: e.target.value }))} />
             </Field>
@@ -364,12 +330,12 @@ export function QrGenerator() {
       case "location":
         return (
           <>
-            <Field id="qr-geo-latitude" label="Latitude">
-              <Input id="qr-geo-latitude" inputMode="decimal" {...inputProps} placeholder="52.5200" value={geo.latitude}
+            <Field id="qr-geo-latitude" label={t("field.latitude")}>
+              <Input id="qr-geo-latitude" inputMode="decimal" dir="ltr" {...inputProps} placeholder="52.5200" value={geo.latitude}
                 onChange={(e) => setGeo((state) => ({ ...state, latitude: e.target.value }))} />
             </Field>
-            <Field id="qr-geo-longitude" label="Longitude">
-              <Input id="qr-geo-longitude" inputMode="decimal" {...inputProps} placeholder="13.4050" value={geo.longitude}
+            <Field id="qr-geo-longitude" label={t("field.longitude")}>
+              <Input id="qr-geo-longitude" inputMode="decimal" dir="ltr" {...inputProps} placeholder="13.4050" value={geo.longitude}
                 onChange={(e) => setGeo((state) => ({ ...state, longitude: e.target.value }))} />
             </Field>
           </>
@@ -377,29 +343,29 @@ export function QrGenerator() {
       case "event":
         return (
           <>
-            <Field id="qr-event-title" label="Title" wide>
+            <Field id="qr-event-title" label={t("field.title")} wide>
               <Input id="qr-event-title" {...inputProps} value={event.title}
                 onChange={(e) => setEvent((state) => ({ ...state, title: e.target.value }))} />
             </Field>
-            <Field id="qr-event-start" label="Start">
+            <Field id="qr-event-start" label={t("field.start")}>
               <Input id="qr-event-start" type={event.allDay ? "date" : "datetime-local"} className="h-8 text-sm" value={event.start}
                 onChange={(e) => setEvent((state) => ({ ...state, start: e.target.value }))} />
             </Field>
-            <Field id="qr-event-end" label="End">
+            <Field id="qr-event-end" label={t("field.end")}>
               <Input id="qr-event-end" type={event.allDay ? "date" : "datetime-local"} className="h-8 text-sm" value={event.end}
                 onChange={(e) => setEvent((state) => ({ ...state, end: e.target.value }))} />
             </Field>
             <div className="sm:col-span-2">
               <label className="option-switch" htmlFor="qr-event-all-day">
-                All-day event
+                {t("option.allDay")}
                 <Switch id="qr-event-all-day" checked={event.allDay} onCheckedChange={setAllDay} />
               </label>
             </div>
-            <Field id="qr-event-location" label="Location" wide>
+            <Field id="qr-event-location" label={t("field.location")} wide>
               <Input id="qr-event-location" {...inputProps} value={event.location}
                 onChange={(e) => setEvent((state) => ({ ...state, location: e.target.value }))} />
             </Field>
-            <Field id="qr-event-description" label="Description" wide>
+            <Field id="qr-event-description" label={t("field.description")} wide>
               <Textarea id="qr-event-description" className="text-sm" value={event.description}
                 onChange={(e) => setEvent((state) => ({ ...state, description: e.target.value }))} />
             </Field>
@@ -415,12 +381,12 @@ export function QrGenerator() {
     <div className="workspace-notice" data-tone="error" role="alert">{result.error}</div>
   ) : encoded.tooLong ? (
     <div className="workspace-notice" data-tone="error" role="alert">
-      This content is too long for a QR code{level === "auto" ? "" : ` at level ${level}`}. Shorten it{level === "auto" || level === "L" ? "" : " or choose a lower level"}.
+      {level === "auto" ? t("notice.tooLongAuto") : level === "L" ? t("notice.tooLongLevel", { level }) : t("notice.tooLongLower", { level })}
     </div>
   ) : logoError ? (
     <div className="workspace-notice" data-tone="error" role="alert">{logoError}</div>
   ) : lowLevelWithLogo ? (
-    <div className="workspace-notice" role="status">The logo hides part of the code. Use level Q or H so phones can still scan it.</div>
+    <div className="workspace-notice" role="status">{t("notice.logoLowLevel")}</div>
   ) : undefined;
 
   const bytes = useMemo(() => new TextEncoder().encode(payload).length, [payload]);
@@ -432,18 +398,18 @@ export function QrGenerator() {
       toolbar={
         <>
           <Tabs value={template} onValueChange={(value) => setTemplate(value as Template)}>
-            <TabsList aria-label="Content type">
+            <TabsList aria-label={t("tabs.aria")}>
               {TEMPLATES.map((item) => (
-                <TabsTrigger key={item.value} value={item.value}>{item.label}</TabsTrigger>
+                <TabsTrigger key={item} value={item}>{t(`template.${item}.label`)}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <label className="indent-control">
-            Error correction
-            <select aria-label="Error correction" value={level} onChange={(e) => setLevel(e.target.value as QrErrorCorrectionChoice)}>
+            {t("level.label")}
+            <select aria-label={t("level.label")} value={level} onChange={(e) => setLevel(e.target.value as QrErrorCorrectionChoice)}>
               {LEVEL_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.value === "auto" ? `Auto (${autoLevel})` : option.label}
+                  {option.value === "auto" ? t("level.auto", { level: autoLevel }) : option.label}
                 </option>
               ))}
             </select>
@@ -453,23 +419,24 @@ export function QrGenerator() {
       notice={notice}
       first={
         template === "text" ? (
-          <EditorPane title="Text or URL" htmlFor="qr-text" scroll={false}>
+          <EditorPane title={templateTitle} htmlFor="qr-text" scroll={false}>
             <CodeTextarea id="qr-text" placeholder="https://example.com" value={text} onChange={(e) => setText(e.target.value)} />
           </EditorPane>
         ) : (
-          <EditorPane title={current.title}>
+          <EditorPane title={templateTitle}>
             <div className="grid gap-3 p-4 sm:grid-cols-2">{form()}</div>
             <div className="grid gap-1.5 border-t px-4 py-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="qr-payload" className="text-xs font-medium">Payload</Label>
-                <CopyButton value={result.payload} label="Copy payload" />
+                <Label htmlFor="qr-payload" className="text-xs font-medium">{t("payload.label")}</Label>
+                <CopyButton value={result.payload} label={t("copy.payload")} />
               </div>
               <textarea
                 id="qr-payload"
                 readOnly
                 rows={Math.min(Math.max(result.payload.split("\n").length, 2), 12)}
-                placeholder={current.hint}
+                placeholder={templateHint}
                 value={result.payload}
+                dir="ltr"
                 spellCheck={false}
                 className="w-full resize-none rounded-md border border-input bg-muted/40 px-3 py-2 font-mono text-xs"
               />
@@ -479,30 +446,30 @@ export function QrGenerator() {
       }
       second={
         <EditorPane
-          title="QR code"
+          title={t("pane.qr")}
           actions={
             qr ? (
               <>
                 <button type="button" className="toolbar-text-button" onClick={savePng}>
                   <Download size={14} aria-hidden="true" />
-                  Save PNG
+                  {t("action.savePng")}
                 </button>
                 <button type="button" className="toolbar-text-button" onClick={saveSvg}>
                   <Download size={14} aria-hidden="true" />
-                  Save SVG
+                  {t("action.saveSvg")}
                 </button>
               </>
             ) : undefined
           }
         >
           <div className="pane-options">
-            <span className="font-medium">PNG size</span>
+            <span className="font-medium">{t("size.label")}</span>
             <Slider className="min-w-32 flex-1" value={[size]} onValueChange={([value]) => setSize(value)}
-              min={128} max={1024} step={64} aria-label="PNG size" />
+              min={128} max={1024} step={64} aria-label={t("size.label")} />
             <span className="w-24 text-muted-foreground">{size} × {size} px</span>
           </div>
           <div className="pane-options">
-            <span className="font-medium">Logo</span>
+            <span className="font-medium">{t("logo.label")}</span>
             <input
               ref={logoInputRef}
               type="file"
@@ -521,13 +488,13 @@ export function QrGenerator() {
                 <span className="min-w-0 truncate text-muted-foreground">{logo.name}</span>
                 <button type="button" className="toolbar-text-button" onClick={() => setLogo(null)}>
                   <X size={14} aria-hidden="true" />
-                  Remove logo
+                  {t("logo.remove")}
                 </button>
               </>
             ) : (
               <button type="button" className="toolbar-text-button" onClick={() => logoInputRef.current?.click()}>
                 <ImagePlus size={14} aria-hidden="true" />
-                Add logo
+                {t("logo.add")}
               </button>
             )}
           </div>
@@ -538,29 +505,29 @@ export function QrGenerator() {
                 width={size}
                 height={size}
                 role="img"
-                aria-label="QR code preview"
+                aria-label={t("preview.alt")}
                 className="h-auto w-full max-w-[320px] rounded-md border border-border"
               />
             </div>
           ) : (
-            <PaneEmpty icon={<QrCode size={22} aria-hidden="true" />} title="The QR code appears here" hint={current.hint} />
+            <PaneEmpty icon={<QrCode size={22} aria-hidden="true" />} title={t("empty.title")} hint={templateHint} />
           )}
         </EditorPane>
       }
       status={
         qr ? (
           <>
-            <span>Version {qr.version} · {qr.matrix.length} × {qr.matrix.length} modules</span>
-            <span>Level {qr.level}</span>
-            <span>{bytes} {bytes === 1 ? "byte" : "bytes"}</span>
+            <span>{t("status.version", { version: qr.version, size: qr.matrix.length })}</span>
+            <span>{t("status.level", { level: qr.level })}</span>
+            <span>{t("unit.bytes", { count: bytes })}</span>
           </>
         ) : encoded.tooLong ? (
-          <span className="text-destructive">Too long · {bytes} bytes</span>
+          <span className="text-destructive">{t("status.tooLong", { size: t("unit.bytes", { count: bytes }) })}</span>
         ) : (
-          <span>Ready</span>
+          <span>{t("status.ready")}</span>
         )
       }
-      help={<ToolFaqSection items={FAQ_ITEMS} />}
+      help={<ToolFaqSection items={faqItems} />}
     />
   );
 }

@@ -118,7 +118,8 @@ export function usePageSelection(pages: Page[], busy: boolean) {
     const index = pages.findIndex(page => page.id === id);
     const cards = Array.from(grid.current?.querySelectorAll<HTMLElement>("[data-page-id]") ?? []);
     const columns = cards.filter(card => card.getBoundingClientRect().top === cards[0]?.getBoundingClientRect().top).length || 1;
-    const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[event.key];
+    const rtl = !!grid.current && getComputedStyle(grid.current).direction === "rtl";   // the grid fills right to left
+    const offset = { ArrowLeft: rtl ? 1 : -1, ArrowRight: rtl ? -1 : 1, ArrowUp: -columns, ArrowDown: columns }[event.key];
     const next = event.key === "Home" ? 0 : event.key === "End" ? pages.length - 1 : offset === undefined ? undefined : Math.max(0, Math.min(pages.length - 1, index + offset));
     if (next === undefined) return;
     event.preventDefault();

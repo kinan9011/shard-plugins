@@ -1,0 +1,16 @@
+export default {
+  "length.label": "パスワードの長さ: {length}",
+  "option.uppercase": "大文字 (A-Z)",
+  "option.lowercase": "小文字 (a-z)",
+  "option.numbers": "数字 (0-9)",
+  "option.symbols": "記号 (!@#$...)",
+  "output.label": "生成されたパスワード",
+  "output.copy": "パスワードをコピー",
+  "output.regenerate": "新しいパスワードを生成",
+  "strength.label": "強度",
+  "strength.weak": "弱い",
+  "strength.fair": "普通",
+  "strength.good": "良い",
+  "strength.strong": "強い",
+  "error.noCharacterType": "文字の種類を 1 つ以上選択してください",
+};

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /** Random strings and Nano IDs from the Web Crypto random source, without modulo bias. */
 
 export type RandomStringMode = "nanoid" | "custom" | "hex" | "base64url";
@@ -36,9 +38,9 @@ export function buildAlphabet(sets: Partial<Record<CharacterSet, boolean>>, cust
 
 /** Returns an error message when the alphabet cannot make random strings, or an empty string. */
 export function validateAlphabet(alphabet: readonly string[]): string {
-  if (alphabet.length === 0) return "Select at least one character set or enter an alphabet.";
-  if (alphabet.length < 2) return "The alphabet needs at least 2 different characters.";
-  if (alphabet.length > MAX_ALPHABET_SIZE) return `The alphabet can have at most ${MAX_ALPHABET_SIZE} different characters.`;
+  if (alphabet.length === 0) return t("error.noSet");
+  if (alphabet.length < 2) return t("error.tooSmall");
+  if (alphabet.length > MAX_ALPHABET_SIZE) return t("error.tooLarge", { max: MAX_ALPHABET_SIZE });
   return "";
 }
 
@@ -51,7 +53,7 @@ export function randomFromAlphabet(alphabet: readonly string[] | string, size: n
   const chars = typeof alphabet === "string" ? Array.from(alphabet) : alphabet;
   const error = validateAlphabet(chars);
   if (error) throw new Error(error);
-  if (!Number.isInteger(size) || size < 0) throw new Error("The length must be a whole number.");
+  if (!Number.isInteger(size) || size < 0) throw new Error(t("error.wholeLength"));
   if (size === 0) return "";
 
   const mask = (2 << (31 - Math.clz32((chars.length - 1) | 1))) - 1;

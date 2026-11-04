@@ -14,9 +14,18 @@ export interface Theme {
   vars: Record<string, string>;
 }
 
+export interface Locale {
+  /** The BCP 47 tag of the app language, e.g. "de" or "zh-CN". */
+  lang: string;
+  /** The reading direction of that language. Set it on your `<html dir>` to follow the app. */
+  dir: "ltr" | "rtl";
+}
+
 export interface ReadyInfo {
   pluginId: string;
   theme: Theme;
+  /** The app language at the time of the handshake. Missing when an older app answers. */
+  locale?: Locale;
   /** Whether the plugin's tab is on screen right now. */
   visible: boolean;
 }
@@ -85,6 +94,11 @@ export interface ShardSdk {
     get(): Promise<Theme>;
     /** Calls `callback` whenever the app theme or color scheme changes. Returns an unsubscribe function. */
     onChange(callback: (theme: Theme) => void): () => void;
+  };
+  locale: {
+    get(): Promise<Locale>;
+    /** Calls `callback` whenever the app language changes. Returns an unsubscribe function. */
+    onChange(callback: (locale: Locale) => void): () => void;
   };
   /**
    * Calls `callback(true)` when the plugin's tab is shown and `callback(false)` when another tab covers it.
@@ -175,6 +189,7 @@ export function connect(options: ConnectOptions = {}): ShardSdk {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pending = new Map<string, Pending>();
   const listeners = new Set<(theme: Theme) => void>();
+  const localeListeners = new Set<(locale: Locale) => void>();
   const visibilityListeners = new Set<(visible: boolean) => void>();
 
   // An uncaught error tells the host, which then offers Reload and Disable. Without the handshake the host does the same after 10 s.
@@ -192,6 +207,16 @@ export function connect(options: ConnectOptions = {}): ShardSdk {
         // One failing callback must not keep the others from the update.
         try {
           listener(data.data as Theme);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      return;
+    }
+    if (data.event === "locale") {
+      for (const listener of [...localeListeners]) {
+        try {
+          listener(data.data as Locale);
         } catch (error) {
           console.error(error);
         }
@@ -245,6 +270,15 @@ export function connect(options: ConnectOptions = {}): ShardSdk {
         listeners.add(callback);
         return () => {
           listeners.delete(callback);
+        };
+      },
+    },
+    locale: {
+      get: () => call<Locale>("locale.get"),
+      onChange(callback) {
+        localeListeners.add(callback);
+        return () => {
+          localeListeners.delete(callback);
         };
       },
     },

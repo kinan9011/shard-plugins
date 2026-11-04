@@ -1,7 +1,7 @@
 {
   "id": "mermaid-renderer",
   "name": "Mermaid Renderer",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Render Mermaid flowcharts and sequence, class, ER, state, Gantt, and other diagrams as you type, and save them as SVG or PNG.",
   "category": "Development Tools",
   "keywords": [

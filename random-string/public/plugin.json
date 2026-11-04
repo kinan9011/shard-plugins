@@ -1,7 +1,7 @@
 {
   "id": "random-string",
   "name": "Random String",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Generate Nano IDs, hex and Base64URL tokens, and strings from a custom alphabet.",
   "category": "Generators",
   "keywords": [

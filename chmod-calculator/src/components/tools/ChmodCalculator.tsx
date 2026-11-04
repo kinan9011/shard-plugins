@@ -3,6 +3,7 @@ import { FileLock2, Terminal } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/tools/CopyButton";
@@ -14,6 +15,7 @@ import {
   SPECIAL_BITS,
   applyExpression,
   chmodCommands,
+  classLabel,
   explainMode,
   formatLs,
   formatOctal,
@@ -21,41 +23,41 @@ import {
   parseModeInput,
   parseSymbolic,
   parseUmask,
+  permLabel,
+  presetLabel,
   umaskDefaults,
 } from "@/utils/chmod";
 
-const FAQ_ITEMS: ToolFaqItem[] = [
-  {
-    q: "What do the octal digits mean?",
-    a: "Each digit adds read (4), write (2), and execute (1). The last three digits are for the owner, the group, and others. So 755 gives the owner 7 (read, write, and execute) and gives the group and others 5 (read and execute). An optional first digit holds setuid (4), setgid (2), and sticky (1).",
-  },
-  {
-    q: "What do s, S, t, and T mean in ls -l output?",
-    a: "A lowercase s or t means that the special bit and the execute bit are both set. A capital S or T means that the special bit is set without execute. Setuid and setgid show in the owner and group execute positions. Sticky shows in the others execute position.",
-  },
-  {
-    q: "What does +x do without u, g, o, or a?",
-    a: "Real chmod adds execute for all classes, but skips the bits that your umask blocks. This tool has no umask, so it reads `+x` as `a+x`. With umask 022, both give the same result.",
-  },
-  {
-    q: "What is the difference between x and X?",
-    a: "`x` always adds execute. `X` adds execute only to a directory, or to a file that already has an execute bit. Use `chmod -R u=rwX,go=rX dir` to make directories enterable without making every file executable. Set the Directory switch to see how `X` acts on a directory.",
-  },
-  {
-    q: "How does the umask set the default mode?",
-    a: "A program usually creates a file with mode 666 and a directory with mode 777. The kernel then removes the bits that the umask sets. With umask 022, new files get 644 and new directories get 755.",
-  },
-];
+const FAQ_KEYS = ["octal", "lsLetters", "plusX", "capitalX", "umask"] as const;
+
+/** Text with `code` spans: the odd pieces between backticks are code. Keeps markup out of the dictionaries. */
+function Rich({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("`").map((piece, index) =>
+        index % 2 === 1 ? (
+          <code key={index} className="font-mono font-medium" dir="ltr">
+            {piece}
+          </code>
+        ) : (
+          piece
+        ),
+      )}
+    </>
+  );
+}
 
 /** Applies a parsed file type to the Directory switch. Types other than file and directory leave it as it is. */
 const directoryFor = (fileType: string | undefined, current: boolean) => (fileType === "directory" ? true : fileType === "file" ? false : current);
 
 export function ChmodCalculator() {
+  const t = useT();
   const [mode, setMode] = useState(0o755);
   const [isDirectory, setIsDirectory] = useState(false);
   const [octalText, setOctalText] = useState("755");
   const [octalError, setOctalError] = useState<string | null>(null);
-  const [octalNote, setOctalNote] = useState<string | null>(null);
+  // The mode the Octal field was read as; the sentence is built when it is shown, in the current language.
+  const [octalNote, setOctalNote] = useState<number | null>(null);
   const [symbolicText, setSymbolicText] = useState("rwxr-xr-x");
   const [symbolicError, setSymbolicError] = useState<string | null>(null);
   const [expression, setExpression] = useState("");
@@ -96,7 +98,7 @@ export function ChmodCalculator() {
     if (result.path !== undefined) setPath(result.path);
     if (result.recursive !== undefined) setRecursive(result.recursive);
     if (result.fileType) setIsDirectory(directoryFor(result.fileType, isDirectory));
-    setOctalNote(result.kind === "octal" && result.path === undefined ? null : `Read as ${formatOctal(result.mode)}.`);
+    setOctalNote(result.kind === "octal" && result.path === undefined ? null : result.mode);
     update(result.mode, "octal");
   };
 
@@ -131,21 +133,22 @@ export function ChmodCalculator() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileLock2 className="h-5 w-5" />
-            Permissions
+            {t("permissions.title")}
           </CardTitle>
-          <CardDescription>Type a mode, paste an ls -l string or a chmod command, or set the bits below. All fields stay in sync.</CardDescription>
+          <CardDescription>{t("permissions.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="chmod-octal">Octal</Label>
+              <Label htmlFor="chmod-octal">{t("octal.label")}</Label>
               <Input
                 id="chmod-octal"
                 type="text"
                 aria-invalid={Boolean(octalError)}
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="755, 4755, or chmod 755 file"
+                placeholder={t("octal.placeholder")}
+                dir="ltr"
                 value={octalText}
                 onChange={(event) => changeOctal(event.target.value)}
                 className="font-mono"
@@ -155,22 +158,23 @@ export function ChmodCalculator() {
                   {octalError}
                 </p>
               ) : (
-                octalNote && (
+                octalNote !== null && (
                   <p className="text-xs text-muted-foreground" role="status">
-                    {octalNote}
+                    {t("octal.readAs", { mode: formatOctal(octalNote) })}
                   </p>
                 )
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="chmod-symbolic">Symbolic</Label>
+              <Label htmlFor="chmod-symbolic">{t("symbolic.label")}</Label>
               <Input
                 id="chmod-symbolic"
                 type="text"
                 aria-invalid={Boolean(symbolicError)}
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="rwxr-xr-x or drwxrwxrwt"
+                placeholder={t("symbolic.placeholder")}
+                dir="ltr"
                 value={symbolicText}
                 onChange={(event) => changeSymbolic(event.target.value)}
                 className="font-mono"
@@ -183,7 +187,7 @@ export function ChmodCalculator() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Presets">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t("presets.aria")}>
             {PRESETS.map((preset) => (
               <Button
                 key={preset.mode}
@@ -194,31 +198,31 @@ export function ChmodCalculator() {
                 onClick={() => update(preset.mode)}
               >
                 <span className="font-mono font-semibold">{formatOctal(preset.mode)}</span>
-                <span className="text-muted-foreground">{preset.label}</span>
+                <span className="text-muted-foreground">{presetLabel(preset.id)}</span>
               </Button>
             ))}
           </div>
 
           <div className="grid gap-4 md:grid-cols-[auto_1fr]">
-            <table className="text-sm" aria-label="Permission bits">
+            <table className="text-sm" aria-label={t("bits.aria")}>
               <thead>
                 <tr>
                   <th scope="col" />
                   {PERMS.map((perm) => (
                     <th key={perm.perm} scope="col" className="px-3 pb-2 text-center text-xs font-medium text-muted-foreground">
-                      {perm.label}
+                      {permLabel(perm.perm)}
                     </th>
                   ))}
                   <th scope="col" className="px-3 pb-2 text-center text-xs font-medium text-muted-foreground">
-                    Digit
+                    {t("bits.digit")}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {CLASSES.map((item) => (
                   <tr key={item.who} className="border-t border-border/50">
-                    <th scope="row" className="py-2 pr-4 text-left font-medium">
-                      {item.label}
+                    <th scope="row" className="py-2 pe-4 text-start font-medium">
+                      {classLabel(item.who)}
                     </th>
                     {PERMS.map((perm) => {
                       const bit = perm.bit << item.shift;
@@ -227,7 +231,7 @@ export function ChmodCalculator() {
                           <input
                             type="checkbox"
                             className="h-4 w-4 accent-primary"
-                            aria-label={`${item.label} ${perm.label.toLowerCase()}`}
+                            aria-label={t("bits.bitAria", { class: classLabel(item.who), perm: permLabel(perm.perm).toLowerCase() })}
                             checked={(mode & bit) !== 0}
                             onChange={() => toggleBit(bit)}
                           />
@@ -241,7 +245,7 @@ export function ChmodCalculator() {
             </table>
 
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Special bits</h3>
+              <h3 className="text-sm font-medium">{t("special.title")}</h3>
               <div className="flex flex-wrap gap-4">
                 {SPECIAL_BITS.map((special) => (
                   <label key={special.id} className="flex items-center gap-2 text-sm">
@@ -251,14 +255,14 @@ export function ChmodCalculator() {
                 ))}
               </div>
               <label className="option-switch" htmlFor="chmod-directory">
-                Directory
+                {t("directory.label")}
                 <Switch id="chmod-directory" checked={isDirectory} onCheckedChange={setIsDirectory} />
               </label>
-              <p className="text-xs text-muted-foreground">Set this for a directory. It changes the ls -l type, the meaning of each bit, and how X acts.</p>
+              <p className="text-xs text-muted-foreground">{t("directory.hint")}</p>
             </div>
           </div>
 
-          <div className="space-y-1" aria-label="Explanation">
+          <div className="space-y-1" aria-label={t("explain.aria")}>
             {sentences.map((sentence, index) => (
               // The first three sentences cover owner, group, and others. The rest are notes.
               <p key={sentence} className={index < 3 ? "text-base font-medium" : "text-sm text-muted-foreground"}>
@@ -273,14 +277,14 @@ export function ChmodCalculator() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Terminal className="h-5 w-5" />
-            Commands
+            {t("commands.title")}
           </CardTitle>
-          <CardDescription>Copy a command that sets this mode.</CardDescription>
+          <CardDescription>{t("commands.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-48 flex-1 space-y-2">
-              <Label htmlFor="chmod-path">File or directory</Label>
+              <Label htmlFor="chmod-path">{t("commands.path")}</Label>
               <Input
                 id="chmod-path"
                 type="text"
@@ -293,22 +297,22 @@ export function ChmodCalculator() {
               />
             </div>
             <label className="option-switch mb-2" htmlFor="chmod-recursive">
-              Recursive (-R)
+              {t("commands.recursive")}
               <Switch id="chmod-recursive" checked={recursive} onCheckedChange={setRecursive} />
             </label>
           </div>
           {[
-            { label: "Octal command", value: commands.octal },
-            { label: "Symbolic command", value: commands.symbolic },
+            { label: t("commands.octal"), value: commands.octal },
+            { label: t("commands.symbolic"), value: commands.symbolic },
             { label: "ls -l", value: lsText },
           ].map((row) => (
             <div key={row.label} className="space-y-1">
               <Label className="text-xs text-muted-foreground">{row.label}</Label>
               <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm" aria-label={row.label}>
+                <code dir="ltr" className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm" aria-label={row.label}>
                   {row.value}
                 </code>
-                <CopyButton value={row.value} ariaLabel={`Copy ${row.label}`} iconOnly />
+                <CopyButton value={row.value} ariaLabel={t("copy.label", { label: row.label })} iconOnly />
               </div>
             </div>
           ))}
@@ -317,8 +321,8 @@ export function ChmodCalculator() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Apply an Expression</CardTitle>
-          <CardDescription>Change the current mode with a chmod expression, such as u+x, go-w, a=r, or u=rwx,g=rx,o=.</CardDescription>
+          <CardTitle>{t("expression.title")}</CardTitle>
+          <CardDescription>{t("expression.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <form
@@ -330,7 +334,8 @@ export function ChmodCalculator() {
           >
             <Input
               type="text"
-              aria-label="Expression"
+              aria-label={t("expression.aria")}
+              dir="ltr"
               aria-invalid={preview ? !preview.ok : false}
               spellCheck={false}
               autoComplete="off"
@@ -340,36 +345,38 @@ export function ChmodCalculator() {
               className="min-w-48 flex-1 font-mono"
             />
             <Button type="submit" disabled={!preview?.ok}>
-              Apply
+              {t("expression.apply")}
             </Button>
           </form>
           {preview &&
             (preview.ok ? (
               <p className="text-sm" role="status">
-                {formatOctal(mode)} ({formatSymbolic(mode)}) becomes{" "}
-                <code className="font-mono font-medium">
-                  {formatOctal(preview.mode)} ({formatSymbolic(preview.mode)})
-                </code>
-                .
+                <Rich
+                  text={t("expression.becomes", {
+                    from: `${formatOctal(mode)} (${formatSymbolic(mode)})`,
+                    to: `\`${formatOctal(preview.mode)} (${formatSymbolic(preview.mode)})\``,
+                  })}
+                />
               </p>
             ) : (
               <div className="workspace-notice rounded-md" data-tone="error" role="alert">
                 {"error" in preview && preview.error}
               </div>
             ))}
-          <p className="text-xs text-muted-foreground">A plain +x acts as a+x here. Real chmod also skips the bits that the umask blocks.</p>
+          <p className="text-xs text-muted-foreground">{t("expression.note")}</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>umask</CardTitle>
-          <CardDescription>Enter a umask to see the mode of new files and directories.</CardDescription>
+          <CardDescription>{t("umask.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
             type="text"
             aria-label="umask"
+            dir="ltr"
             aria-invalid={!umask.ok}
             spellCheck={false}
             autoComplete="off"
@@ -379,17 +386,17 @@ export function ChmodCalculator() {
             className="w-32 font-mono"
           />
           {defaults ? (
-            <ul className="grid gap-2 sm:grid-cols-2" aria-label="Default modes">
+            <ul className="grid gap-2 sm:grid-cols-2" aria-label={t("umask.defaults")}>
               {[
-                { label: "New files", value: defaults.file },
-                { label: "New directories", value: defaults.directory },
+                { id: "files", label: t("umask.newFiles"), copy: t("umask.copyFiles"), value: defaults.file },
+                { id: "directories", label: t("umask.newDirectories"), copy: t("umask.copyDirectories"), value: defaults.directory },
               ].map((row) => (
-                <li key={row.label} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+                <li key={row.id} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
                   <span className="text-xs text-muted-foreground">{row.label}</span>
-                  <code className="ml-auto font-mono text-sm">
+                  <code dir="ltr" className="ms-auto font-mono text-sm">
                     {formatOctal(row.value)} ({formatSymbolic(row.value)})
                   </code>
-                  <CopyButton value={formatOctal(row.value)} ariaLabel={`Copy ${row.label.toLowerCase()} mode`} iconOnly />
+                  <CopyButton value={formatOctal(row.value)} ariaLabel={row.copy} iconOnly />
                 </li>
               ))}
             </ul>
@@ -401,7 +408,7 @@ export function ChmodCalculator() {
         </CardContent>
       </Card>
 
-      <ToolFaqSection items={FAQ_ITEMS} />
+      <ToolFaqSection items={FAQ_KEYS.map((slug) => ({ q: t(`faq.${slug}.q`), a: t(`faq.${slug}.a`) }))} />
     </div>
   );
 }

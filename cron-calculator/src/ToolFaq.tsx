@@ -1,3 +1,5 @@
+import { useT } from "./lib/i18n";
+
 export interface ToolFaqItem {
   q: string;
   a: string;
@@ -5,10 +7,11 @@ export interface ToolFaqItem {
 
 /** "Help & reference": a collapsed list of questions (styles: .tool-help in index.css). */
 export function ToolFaqSection({ items }: { items: ToolFaqItem[] }) {
+  const t = useT();
   if (items.length === 0) return null;
   return (
     <details className="tool-help">
-      <summary>Help &amp; reference</summary>
+      <summary>{t("toolFaq.title")}</summary>
       <div className="tool-help-content">
         {items.map(({ q, a }) => (
           <details key={q} className="tool-help-question">

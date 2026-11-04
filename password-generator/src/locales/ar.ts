@@ -1,0 +1,16 @@
+export default {
+  "length.label": "طول كلمة المرور: {length}",
+  "option.uppercase": "أحرف كبيرة (A-Z)",
+  "option.lowercase": "أحرف صغيرة (a-z)",
+  "option.numbers": "أرقام (0-9)",
+  "option.symbols": "رموز (!@#$...)",
+  "output.label": "كلمة المرور المُنشأة",
+  "output.copy": "نسخ كلمة المرور",
+  "output.regenerate": "إنشاء كلمة مرور جديدة",
+  "strength.label": "القوة",
+  "strength.weak": "ضعيفة",
+  "strength.fair": "مقبولة",
+  "strength.good": "جيدة",
+  "strength.strong": "قوية",
+  "error.noCharacterType": "اختر نوعًا واحدًا على الأقل من الأحرف",
+};

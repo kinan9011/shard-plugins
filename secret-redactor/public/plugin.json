@@ -1,7 +1,7 @@
 {
   "id": "secret-redactor",
   "name": "Secret & PII Redactor",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Mask API keys, tokens, passwords, emails, and other personal data before you paste text into an AI chat, and restore the values in the reply.",
   "category": "AI Tools",
   "keywords": [

@@ -4,6 +4,7 @@
  * table, filters, and detail panel read the same normalized rows.
  */
 import { base64ToBytes } from "@/utils/base64";
+import { t } from "@/lib/i18n";
 import { redactText, type DetectorSettings } from "@/utils/secret-redactor";
 
 export interface HarNameValue {
@@ -93,15 +94,7 @@ export interface Har {
 export type StatusClass = "1xx" | "2xx" | "3xx" | "4xx" | "5xx" | "failed";
 export type ResourceType = "xhr" | "js" | "css" | "img" | "doc" | "font" | "other";
 
-export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
-  xhr: "XHR/fetch",
-  js: "JS",
-  css: "CSS",
-  img: "Image",
-  doc: "Doc",
-  font: "Font",
-  other: "Other",
-};
+export const RESOURCE_TYPES: ResourceType[] = ["xhr", "js", "css", "img", "doc", "font", "other"];
 
 /** One table row: the values the table shows and sorts on, plus the raw entry for the detail panel. */
 export interface HarRow {
@@ -246,7 +239,7 @@ export function summarize(har: Har, rows: HarRow[]): HarSummary {
   }
   const pages = (har.log.pages ?? []).map((page, i) => ({
     id: String(page.id ?? `page_${i + 1}`),
-    title: String(page.title ?? page.id ?? `Page ${i + 1}`),
+    title: String(page.title ?? page.id ?? t("page.default", { number: i + 1 })),
     onLoad: num(page.pageTimings?.onLoad) >= 0 ? num(page.pageTimings?.onLoad) : null,
   }));
   return {
@@ -262,23 +255,23 @@ export function summarize(har: Har, rows: HarRow[]): HarSummary {
 /** Parses HAR JSON text. Throws a HarError with a message the user can act on. */
 export function parseHar(text: string): ParsedHar {
   const source = text.replace(/^\uFEFF/, "").trim();
-  if (!source) throw new HarError("The input is empty. Open a .har file or paste HAR JSON.");
+  if (!source) throw new HarError(t("error.empty"));
   let data: unknown;
   try {
     data = JSON.parse(source);
   } catch (err) {
-    throw new HarError(`The input is not valid JSON. ${(err as Error).message}`);
+    throw new HarError(t("error.invalidJson", { message: (err as Error).message }));
   }
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
-    throw new HarError("The JSON is not a HAR file. A HAR file is an object with a log property.");
+    throw new HarError(t("error.notObject"));
   }
   const log = (data as { log?: unknown }).log;
   if (typeof log !== "object" || log === null) {
-    throw new HarError("The JSON is not a HAR file. The log object is missing.");
+    throw new HarError(t("error.noLog"));
   }
   const entries = (log as { entries?: unknown }).entries;
   if (!Array.isArray(entries)) {
-    throw new HarError("The JSON is not a HAR file. The log.entries array is missing.");
+    throw new HarError(t("error.noEntries"));
   }
   const har = data as Har;
   const rows: HarRow[] = [];
@@ -424,13 +417,13 @@ export function responseBody(entry: HarEntry): ResponseBody {
 }
 
 export const TIMING_PHASES = [
-  { key: "blocked", label: "Blocked" },
-  { key: "dns", label: "DNS lookup" },
-  { key: "connect", label: "Connect" },
-  { key: "ssl", label: "TLS" },
-  { key: "send", label: "Send" },
-  { key: "wait", label: "Wait (TTFB)" },
-  { key: "receive", label: "Receive" },
+  { key: "blocked" },
+  { key: "dns" },
+  { key: "connect" },
+  { key: "ssl" },
+  { key: "send" },
+  { key: "wait" },
+  { key: "receive" },
 ] as const;
 
 export type TimingKey = (typeof TIMING_PHASES)[number]["key"];
@@ -440,9 +433,9 @@ export type TimingKey = (typeof TIMING_PHASES)[number]["key"];
  * HAR counts ssl inside connect, so the bar sizes leave ssl out of the sum.
  */
 export function timingBreakdown(timings: HarTimings | undefined) {
-  return TIMING_PHASES.map(({ key, label }) => {
+  return TIMING_PHASES.map(({ key }) => {
     const value = num(timings?.[key]);
-    return { key, label, ms: value >= 0 ? value : null };
+    return { key, ms: value >= 0 ? value : null };
   });
 }
 

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export type CodeLanguage = "html" | "css" | "javascript" | "xml" | "sql";
 export type FormatMode = "beautify" | "minify";
 export type IndentChoice = "2" | "4" | "tab";
@@ -147,14 +149,14 @@ function tokenizeMarkup(input: string, html: boolean): MarkupToken[] {
   while (i < input.length) {
     if (input.startsWith("<!--", i)) {
       const end = input.indexOf("-->", i + 4);
-      if (end === -1) throw new Error("Unterminated comment.");
+      if (end === -1) throw new Error(t("error.unterminatedComment"));
       tokens.push({ kind: "comment", text: input.slice(i, end + 3) });
       i = end + 3;
       continue;
     }
     if (input.startsWith("<![CDATA[", i)) {
       const end = input.indexOf("]]>", i);
-      if (end === -1) throw new Error("Unterminated CDATA section.");
+      if (end === -1) throw new Error(t("error.unterminatedCdata"));
       tokens.push({ kind: "raw", text: input.slice(i, end + 3) });
       i = end + 3;
       continue;
@@ -173,7 +175,7 @@ function tokenizeMarkup(input: string, html: boolean): MarkupToken[] {
         }
         j++;
       }
-      if (j >= input.length) throw new Error("Unterminated tag.");
+      if (j >= input.length) throw new Error(t("error.unterminatedTag"));
       const raw = input.slice(i, j + 1);
       const match = /^<(\/?)([^\s/>]+)/.exec(raw);
       const name = match ? match[2].toLowerCase() : "";
@@ -413,7 +415,7 @@ function tokenizeJs(input: string): JsToken[] {
     }
     if (c === "/" && next === "*") {
       const end = input.indexOf("*/", i + 2);
-      if (end === -1) throw new Error("Unterminated comment.");
+      if (end === -1) throw new Error(t("error.unterminatedComment"));
       addGap(input.slice(i, end + 2));
       i = end + 2;
       continue;

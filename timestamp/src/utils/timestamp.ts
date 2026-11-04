@@ -1,3 +1,5 @@
+import { intlTag, t } from "@/lib/i18n";
+
 /**
  * Timestamp converter utility functions
  */
@@ -99,8 +101,7 @@ const EPOCH_SUFFIX: Record<string, EpochUnit> = { s: "seconds", ms: "millisecond
 const NUMBER_BASE = /^(-?\d+)(?:\.(\d+))?\s*(ns|us|µs|ms|s)?(?=\s+[+-]|\s*$)/i;
 const DATE_WITH_OFFSETS = /^(.*?\S)((?:\s+[+-]\s*\d+(?:\.\d+)?\s*(?:ms|s|m|h|d|w)(?:\s*\d+(?:\.\d+)?\s*(?:ms|s|m|h|d|w))*)+)\s*$/i;
 
-const INVALID_INPUT = "Enter a Unix timestamp, a date such as 2024-01-15T12:00:00Z, or an expression such as now - 1d.";
-const OUT_OF_RANGE = "This value is outside the range of dates that JavaScript supports.";
+const invalidInput = () => t("error.invalidInput");
 
 /**
  * Reads offsets such as `+ 3600`, `- 1d`, or `+1h30m`. A bare number means seconds.
@@ -165,7 +166,7 @@ function parseDate(text: string, offsetMs: number): TimeParseResult | null {
 }
 
 function withinRange(result: TimeParseResult): TimeParseResult {
-  if (result.ok && !(Math.abs(result.ms) <= MAX_DATE_MS)) return { ok: false, error: OUT_OF_RANGE };
+  if (result.ok && !(Math.abs(result.ms) <= MAX_DATE_MS)) return { ok: false, error: t("error.outOfRange") };
   return result;
 }
 
@@ -181,14 +182,14 @@ export function parseTimeInput(input: string, nowMs: number): TimeParseResult {
   const now = /^now\b/i.exec(text);
   if (now) {
     const offsetMs = parseOffsets(text.slice(now[0].length));
-    if (offsetMs === null) return { ok: false, error: INVALID_INPUT };
+    if (offsetMs === null) return { ok: false, error: invalidInput() };
     return withinRange({ ok: true, ms: nowMs + offsetMs, source: "now", offsetMs });
   }
 
   const number = NUMBER_BASE.exec(text);
   if (number) {
     const offsetMs = parseOffsets(text.slice(number[0].length));
-    if (offsetMs === null) return { ok: false, error: INVALID_INPUT };
+    if (offsetMs === null) return { ok: false, error: invalidInput() };
     const unit = number[3] ? EPOCH_SUFFIX[number[3].toLowerCase()] : detectEpochUnit(number[1]);
     const ms = epochToMs(number[1], number[2], unit) + offsetMs;
     return withinRange({ ok: true, ms, source: unit, offsetMs });
@@ -199,7 +200,7 @@ export function parseTimeInput(input: string, nowMs: number): TimeParseResult {
   const split = DATE_WITH_OFFSETS.exec(text);
   const offsetMs = split ? parseOffsets(split[2]) : null;
   const shifted = split && offsetMs !== null ? parseDate(split[1], offsetMs) : null;
-  return shifted ? withinRange(shifted) : { ok: false, error: INVALID_INPUT };
+  return shifted ? withinRange(shifted) : { ok: false, error: invalidInput() };
 }
 
 export interface WallClock {
@@ -292,16 +293,14 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["second", 1000],
 ];
 
-const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+// The output of Intl is the feature here, so it follows the app language (with Latin digits).
 
 /** Describes `ms` relative to `nowMs` in the largest whole unit, such as "3 hours ago" or "in 2 days". */
 export function formatRelativeTime(ms: number, nowMs: number): string {
   const diff = ms - nowMs;
   const [unit, size] = RELATIVE_UNITS.find(([, unitMs]) => Math.abs(diff) >= unitMs) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];
-  return relativeFormatter.format(Math.trunc(diff / size) || 0, unit);
+  return new Intl.RelativeTimeFormat(intlTag(), { numeric: "auto" }).format(Math.trunc(diff / size) || 0, unit);
 }
-
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export interface CalendarInfo {
   weekday: string;
@@ -326,7 +325,7 @@ export function getCalendarInfo(ms: number, timeZone?: string): CalendarInfo {
   const isoWeek = Math.floor((thursday.getTime() - isoYearStart) / (7 * 86_400_000)) + 1;
 
   return {
-    weekday: WEEKDAYS[weekdayIndex],
+    weekday: new Intl.DateTimeFormat(intlTag(), { weekday: "long", timeZone: "UTC" }).format(new Date(dayMs)),
     dayOfYear: Math.round((dayMs - startOfYear) / 86_400_000) + 1,
     daysInYear: leap ? 366 : 365,
     isoWeek,
@@ -378,5 +377,5 @@ export function saveTimeZones(storage: Pick<Storage, "setItem"> | undefined, zon
 
 /** The local IANA time zone name, such as `Europe/Berlin`. */
 export function getLocalTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time";
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || t("zone.localFallback");
 }

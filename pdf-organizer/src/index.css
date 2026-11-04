@@ -72,10 +72,10 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .status { flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-top: 1px solid hsl(var(--border)); background: var(--surface-chrome, hsl(var(--background))); font-size: 12px; color: hsl(var(--muted-foreground)); min-height: 26px; }
 .status .count { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .feedback { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.feedback button { margin-left: 8px; min-height: 22px; padding-block: 0; }
+.feedback button { margin-inline-start: 8px; min-height: 22px; padding-block: 0; }
 .error { flex: none; margin: 0; padding: 8px 12px; border-top: 2px solid hsl(var(--destructive)); color: hsl(var(--destructive)); font-size: 13px; overflow-wrap: anywhere; }
 .menu { position: fixed; z-index: 20; min-width: 220px; max-width: calc(100vw - 8px); max-height: calc(100vh - 8px); overflow: auto; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover, var(--background))); box-shadow: 0 6px 20px rgb(0 0 0 / 0.3); }
-.menu button { display: flex; justify-content: space-between; align-items: center; gap: 24px; width: 100%; min-height: 24px; padding: 3px 10px; border: 0; border-radius: 4px; text-align: left; }
+.menu button { display: flex; justify-content: space-between; align-items: center; gap: 24px; width: 100%; min-height: 24px; padding: 3px 10px; border: 0; border-radius: 4px; text-align: start; }
 .menu button:hover:not(:disabled), .menu button:focus-visible { background: var(--surface-selected, hsl(var(--primary) / 0.15)); outline: none; }
 .menu hr { border: 0; border-top: 1px solid hsl(var(--border)); margin: 4px 0; }
 dialog { max-width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; border: 0; border-radius: 8px; background: hsl(var(--popover, var(--background))); color: hsl(var(--foreground)); box-shadow: var(--shadow-dialog, 0 12px 48px rgb(0 0 0 / 0.5)); padding: 16px; }

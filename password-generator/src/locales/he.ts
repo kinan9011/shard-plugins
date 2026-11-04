@@ -1,0 +1,16 @@
+export default {
+  "length.label": "אורך הסיסמה: {length}",
+  "option.uppercase": "אותיות גדולות (A-Z)",
+  "option.lowercase": "אותיות קטנות (a-z)",
+  "option.numbers": "ספרות (0-9)",
+  "option.symbols": "סמלים (!@#$...)",
+  "output.label": "הסיסמה שנוצרה",
+  "output.copy": "העתקת הסיסמה",
+  "output.regenerate": "יצירת סיסמה חדשה",
+  "strength.label": "חוזק",
+  "strength.weak": "חלשה",
+  "strength.fair": "בינונית",
+  "strength.good": "טובה",
+  "strength.strong": "חזקה",
+  "error.noCharacterType": "יש לבחור לפחות סוג תווים אחד",
+};

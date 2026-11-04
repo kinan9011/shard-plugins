@@ -6,14 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2 } from "lucide-react";
 import { toast } from "@/shims/sonner";
 import { CopyButton } from "@/components/tools/CopyButton";
+import { codeDir, useT } from "@/lib/i18n";
 
 export function ApiFormatter() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
 
   const formatJson = () => {
     if (!input.trim()) {
-      toast.error("Please enter JSON to format");
+      toast.error(t("toast.enterJsonFormat"));
       return;
     }
 
@@ -21,13 +23,13 @@ export function ApiFormatter() {
       const parsed = JSON.parse(input);
       setOutput(JSON.stringify(parsed, null, 2));
     } catch (error) {
-      toast.error("Invalid JSON");
+      toast.error(t("toast.invalidJson"));
     }
   };
 
   const minifyJson = () => {
     if (!input.trim()) {
-      toast.error("Please enter JSON to minify");
+      toast.error(t("toast.enterJsonMinify"));
       return;
     }
 
@@ -35,13 +37,13 @@ export function ApiFormatter() {
       const parsed = JSON.parse(input);
       setOutput(JSON.stringify(parsed));
     } catch (error) {
-      toast.error("Invalid JSON");
+      toast.error(t("toast.invalidJson"));
     }
   };
 
   const parseUrlEncoded = () => {
     if (!input.trim()) {
-      toast.error("Please enter URL-encoded data");
+      toast.error(t("toast.enterUrlEncoded"));
       return;
     }
 
@@ -53,13 +55,13 @@ export function ApiFormatter() {
       });
       setOutput(JSON.stringify(result, null, 2));
     } catch (error) {
-      toast.error("Invalid URL-encoded data");
+      toast.error(t("toast.invalidUrlEncoded"));
     }
   };
 
   const parseQueryString = () => {
     if (!input.trim()) {
-      toast.error("Please enter a query string");
+      toast.error(t("toast.enterQuery"));
       return;
     }
 
@@ -72,7 +74,7 @@ export function ApiFormatter() {
       });
       setOutput(JSON.stringify(result, null, 2));
     } catch (error) {
-      toast.error("Invalid query string");
+      toast.error(t("toast.invalidQuery"));
     }
   };
 
@@ -94,17 +96,17 @@ export function ApiFormatter() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
-            API Response Formatter
+            {t("title")}
           </CardTitle>
-          <CardDescription>Format and parse API responses</CardDescription>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="format" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="format">Format JSON</TabsTrigger>
-              <TabsTrigger value="minify">Minify JSON</TabsTrigger>
-              <TabsTrigger value="url">URL Encoded</TabsTrigger>
-              <TabsTrigger value="query">Query String</TabsTrigger>
+              <TabsTrigger value="format">{t("mode.format")}</TabsTrigger>
+              <TabsTrigger value="minify">{t("mode.minify")}</TabsTrigger>
+              <TabsTrigger value="url">{t("mode.url")}</TabsTrigger>
+              <TabsTrigger value="query">{t("mode.query")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="format" className="space-y-4">
@@ -112,11 +114,12 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.json}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
                 <Button onClick={formatJson}>
-                  Format JSON
+                  {t("action.format")}
                 </Button>
               </div>
             </TabsContent>
@@ -126,11 +129,12 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.json}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
                 <Button onClick={minifyJson}>
-                  Minify JSON
+                  {t("action.minify")}
                 </Button>
               </div>
             </TabsContent>
@@ -140,11 +144,12 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.urlEncoded}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
                 <Button onClick={parseUrlEncoded}>
-                  Parse URL Encoded
+                  {t("action.url")}
                 </Button>
               </div>
             </TabsContent>
@@ -154,11 +159,12 @@ export function ApiFormatter() {
                 <Textarea
                   placeholder={examples.queryString}
                   value={input}
+                  dir={codeDir(input)}
                   onChange={(e) => setInput(e.target.value)}
                   className="min-h-[150px] font-mono text-sm"
                 />
                 <Button onClick={parseQueryString}>
-                  Parse Query String
+                  {t("action.query")}
                 </Button>
               </div>
             </TabsContent>
@@ -169,14 +175,15 @@ export function ApiFormatter() {
               <div className="space-y-2 mt-4">
                 <Textarea
                   value={output}
+                  dir="ltr"
                   readOnly
                   className="min-h-[200px] font-mono text-sm"
                 />
               </div>
               <div className="flex gap-2">
-                <CopyButton value={output} label="Copy output" />
+                <CopyButton value={output} label={t("copy.output")} />
                 <Button onClick={clearAll} variant="outline">
-                  Clear
+                  {t("common.clear")}
                 </Button>
               </div>
             </>

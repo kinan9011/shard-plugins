@@ -4,6 +4,7 @@ import { useToolActive } from "./hooks/useToolActive";
 import type { Page, Source } from "./pdf/engine";
 import { previewDocument } from "./pdf/preview";
 import { noCrop, turnCrop } from "./pdf/geometry";
+import { t, useT } from "@/lib/i18n";
 
 /** The scrolling grid. Lazy rendering measures against it so the look-ahead margin applies inside the scroller. */
 export const ScrollRoot = createContext<RefObject<HTMLElement> | null>(null);
@@ -12,6 +13,7 @@ export const ASPECT = 1.41;
 
 /** Renders one page to fit a `size`-px-wide box. Re-renders sharply after a short pause when `size` changes. */
 export function Thumbnail({ source, page, size }: { source: Source; page: Page; size: number }) {
+  const translate = useT();
   const ref = useRef<HTMLDivElement>(null);
   const surface = useRef<HTMLDivElement>(null);
   const root = useContext(ScrollRoot);
@@ -41,7 +43,7 @@ export function Thumbnail({ source, page, size }: { source: Source; page: Page; 
     // Each render owns its canvas so cancelled PDF.js work cannot paint a newer preview.
     const canvas = document.createElement("canvas");
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", `${source.name}, original page ${page.index + 1}`);
+    canvas.setAttribute("aria-label", t("grid.sourceTitle", { name: source.name, n: page.index + 1 }));
     canvas.width = canvas.height = 0;
     surface.current!.replaceChildren(canvas);
     void previewDocument(source).then(document => cancelled ? undefined : document.getPage(page.index + 1)).then(pdfPage => {
@@ -61,11 +63,11 @@ export function Thumbnail({ source, page, size }: { source: Source; page: Page; 
       canvas.style.width = `${(fitted.width / boxWidth) * 100}%`; canvas.style.height = `${(fitted.height / boxHeight) * 100}%`;
       task = pdfPage.render({ canvas, viewport });
       return task.promise;
-    }).catch(error => { if (!cancelled) setError(`Preview unavailable: ${error instanceof Error ? error.message : "unsupported page"}`); });
+    }).catch(error => { if (!cancelled) setError(error instanceof Error ? error.message : t("preview.unsupported")); });
     return () => {
       cancelled = true; task?.cancel(); canvas.remove();
       void (task?.promise ?? Promise.resolve()).catch(() => {}).then(() => { canvas.width = canvas.height = 0; });
     };
   }, [source, page.index, page.rotation, page.crop, renderSize, near, active, pixelRatio]);
-  return <div ref={ref} className="thumbnail" style={{ width: size, height: Math.round(size * ASPECT) }}><div ref={surface} className="thumbnail-surface" />{error && <p role="status">{error}</p>}</div>;
+  return <div ref={ref} className="thumbnail" style={{ width: size, height: Math.round(size * ASPECT) }}><div ref={surface} className="thumbnail-surface" />{error && <p role="status">{translate("preview.unavailable", { message: error })}</p>}</div>;
 }

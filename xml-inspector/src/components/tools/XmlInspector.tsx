@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { inspectXml, parseXml } from "@/utils/xml-inspector";
 import { formatCode } from "@/utils/code-formatter";
 import { saveFile } from "@/lib/desktop";
+import { codeDir, formatNumber, useT } from "@/lib/i18n";
 import { CopyButton } from "./CopyButton";
 import {
   CodeTextarea,
@@ -12,6 +13,7 @@ import {
   ToolWorkspace,
 } from "./ToolWorkspace";
 export function XmlInspector() {
+  const t = useT();
   const [input, setInput] = useState("");
   const [xpath, setXpath] = useState("");
   const [namespaces, setNamespaces] = useState("");
@@ -49,7 +51,7 @@ export function XmlInspector() {
     return () => {
       cancelled = true;
     };
-  }, [text, query, ns, mode]);
+  }, [text, query, ns, mode, t]);
   return (
     <ToolWorkspace
       wrapToolbar
@@ -57,15 +59,15 @@ export function XmlInspector() {
       toolbar={
         <>
           <label>
-            Mode{" "}
+            {t("mode.label")}{" "}
             <select
-              className="h-8 rounded-md border border-input bg-background px-2 pr-7 text-sm text-foreground"
-              aria-label="XML mode"
+              className="h-8 rounded-md border border-input bg-background px-2 pe-7 text-sm text-foreground"
+              aria-label={t("mode.aria")}
               value={mode}
               onChange={(e) => setMode(e.target.value)}
             >
-              <option value="beautify">Format</option>
-              <option value="minify">Minify</option>
+              <option value="beautify">{t("mode.format")}</option>
+              <option value="minify">{t("mode.minify")}</option>
               <option value="xpath">XPath</option>
             </select>
           </label>
@@ -77,7 +79,7 @@ export function XmlInspector() {
               )
             }
           >
-            Example
+            {t("action.example")}
           </button>
         </>
       }
@@ -85,16 +87,17 @@ export function XmlInspector() {
         mode === "xpath" && (
           <div className="flex flex-wrap gap-3 w-full">
             <Input
-              aria-label="XPath expression"
+              aria-label={t("xpath.label")}
               className="flex-1 min-w-48 font-mono"
-              placeholder="//item or count(//item)"
+              placeholder={t("xpath.placeholder")}
               value={xpath}
               onChange={(e) => setXpath(e.target.value)}
             />
             <textarea
               className="rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              aria-label="Namespace prefixes"
-              placeholder="prefix=URI (one per line)"
+              dir={codeDir(namespaces)}
+              aria-label={t("namespaces.label")}
+              placeholder={t("namespaces.placeholder")}
               value={namespaces}
               onChange={(e) => setNamespaces(e.target.value)}
             />
@@ -109,18 +112,18 @@ export function XmlInspector() {
         )
       }
       first={
-        <EditorPane title="XML" htmlFor="xml-input" scroll={false}>
+        <EditorPane title={t("pane.xml")} htmlFor="xml-input" scroll={false}>
           <CodeTextarea
             id="xml-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste XML to inspect"
+            placeholder={t("input.placeholder")}
           />
         </EditorPane>
       }
       second={
         <EditorPane
-          title="Result"
+          title={t("pane.result")}
           actions={
             <>
               <CopyButton value={output} />
@@ -134,33 +137,31 @@ export function XmlInspector() {
                       mode === "xpath" ? "xpath-result.txt" : "formatted.xml",
                     );
                   } catch {
-                    setError(
-                      "Could not save the result. Try copying it instead.",
-                    );
+                    setError(t("error.save"));
                   }
                 }}
               >
-                Save
+                {t("common.save")}
               </button>
             </>
           }
         >
           {pending ? (
-            <PaneEmpty title="Processing XML" />
+            <PaneEmpty title={t("empty.processing")} />
           ) : output ? (
-            <pre className="p-4 font-mono text-sm whitespace-pre-wrap break-all">
+            <pre dir="ltr" className="p-4 font-mono text-sm whitespace-pre-wrap break-all">
               {output}
             </pre>
           ) : (
             <PaneEmpty
-              title={error ? "Check your XML" : "Inspect XML locally"}
-              hint="Format XML or query it with XPath 1.0. DTDs and external entities are not supported."
+              title={error ? t("empty.checkTitle") : t("empty.title")}
+              hint={t("empty.hint")}
             />
           )}
         </EditorPane>
       }
       status={
-        <span>{input.length.toLocaleString()} characters · XPath 1.0</span>
+        <span>{t("status.chars", { count: input.length, n: formatNumber(input.length) })}</span>
       }
     />
   );
