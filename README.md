@@ -1,208 +1,282 @@
-# Shard plugins
+# Shard Plugins
 
-The official plugin repository for [Shard](https://github.com/kinan9011/shard). Shard adds
-`github.com/kinan9011/shard-plugins` as its first repository, so everything released here shows
-up in the app under **Plugins → Browse**.
+### Less tab-hopping. More getting things done.
 
-## How it fits together
+**50+ focused tools. One desktop workspace. Your workflow, your plugins.**
 
-```
-index.json                       the catalog Shard reads (updated by the release workflow)
-<plugin-id>/                     one folder per plugin: a Vite project made from the template
-  package.json, vite.config.ts, src/, scripts/pack.mjs
-  public/plugin.json             the manifest (copied into dist/ by the build)
-  public/CHANGELOG.md
-scripts/plugin-index.mjs         turns built zips into index.json entries
-.github/workflows/release.yml    on a v* tag: build changed plugins, publish zips, update index.json
-```
+The official plugin collection for [**Shard**](https://github.com/kinan9011/shard), the cross-platform developer toolbox. Format API data, inspect certificates, organize PDFs, convert images, generate keys, work with AI text and more—without constantly switching between websites.
 
-A plugin is a web app (HTML, JS, CSS, optionally WASM) that runs in a sandboxed frame and talks to
-Shard through the [plugin SDK](https://github.com/kinan9011/shard/blob/main/packages/plugin-sdk/README.md).
-It can only do what the user approves: see the
-[permissions](https://github.com/kinan9011/shard/blob/main/docs/plugins/permissions.md) and the
-[manifest](https://github.com/kinan9011/shard/blob/main/docs/plugins/manifest.md) docs.
+**[Get Shard](https://github.com/kinan9011/shard/releases/latest)** · **[Browse the plugins](#explore-the-plugins)** · **[Build your own](#build-a-plugin)** · **[See releases](https://github.com/kinan9011/shard-plugins/releases/latest)**
 
-## Plugins
+> **Already using Shard?** Open **Plugins → Browse**. This official repository is configured by default, so you can discover and install the tools you need from inside the app.
 
-| Folder | Tool | Runtime | Asks for |
+## Why plugins?
+
+- **Just the tools you need.** Keep Shard focused; add capabilities as your work demands them.
+- **A familiar workspace.** Plugins follow the desktop app's theme, colors and supported interface languages.
+- **Permissions you can review.** Plugins run in sandboxed frames and request host capabilities explicitly. Optional permissions can be declined.
+- **Local-first workflows.** Many tasks run on your device. Downloading/installing plugins requires a connection; any plugin requesting network access needs an approved host permission.
+- **Open to developers.** Each plugin is its own web app, with a manifest, tests and a reproducible ZIP packaging workflow.
+
+## Start in three steps
+
+1. **Install [Shard](https://github.com/kinan9011/shard/releases/latest)** on macOS, Windows or Linux.
+2. Open **Plugins → Browse**. The official catalog is available by default.
+3. Pick a plugin, review any requested permissions and install it. Open it from Shard when you're ready.
+
+**No command line is needed to install plugins through the app.** The development commands further down are for contributors.
+
+## Made for the small tasks that interrupt big work
+
+| When you need to… | Reach for… |
+| --- | --- |
+| Turn a messy API response into something readable | [API Formatter](api-formatter/) or [Code Formatter](code-formatter/) |
+| Work out why a token, certificate or checksum looks wrong | [Base64](base64/), [X.509 Certificate Decoder](certificate-decoder/), [Checksum](checksum/) |
+| Clean up or restructure documents without uploading them to a website | [PDF Organizer](pdf-organizer/), [Image Converter](image-converter/) |
+| Plan a cron job or inspect an IP range | [Cron Calculator](cron-calculator/), [IP / CIDR Calculator](ip-cidr/) |
+| Draft diagrams, preview Markdown or work with UI colors | [Mermaid Renderer](mermaid-renderer/), [Markdown](markdown/), [Color Palette](color-palette/) |
+| Prepare content for an AI workflow | [Secret & PII Redactor](secret-redactor/), [Token Counter](token-counter/), [AI Text Cleaner](ai-text-cleaner/) |
+
+## Explore the plugins
+
+The catalog below lists **51 plugins**, grouped by typical use case. Click a name to inspect its source folder. For the version and availability Shard actually sees, check the live [plugin catalog](index.json) or **Plugins → Browse** in the app.
+
+**Permission key:** `CW` = `clipboard:write`; `FO` = `files:open`; `FS` = `files:save`. These are **optional** unless marked `!`. `—` means no explicitly declared host permissions. Web + WASM plugins run WebAssembly in the sandbox; WASM is a runtime, not an extra permission.
+
+<details>
+<summary><strong>Security, keys & privacy (9)</strong></summary>
+
+| Plugin | What it does | Runtime | Permissions |
 | --- | --- | --- | --- |
-| `hash-generator/` | Hash Generator | web+wasm (Rust, no dependencies) | `files:open`, `clipboard:write` (both optional) |
-| `uuid-generator/` | UUID Generator | web | `clipboard:write` (optional) |
-| `cron-calculator/` | Cron Calculator | web | `clipboard:write` (optional) |
-| `markdown/` | Markdown | web | `clipboard:write` (required) |
-| `color-palette/` | Color Palette | web | `clipboard:write` (optional) |
-| `unit-converter/` | Unit Converter | web | none |
-| `chmod-calculator/` | chmod Calculator | web | `clipboard:write` (optional) |
-| `checksum/` | Checksum | web | `clipboard:write` (optional) |
-| `ip-cidr/` | IP / CIDR Calculator | web | `clipboard:write` (optional) |
-| `har-viewer/` | HAR Viewer | web | `clipboard:write`, `files:save` (both optional) |
-| `timestamp/` | Timestamp | web | `clipboard:write` (optional) |
-| `date-difference/` | Date Difference | web | none |
-| `date-format/` | Date Format Translator | web | `clipboard:write` (optional) |
-| `stopwatch/` | Stopwatch | web | `clipboard:write`, `files:save` (both optional) |
-| `time-zone-converter/` | Time Zone Converter | web | `clipboard:write` (optional) |
-| `api-formatter/` | API Formatter | web | `clipboard:write` (optional) |
-| `string-inspector/` | String Inspector | web | `clipboard:write` (optional) |
-| `line-tools/` | Line Tools | web (regex runs in a worker) | `clipboard:write` (optional) |
-| `password-generator/` | Password Generator | web | `clipboard:write` (optional) |
-| `lorem-generator/` | Lorem Ipsum | web | `clipboard:write` (optional) |
-| `qr-generator/` | QR Generator | web | `clipboard:write`, `files:save` (both optional) |
-| `bcrypt-generator/` | Bcrypt Generator | web | `clipboard:write` (optional) |
-| `random-string/` | Random String | web | `clipboard:write` (optional) |
-| `key-generator/` | Key Pair Generator | web | `clipboard:write`, `files:save` (both optional) |
-| `base64/` | Base64 | web | `clipboard:write`, `files:save` (both optional) |
-| `case-converter/` | Case Converter | web | `clipboard:write` (optional) |
-| `number-base/` | Number Base | web | `clipboard:write` (optional) |
-| `url-encoder/` | URL Encoder | web | `clipboard:write` (optional) |
-| `csv-json/` | CSV to JSON | web | `clipboard:write`, `files:save` (both optional) |
-| `yaml-json/` | Config Converter | web | `clipboard:write` (optional) |
-| `escape-tools/` | Escape Tools | web | `clipboard:write` (optional) |
-| `html-to-jsx/` | HTML to JSX | web | `clipboard:write` (optional) |
-| `svg-to-css/` | SVG to CSS | web | `clipboard:write` (optional) |
-| `php-tools/` | PHP Tools | web | `clipboard:write` (optional) |
-| `compression/` | Compression | web | `clipboard:write`, `files:save` (both optional) |
-| `curl-to-code/` | cURL to Code | web | `clipboard:write` (optional) |
-| `certificate-decoder/` | X.509 Certificate Decoder | web | `clipboard:write` (optional) |
-| `html-preview/` | HTML Preview | web | none |
-| `code-formatter/` | Code Formatter | web | `clipboard:write` (optional) |
-| `semver/` | Semver Calculator | web | `clipboard:write` (optional) |
-| `xml-inspector/` | XML Inspector | web | `clipboard:write`, `files:save` (both optional) |
-| `asn1-inspector/` | ASN.1 Inspector | web | `clipboard:write` (optional) |
-| `mermaid-renderer/` | Mermaid Renderer | web | `clipboard:write`, `files:save` (both optional) |
-| `image-converter/` | Image Converter | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
-| `qr-reader/` | QR Reader | web | `clipboard:write` (optional) |
-| `image-metadata/` | Image Metadata Cleaner | web+wasm (jSquash codecs in a worker) | `clipboard:write`, `files:save` (both optional) |
-| `video-metadata/` | Video Metadata Cleaner | web | `clipboard:write`, `files:save` (both optional) |
-| `secret-redactor/` | Secret & PII Redactor | web | `clipboard:write` (optional) |
-| `token-counter/` | Token Counter | web | `clipboard:write` (optional) |
-| `ai-text-cleaner/` | AI Text Cleaner | web | `clipboard:write` (optional) |
-| `pdf-organizer/` | PDF Organizer | web | `files:open`, `files:save` (both optional) |
+| [Hash Generator](hash-generator/) | Hash text and files with a Rust/WASM engine. | Web + WASM | `FO, CW` |
+| [Bcrypt Generator](bcrypt-generator/) | Generate bcrypt password hashes locally. | Web | `CW` |
+| [Checksum](checksum/) | Calculate CRC checksums and work with Luhn digits. | Web | `CW` |
+| [Key Pair Generator](key-generator/) | Create RSA, ECDSA and Ed25519 keys. | Web | `CW, FS` |
+| [Password Generator](password-generator/) | Generate passwords and passphrases. | Web | `CW` |
+| [Random String](random-string/) | Generate configurable random strings. | Web | `CW` |
+| [X.509 Certificate Decoder](certificate-decoder/) | Inspect certificates, CSRs and chains. | Web | `CW` |
+| [ASN.1 Inspector](asn1-inspector/) | Explore DER/BER data as a structured tree. | Web | `CW` |
+| [Secret & PII Redactor](secret-redactor/) | Mask sensitive text before sharing it with AI tools. | Web | `CW` |
 
-Most of these used to be built into Shard. Their ids are the old tool ids, so a pin, a recent
-entry or a link from an older version works again once the plugin is installed. A paste in Shard that fits one
-of them (a UUID, a cron expression, a color) suggests "Install <tool>" while it is not installed.
+</details>
 
-Copying needs `clipboard:write`. Cron Calculator and Color Palette only copy on request, so they run without it and
-a refused copy shows a notice in the app. Markdown's job is copying the Markdown and the HTML, so it asks for it.
-Color Palette keeps its recent colors with `sdk.storage` (the frame has no `localStorage`).
+<details>
+<summary><strong>APIs, data & code (14)</strong></summary>
 
-In each folder, `npm test` runs the plugin's tests (the shard repo's `npm test` runs them too).
-Hash Generator's hashing is a Rust crate in `hash-generator/wasm/`: `npm run test:wasm` runs its tests, and
-`npm run build:wasm` rebuilds `public/hash.wasm` from it (needs `rustup target add wasm32-unknown-unknown`).
-Commit the rebuilt `hash.wasm`: the release workflow does not run Rust.
+| Plugin | What it does | Runtime | Permissions |
+| --- | --- | --- | --- |
+| [API Formatter](api-formatter/) | Format JSON and convert URL-encoded API data. | Web | `CW` |
+| [Base64](base64/) | Encode/decode Base64 and Base32 data. | Web | `CW, FS` |
+| [CSV to JSON](csv-json/) | Convert tabular CSV data into JSON. | Web | `CW, FS` |
+| [Config Converter](yaml-json/) | Convert configuration data formats. | Web | `CW` |
+| [cURL to Code](curl-to-code/) | Turn cURL commands into code snippets. | Web | `CW` |
+| [Code Formatter](code-formatter/) | Beautify or minify common code formats. | Web | `CW` |
+| [HTML to JSX](html-to-jsx/) | Transform HTML markup into JSX. | Web | `CW` |
+| [PHP Tools](php-tools/) | Convert PHP serialized data and arrays. | Web | `CW` |
+| [XML Inspector](xml-inspector/) | Inspect and work with XML documents. | Web | `CW, FS` |
+| [HAR Viewer](har-viewer/) | Inspect HTTP Archive request/response files. | Web | `CW, FS` |
+| [Semver Calculator](semver/) | Compare versions and inspect version ranges. | Web | `CW` |
+| [Number Base](number-base/) | Convert binary, octal, decimal and hex values. | Web | `CW` |
+| [URL Encoder](url-encoder/) | Encode, decode and inspect URL components. | Web | `CW` |
+| [Escape Tools](escape-tools/) | Escape or unescape text for different formats. | Web | `CW` |
 
-## Repository commands
+</details>
 
-Install [Go Task v3](https://taskfile.dev/docs/installation) and Node/npm. Run `task` for help and `task plugins` to list plugin IDs. Commands run from the repository root, including when invoked inside a plugin folder.
+<details>
+<summary><strong>Text, writing & AI workflows (7)</strong></summary>
 
-```sh
-task install -- pdf-organizer   # npm ci when a lockfile exists, npm install otherwise
-task dev -- pdf-organizer       # Vite development server
-task build -- pdf-organizer     # dist/ plus release ZIP and SHA-256
-task test -- pdf-organizer      # unit/component tests
+| Plugin | What it does | Runtime | Permissions |
+| --- | --- | --- | --- |
+| [Markdown](markdown/) | Edit Markdown with a sanitized HTML preview. | Web | `CW!` |
+| [AI Text Cleaner](ai-text-cleaner/) | Clean up AI-generated text. | Web | `CW` |
+| [Token Counter](token-counter/) | Count or estimate AI model tokens and costs. | Web | `CW` |
+| [Case Converter](case-converter/) | Change casing and generate slugs. | Web | `CW` |
+| [String Inspector](string-inspector/) | Inspect strings and their properties. | Web | `CW` |
+| [Line Tools](line-tools/) | Process lines; run regex operations in a worker. | Web | `CW` |
+| [Lorem Ipsum](lorem-generator/) | Generate placeholder text. | Web | `CW` |
+
+</details>
+
+<details>
+<summary><strong>PDFs, images & visual tools (10)</strong></summary>
+
+| Plugin | What it does | Runtime | Permissions |
+| --- | --- | --- | --- |
+| [PDF Organizer](pdf-organizer/) | Reorder, merge, split, rotate and export PDF pages. | Web | `FO, FS` |
+| [Image Converter](image-converter/) | Convert, resize and compress images locally. | Web + WASM | `CW, FS` |
+| [Image Metadata Cleaner](image-metadata/) | Remove image metadata and create clean copies. | Web + WASM | `CW, FS` |
+| [Video Metadata Cleaner](video-metadata/) | Inspect and clean video metadata. | Web | `CW, FS` |
+| [QR Generator](qr-generator/) | Generate QR codes and save PNG/SVG files. | Web | `CW, FS` |
+| [QR Reader](qr-reader/) | Read QR code contents. | Web | `CW` |
+| [Color Palette](color-palette/) | Explore colors, palettes and contrast. | Web | `CW` |
+| [HTML Preview](html-preview/) | Preview HTML content. | Web | `—` |
+| [SVG to CSS](svg-to-css/) | Turn SVG assets into CSS-ready output. | Web | `CW` |
+| [Mermaid Renderer](mermaid-renderer/) | Render diagrams and export SVG/PNG. | Web | `CW, FS` |
+
+</details>
+
+<details>
+<summary><strong>Time, dates & scheduling (6)</strong></summary>
+
+| Plugin | What it does | Runtime | Permissions |
+| --- | --- | --- | --- |
+| [Cron Calculator](cron-calculator/) | Understand cron expressions and upcoming runs. | Web | `CW` |
+| [Timestamp](timestamp/) | Work with Unix timestamps. | Web | `CW` |
+| [Date Difference](date-difference/) | Calculate the difference between dates. | Web | `—` |
+| [Date Format Translator](date-format/) | Translate date formatting tokens. | Web | `CW` |
+| [Stopwatch](stopwatch/) | Measure elapsed time and export results. | Web | `CW, FS` |
+| [Time Zone Converter](time-zone-converter/) | Convert time between zones. | Web | `CW` |
+
+</details>
+
+<details>
+<summary><strong>Networking & everyday utilities (5)</strong></summary>
+
+| Plugin | What it does | Runtime | Permissions |
+| --- | --- | --- | --- |
+| [IP / CIDR Calculator](ip-cidr/) | Calculate and inspect IP networks and ranges. | Web | `CW` |
+| [chmod Calculator](chmod-calculator/) | Build Unix file permission settings. | Web | `CW` |
+| [Unit Converter](unit-converter/) | Convert length, mass, temperature and data units. | Web | `—` |
+| [Compression](compression/) | Compress or decompress GZIP/zlib/deflate data. | Web | `CW, FS` |
+| [UUID Generator](uuid-generator/) | Generate UUIDs. | Web | `CW` |
+
+</details>
+
+**About permissions:** Most tools only request optional clipboard access to copy results. [Markdown](markdown/) requires `clipboard:write`, because copying output is a core part of its functionality. The PDF Organizer requests optional file-open and file-save access. To see the precise permission reasons, open each plugin's [`public/plugin.json`](pdf-organizer/public/plugin.json) (PDF Organizer shown as an example). See [Shard's permission documentation](https://github.com/kinan9011/shard/blob/main/docs/plugins/permissions.md) for how approvals and network host restrictions work.
+
+## How the plugin system works
+
+Each plugin is a self-contained **HTML, JavaScript and CSS** app, optionally using WebAssembly. Shard loads it in a sandboxed frame and exposes an SDK for approved operations such as opening a user-selected file, writing to the clipboard, showing a toast or storing small amounts of local state. A plugin does **not** get unrestricted desktop or filesystem access.
+
+```text
+shard-plugins/
+├── index.json                 # Official catalog consumed by Shard
+├── index.json.sig             # Catalog signature file
+├── <plugin-id>/              # Self-contained Vite plugin project
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── src/
+│   ├── public/plugin.json   # Manifest and requested permissions
+│   └── public/CHANGELOG.md
+├── shared/                    # Code used when porting Shard tools
+├── scripts/plugin-index.mjs   # Updates catalog records from ZIPs
+├── Taskfile.yml               # Developer tasks
+└── .github/workflows/release.yml
+```
+
+The app reads the [catalog](index.json). The release process packages plugin files into ZIPs, produces SHA-256 checksums and updates catalog entries. Shard checks package integrity when installing. See the [catalog format](https://github.com/kinan9011/shard/blob/main/docs/plugins/index-format.md), [manifest format](https://github.com/kinan9011/shard/blob/main/docs/plugins/manifest.md) and [SDK reference](https://github.com/kinan9011/shard/blob/main/packages/plugin-sdk/README.md).
+
+### Privacy and permissions, without the marketing fog
+
+A sandbox limits access to host APIs. Plugins declare permissions in their manifest and Shard enforces grants at the SDK boundary. The supported capabilities include clipboard read/write, user-selected file open/save, per-plugin storage and **network requests restricted to approved hosts**. Storage is available per plugin with a 1 MB quota. In general, tools can function without their optional permissions, but individual actions—such as copying or exporting—may require one.
+
+**Local-first is not a blanket security guarantee.** Review a plugin's source and manifest before entering sensitive data, especially for third-party plugins. Offline processing should not be confused with installation or updates, which require downloading packages. [Read the permission specification](https://github.com/kinan9011/shard/blob/main/docs/plugins/permissions.md).
+
+## Build a plugin
+
+Want a developer tool Shard doesn't have yet? You can build one with standard web technologies and the [Shard Plugin SDK](https://github.com/kinan9011/shard/blob/main/packages/plugin-sdk/README.md).
+
+**Requirements:** Node.js and npm; the specific Node.js minimum depends on the plugin (PDF Organizer requires Node.js 22.13+). [Go Task v3](https://taskfile.dev/docs/installation) is optional but recommended for running common repository commands.
+
+1. Clone this repository. Obtain the [plugin template](https://github.com/kinan9011/shard/tree/main/packages/plugin-sdk/template) from the main Shard repository and copy it to a new `<plugin-id>/` folder here. IDs must be unique, 2–64 characters long, using lowercase letters, digits and dashes.
+2. Edit `public/plugin.json`: `id`, `name`, `description`, `category`, `icon`, `runtime` (`web`, `wasm` or `web+wasm`) and `permissions`. Every requested permission needs a human-readable `reason`. Set the corresponding `name` and `version` in `package.json`.
+3. Implement the tool in `src/App.tsx`. Use the SDK and app theme tokens for a consistent experience.
+4. Install dependencies and test locally:
+
+   ```bash
+   cd <plugin-id>
+   npm install
+   npm run dev
+   npm test
+   npm run build
+   ```
+
+   The browser dev server can preview the interface, but SDK calls are not connected to Shard there; you'll see **Not connected** for host-dependent actions.
+5. Test it in the desktop app: **Plugins → Install from folder**, then select `dist/` (or the packaged ZIP in `release/`). Sideloading requires enabling **Allow installs from outside these repositories** in Shard's settings.
+
+The build produces:
+
+- `dist/` — the deployable app (`plugin.json`, `index.html`, assets, etc.).
+- `release/<id>-<version>.zip` — the packaged plugin.
+- `release/<id>-<version>.zip.sha256` — its SHA-256 checksum.
+
+The plugin must bundle the SDK file it needs (`src/shard-sdk.ts`); it cannot import files from outside its own package at runtime. Update that copy when the SDK changes.
+
+### Repository commands
+
+Run these from the repository root after installing dependencies for your chosen plugin. Replace `pdf-organizer` with another ID from `task plugins`.
+
+```bash
+task                       # List tasks
+task plugins               # List plugin IDs and versions
+task install -- pdf-organizer
+task dev -- pdf-organizer
+task test -- pdf-organizer
 task typecheck -- pdf-organizer
-task check -- pdf-organizer     # typecheck, tests, then build; stops on failure
-task browser -- pdf-organizer   # built-package smoke; build and install Chromium first
-task test:tasks                 # regression checks for the Task commands
+task build -- pdf-organizer
+task check -- pdf-organizer # Typecheck, test, build
+task browser -- pdf-organizer
+task test:tasks
 ```
 
-`task build PLUGIN=pdf-organizer` is equivalent to `task build -- pdf-organizer`. Substitute any ID from `task plugins`; browser tests run only when that plugin defines `test:browser`. Install dependencies before running the other commands. PDF Organizer browser tests also need `cd pdf-organizer && npx playwright install chromium`. Tasks reuse each plugin's npm scripts; a build writes its existing `dist/` and `release/` outputs. Node requirements follow the selected plugin (PDF Organizer requires Node 22.13+). Hash Generator's optional Rust rebuild remains `cd hash-generator && npm run build:wasm`.
+`task build PLUGIN=pdf-organizer` is also supported. Browser tests only work for plugins that define `test:browser` (currently PDF Organizer); install Chromium first with `cd pdf-organizer && npx playwright install chromium`. The commands reuse each plugin's own npm scripts.
 
-## Porting a tool from the app
+<details>
+<summary><strong>Advanced: Port a built-in Shard tool</strong></summary>
 
-Most tools that were built into Shard are being moved here. `shared/` is what they need from the app, on top of the SDK:
+Some tools were originally bundled with Shard and moved into plugins. Keeping their existing IDs allows pins, recent entries and older links to work again after installation. When Shard recognizes pasted content belonging to an uninstalled tool, it can suggest installing that plugin.
 
-- `shared/components`, `hooks`, `lib`: files copied from the app (`ui/*`, `ToolWorkspace`, `ToolFaq`, `useDebouncedValue`, ...), plus an SDK-backed `CopyButton` and `lib/desktop.ts` (`saveFile`, clipboard through the host).
-- `shared/shims/sonner.ts`: `toast` shows the app's toast through `sdk.toast`.
-- `shared/storage-shim.ts`: the frame has no `localStorage`, so `mountTool` installs one that is saved in `sdk.storage` (one key, 1 MB).
-- `shared/bootstrap.tsx`: `mountTool(Tool, { form })` applies the app theme, pauses on `onVisibilityChange` (`useToolActive`) and wraps single-column tools like the app does.
-- `shared/lib/i18n.ts`, `i18n-common.ts`: the app language (see "Language" below).
-- `shared/tool.css`: the tool rules of the app's `index.css` (generated, without the app shell).
-- `shared/template/`: the config files every plugin gets.
+The repository's `shared/` directory helps port tools without copying the entire desktop app:
 
-`node scripts/port-tool.mjs <tool-id>` (`--app <shard repo>`, default `../../GitHub/devtools`) follows the tool's imports in the app and
-writes `<tool-id>/`: the files it needs at the same paths under `src/` (so the code needs no import changes), the `shared/` files it uses,
-the tests that cover it, `package.json` (dependencies with the app's versions), `public/plugin.json` and the config. Every plugin folder is
-self-contained, because the release workflow builds each one alone: `shared/` is copied in, not imported. Re-run the script with `--force`
-to refresh a port; it overwrites the folder. Afterwards write the `description` in `public/plugin.json` and run
-`npm install && npm test && npm run build`. Ported plugins keep the tool's old id.
+- `shared/components`, `shared/hooks`, `shared/lib` — adapted UI and utility code, including SDK-backed copy/save helpers.
+- `shared/shims/sonner.ts` — route toasts through `sdk.toast`.
+- `shared/storage-shim.ts` — local-storage compatibility backed by `sdk.storage` (1 MB per-plugin limit).
+- `shared/bootstrap.tsx` — `mountTool(Tool, { form })`, host theme, layout and visibility handling.
+- `shared/lib/i18n.ts` and `i18n-common.ts` — plugin localization and common text.
+- `shared/tool.css` — shared tool presentation without the desktop shell.
+- `shared/template/` — ported-tool configuration.
 
-## Language
+From the repository root:
 
-Every plugin follows the app language: English, German, Arabic, French, Spanish, Chinese, Japanese and Hebrew. The app sends `{ lang, dir }` in the
-handshake and when the user changes the language; `mountTool` (`followHostLocale` in `src/lib/i18n.ts`) applies it and sets `lang` and `dir` on `<html>`,
-because the app does not do that for plugin frames. Any other language, or an app without the locale calls, shows English.
-
-- A plugin's own strings live in `src/locales/{en,de,ar,fr,es,zh,ja,he}.ts`, flat `"area.thing": "text"` keys. `en.ts` is the source of truth (it types `t()`);
-  `tests/locales.test.ts` fails when a language lacks a key, has an extra one, changes a `{placeholder}`, or lacks `_other` for a plural family.
-- `useT()` in components, `import { t }` in utils (call it when the text is needed, never at module scope). `t("files", { count })` picks `files_one`/`files_other`
-  (Arabic needs `_zero`/`_one`/`_two`/`_few`/`_many`/`_other`, Hebrew `_one`/`_two`/`_other`, Japanese and Chinese `_other`). Shared button and panel text is in `shared/lib/i18n-common.ts`.
-- `formatNumber`/`formatDate` keep Latin digits in every language, like the app.
-- Right-to-left: use logical Tailwind classes (`ms-`, `pe-`, `start-`, `text-start`, ...) and `rtl:-scale-x-100` on arrows. Code, hashes and generated output stay `dir="ltr"`.
-- Try a language outside the app with `npm run dev` and `?lang=ar` (or `de`, `he`, `zh-CN`, ...).
-- Not translated: `public/plugin.json` (`name`, `description`, permission reasons), because the app does not read translated manifests yet.
-
-## Add a plugin
-
-1. Copy the template from the shard repo, `packages/plugin-sdk/template/`, to `<plugin-id>/`.
-   The id is lowercase letters, digits and dashes (2 to 64 characters) and must be unique.
-2. Edit `public/plugin.json`: `id`, `name`, `description`, `category`, `icon` (`lucide:<Name>` or a
-   file in `public/`), `runtime` (`web`, `wasm` or `web+wasm`) and `permissions`. Every permission
-   needs a `reason` the user will read. Set `name` and `version` in `package.json` as well.
-3. Build the tool in `src/App.tsx`, with its text in `src/locales/*.ts` (see "Language"). The template already connects to the host, applies the app's
-   theme (light, dark and color schemes) and styles with the app's Tailwind tokens, so
-   `bg-background`, `text-muted-foreground` and `rounded-lg` look like the rest of the app.
-4. `npm install`, then `npm run dev` for a quick look in a browser. Outside Shard there is no
-   host, so SDK calls fail and the page says "Not connected".
-5. To try it in the app: `npm run build`, then in Shard use **Plugins → Install from folder** and
-   pick `dist/` (or the zip from `release/`). Sideloads need the setting "Allow installs from outside
-   these repositories".
-
-`npm run build` writes:
-
-- `dist/`: the package contents (`plugin.json`, `index.html`, `assets/`, ...)
-- `release/<id>-<version>.zip`: `dist/` as a zip, the same bytes for the same files on any machine
-- `release/<id>-<version>.zip.sha256`: its SHA-256, the checksum Shard verifies
-
-Keep `src/shard-sdk.ts` as it is: it is a copy of the SDK, because a plugin can load only files
-from its own package. When the SDK changes, copy the new file over from the shard repo.
-
-## Release
-
-1. Raise `version` in `public/plugin.json` and `package.json` (semver) and add a `## <version>`
-   section to `public/CHANGELOG.md`. The first section becomes the update's changelog in the app.
-2. Merge to the default branch.
-3. Push a tag: `git tag v7 && git push origin v7`.
-
-The workflow builds the plugins whose files changed since the previous `v*` tag (all of them for the
-first tag), uploads their zips as assets of the tag's release and commits the new entries to
-`index.json`. A plugin whose version was not raised fails the run before anything is published.
-Versions are per plugin; the `v*` tag is only a release batch.
-
-To check the index step on your machine:
-
-```sh
-(cd <plugin-id> && npm run build)
-mkdir -p /tmp/zips && cp <plugin-id>/release/* /tmp/zips/
-node scripts/plugin-index.mjs --zips /tmp/zips --base-url https://example.com/dl --index /tmp/index.json --name Test
+```bash
+node scripts/port-tool.mjs <tool-id> --app <path-to-shard-repo>
 ```
 
-## index.json
+Without `--app`, the script uses the repository's existing default path (`../../GitHub/devtools`). It traces app imports, copies dependent code and tests and generates the plugin structure. Each plugin must remain self-contained because releases build it in isolation. `--force` refreshes a port **and overwrites its folder**: back up manual changes before using it.
 
-The format is described in
-[`docs/plugins/index-format.md`](https://github.com/kinan9011/shard/blob/main/docs/plugins/index-format.md).
-`scripts/plugin-index.mjs` fills `plugins` from the zips. It keeps everything else, so edit these by hand:
+After porting, write a useful `description` in `public/plugin.json`, then run `npm install`, `npm test` and `npm run build` in that plugin folder.
 
-- `name`: the repository's name in the app.
-- `bundles` (optional): named sets of plugin ids that the first-run screen of the Launcher layout offers,
-  for example `{ "id": "developer", "name": "Developer", "plugins": ["hash-generator", "uuid-generator"] }`.
-  Every id has to be listed in `plugins`.
+**Hash Generator exception:** Its Rust/WASM sources live in `hash-generator/wasm/`. To rebuild, install the `wasm32-unknown-unknown` Rust target, run `npm run test:wasm` and `npm run build:wasm` from `hash-generator/`, and commit the rebuilt `public/hash.wasm`. The release workflow does not compile Rust.
 
-`scripts/plugin-index.mjs` is a copy of the script in the shard repo (`scripts/plugin-index.mjs`).
-It has no dependencies.
+</details>
 
-## Releasing
+<details>
+<summary><strong>Advanced: Localization and right-to-left layout</strong></summary>
 
-1. In the repository settings, allow Actions to write to contents (the workflow asks for
-   `contents: write`) and make the repository public, so the app can read `index.json`.
-2. Push a tag to publish: `git tag v1 && git push origin v1`.
+Plugins follow Shard's app language: **English, German, Arabic, French, Spanish, Chinese, Japanese and Hebrew**. The host passes `{ lang, dir }` during the SDK handshake and on language changes; `mountTool` / `followHostLocale` updates the frame's `<html lang>` and `<html dir>`. Other languages fall back to English.
+
+- Put interface strings in `src/locales/{en,de,ar,fr,es,zh,ja,he}.ts`, using flat keys such as `"area.thing"`.
+- Treat `en.ts` as the type-checked source of truth. `tests/locales.test.ts` checks missing/extra keys, placeholders and plural forms.
+- Use `useT()` in components or `t()` in utilities when the string is needed, not at module scope.
+- Plural forms: Arabic needs `_zero`, `_one`, `_two`, `_few`, `_many`, `_other`; Hebrew needs `_one`, `_two`, `_other`; Japanese and Chinese use `_other`.
+- Use logical Tailwind classes (`ms-`, `pe-`, `start-`, `text-start`, etc.) for RTL interfaces; keep code and generated hashes `dir="ltr"`.
+- Test language presentation locally by loading the dev server with `?lang=ar`, `?lang=he` or another locale.
+
+Manifest names, descriptions and permission reasons in `public/plugin.json` are not translated by the app yet.
+
+</details>
+
+## Contributing and support
+
+Found a bug, have a useful plugin idea, or want to improve an existing one? [Open an issue](https://github.com/kinan9011/shard-plugins/issues) or [propose a pull request](https://github.com/kinan9011/shard-plugins/pulls).
+
+For a smooth review, include what the plugin does, screenshots for UI changes, requested permissions and why they're needed, test coverage and changelog/version updates when applicable. Keep runtime dependencies inside the plugin's package and do not introduce network permissions unless the feature requires them.
+
+- **Shard desktop app:** [github.com/kinan9011/shard](https://github.com/kinan9011/shard)
+- **Plugin SDK:** [SDK documentation](https://github.com/kinan9011/shard/blob/main/packages/plugin-sdk/README.md)
+- **Issues and requests:** [shard-plugins issues](https://github.com/kinan9011/shard-plugins/issues)
+- **Releases:** [shard-plugins releases](https://github.com/kinan9011/shard-plugins/releases)
+
+---
+
+**The tools you need. The workflow you want. All inside Shard.**
